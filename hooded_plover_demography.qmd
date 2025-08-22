@@ -1914,7 +1914,6 @@ BSC_nest_data_issues %>%
 saveWorkbook(BSC_nest_issues, here("data/nest_issues_commented/BSC_nest_data_issues_220825.xlsx"), overwrite = TRUE)
 ```
 
-
 #### Import data
 ```{r}
 nest_data_BSC <-
@@ -5207,7 +5206,7 @@ saveRDS(nest_survival_BSC, file = "output/nest_survival_BSC_threats&status_22082
 # Results
 model selection results
 ```{r}
-nest_survival_FP <- readRDS(file = "output/nest_survival_FP_threats&status_200825.rds")
+nest_survival_FP <- readRDS(file = "output/nest_survival_FP_threats&status_220825.rds")
 nest_survival_run_FP <- nest_survival_FP$model_selection
 
 nest_survival_run_FP$model.table %>% 
@@ -5237,7 +5236,7 @@ nest_survival_run_FP$model.table %>%
               row_group.font.size = 12,
               table.width = pct(80))
 
-nest_survival_MP <- readRDS(file = "output/nest_survival_MP_threats&status_200825.rds")
+nest_survival_MP <- readRDS(file = "output/nest_survival_MP_threats&status_220825.rds")
 nest_survival_run_MP <- nest_survival_MP$model_selection
 
 nest_survival_run_MP$model.table %>% 
@@ -5267,7 +5266,7 @@ nest_survival_run_MP$model.table %>%
               row_group.font.size = 12,
               table.width = pct(80))
 
-nest_survival_BSC <- readRDS(file = "output/nest_survival_BSC_threats&status_200825.rds")
+nest_survival_BSC <- readRDS(file = "output/nest_survival_BSC_threats&status_220825.rds")
 nest_survival_run_BSC <- nest_survival_BSC$model_selection
 
 nest_survival_run_BSC$model.table %>% 
