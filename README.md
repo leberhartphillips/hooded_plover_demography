@@ -11,7 +11,7 @@
 
 ✉ For correspondence regarding the data and code in this repository and the study system, please
 contact: Luke
-(<a href= "mailto:luke.eberhart@bi.mpg.de">luke.eberhart[at]bi.mpg.de</a>), Mike (<a href= "mailto:mike.weston@deakin.edu.au">mike.weston[at]deakin.edu.au</a>), or Grainne ((<a href= "mailto:grainne.maguire@birdlife.org.au]">grainne.maguire[at]birdlife.org.au]</a>)
+(<a href= "mailto:luke.eberhart@bi.mpg.de">luke.eberhart[at]bi.mpg.de</a>), Mike (<a href= "mailto:mike.weston@deakin.edu.au">mike.weston[at]deakin.edu.au</a>), or Grainne (<a href= "mailto:grainne.maguire@birdlife.org.au]">grainne.maguire[at]birdlife.org.au]</a>)
 
 In this repository you can find all the raw data and code needed to
 reproduce our investigation evaluating the effects of management on nest and chick survival of Hooded Plovers 
