@@ -198,7 +198,7 @@ nest_import <-
              nest_ID = `Nest ID`,
              nest_hab = `Nest habitat`,
              management_status = `Nest managed?`,
-             management_type = `Management type`,
+             management_type = `Nest management type`,
              nest_lat = `Nest latitude`,
              nest_lon = `Nest longitude`,
              chick_1st_ob = which(names(file) %in% c("Date chicks sighted", "Chicks first obsv date"))[1],
