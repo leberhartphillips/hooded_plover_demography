@@ -225,7 +225,7 @@ nest_import <-
       # wrangle: if date last alive is "Unk." make it "NA"
       mutate(last_alive = ifelse(str_detect(last_alive, "Unk."), NA, last_alive),
              # change Fate to 1 or 0 (1 = failed, 0 = hatched, NA = unknown)
-             Fate = ifelse(Fate == "Y", 0, 
+             Fate = ifelse((Fate == "Y" | Fate == "SUSPECT"), 0, 
                            ifelse(Fate == "N", 1, 
                                   ifelse(Fate == "UNK", NA, "XXX")))) %>%
       # remove nests without Fate information
@@ -1606,7 +1606,6 @@ nest_data_FP <-
 ```
 
 ### Bellarine / Surf Coast
-junk
 #### Flag potential issues in data
 As above, first we import the data and run a few checks to assess if there are any rows with the issues listed above
 ```{r}
