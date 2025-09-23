@@ -195,7 +195,7 @@ nest_import <-
              season = Season,
              # site = Site,
              site = `Suggested update to site name`,
-             nest_ID = `Nest ID`,
+             nest_ID = `Nest ID_2`,
              nest_hab = `Nest habitat`,
              management_status = `Nest managed?`,
              management_type = `Nest management type`,
@@ -392,7 +392,7 @@ First we import the data and run a few checks to assess if there are any rows wi
 
 7.  Nest managed? is not Y or N
 
-8.  Nest habitat is not Beach, Dune, Foredune/face, Estuary/spit, or Rocks
+8.  Nest habitat is not Beach, Dune, Foredune/face, or Estuary/spit
 
 9.  Management type is not sufficient for making levels
 
@@ -473,7 +473,7 @@ suppressMessages(
          nest_ID = `Nest ID`,
          nest_hab = `Nest habitat`,
          management_status = `Nest managed?`,
-         management_type = `Management type`,
+         management_type = `Nest management type`,
          nest_lat = `Nest latitude`,
          nest_lon = `Nest longitude`,
          state_1st_ob = `Age stage first observed`) %>% 
@@ -636,8 +636,8 @@ suppressMessages(
   mutate(issue5 = ifelse(is.na(last_alive), "last seen alive date missing; ", NA)) %>% 
   mutate(issue6 = ifelse(is.na(last_checked), "last checked date missing; ", NA)) %>% 
   mutate(issue7 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>% 
-  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit", "rocks"), 
-                         "Nest habitat is not beach, dune, foredune/face, estuary/spit, or rocks; ", NA)) %>% 
+  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit"), 
+                         "Nest habitat is not beach, dune, foredune/face, or estuary/spit; ", NA)) %>%
   mutate(issue9 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
   mutate(found_and_alive_diff = last_alive2 - first_found2) %>% 
   mutate(issue10 = ifelse(found_and_alive_diff > 40 , "Double check dates because incubation time greater than 40 days; ", NA)) %>% 
@@ -813,7 +813,7 @@ nest_data_MP <-
          management_status = as.factor(management_status)) %>% 
   filter(!is.na(FirstFound) & !is.na(LastPresent) & !is.na(LastChecked)) %>% 
   filter(management_status %in% c("Y", "N")) %>% 
-  filter(nest_hab %in% c("beach", "dune", "foredune/face", "estuary/spit", "rocks")) %>%
+  filter(nest_hab %in% c("beach", "dune", "foredune/face", "estuary/spit")) %>%
   filter(!is.na(management_level)) %>% # drops 5 nests that have permanentfence in beach or foredune habitat OR have only a nondogssign
   mutate(region = "MP") %>% 
   mutate(site = as.factor(site)) %>%
@@ -1081,7 +1081,7 @@ suppressMessages(
          nest_ID = `Nest ID`,
          nest_hab = `Nest habitat`,
          management_status = `Nest managed?`,
-         management_type = `Management type`,
+         management_type = `Nest management type`,
          nest_lat = `Nest latitude`,
          nest_lon = `Nest longitude`,
          state_1st_ob = `Age stage first observed`) %>% 
@@ -1244,8 +1244,8 @@ suppressMessages(
   mutate(issue5 = ifelse(is.na(last_alive), "last seen alive date missing; ", NA)) %>% 
   mutate(issue6 = ifelse(is.na(last_checked), "last checked date missing; ", NA)) %>% 
   mutate(issue7 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>% 
-  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit", "rocks"), 
-                         "Nest habitat is not beach, dune, foredune/face, estuary/spit, or rocks; ", NA)) %>% 
+  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit"), 
+                         "Nest habitat is not beach, dune, foredune/face, or estuary/spit; ", NA)) %>%
   mutate(issue9 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
   mutate(found_and_alive_diff = last_alive2 - first_found2) %>% 
   mutate(issue10 = ifelse(found_and_alive_diff > 40 , "Double check dates because incubation time greater than 40 days; ", NA)) %>% 
@@ -1405,7 +1405,7 @@ nest_data_FP <-
          management_status = as.factor(management_status)) %>% 
   filter(!is.na(FirstFound) & !is.na(LastPresent) & !is.na(LastChecked)) %>% 
   filter(management_status %in% c("Y", "N")) %>% 
-  filter(nest_hab %in% c("beach", "dune", "foredune/face", "estuary/spit", "rocks")) %>%
+  filter(nest_hab %in% c("beach", "dune", "foredune/face", "estuary/spit")) %>%
   filter(!is.na(management_level)) %>% # drops 20 nests
   mutate(region = "FP") %>% 
   mutate(site = as.factor(site)) %>%
@@ -1677,7 +1677,7 @@ suppressMessages(
          nest_ID = `Nest ID`,
          nest_hab = `Nest habitat`,
          management_status = `Nest managed?`,
-         management_type = `Management type`,
+         management_type = `Nest management type`,
          nest_lat = `Nest latitude`,
          nest_lon = `Nest longitude`,
          state_1st_ob = `Age stage first observed`) %>% 
@@ -1840,8 +1840,8 @@ suppressMessages(
   mutate(issue5 = ifelse(is.na(last_alive), "last seen alive date missing; ", NA)) %>% 
   mutate(issue6 = ifelse(is.na(last_checked), "last checked date missing; ", NA)) %>% 
   mutate(issue7 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>% 
-  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit", "rocks"), 
-                         "Nest habitat is not beach, dune, foredune/face, estuary/spit, or rocks; ", NA)) %>% 
+  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit"), 
+                         "Nest habitat is not beach, dune, foredune/face, or estuary/spit; ", NA)) %>%
   mutate(issue9 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
   mutate(found_and_alive_diff = last_alive2 - first_found2) %>% 
   mutate(issue10 = ifelse(found_and_alive_diff > 40 , "Double check dates because incubation time greater than 40 days; ", NA)) %>% 
@@ -2015,7 +2015,7 @@ nest_data_BSC <-
          management_status = as.factor(management_status)) %>% 
   filter(!is.na(FirstFound) & !is.na(LastPresent) & !is.na(LastChecked)) %>% 
   filter(management_status %in% c("Y", "N")) %>% 
-  filter(nest_hab %in% c("beach", "dune", "foredune/face", "estuary/spit", "rocks")) %>%
+  filter(nest_hab %in% c("beach", "dune", "foredune/face", "estuary/spit")) %>%
   filter(!is.na(management_level)) %>% # drops 5 nests that have permanentfence in beach or foredune habitat OR have only a nondogssign
   mutate(region = "BSC") %>% 
   mutate(site = as.factor(site)) %>%
@@ -2213,6 +2213,625 @@ BSC_nests_with_issues %>% select(issues, season, site)
 nest_data_BSC <- 
   nest_data_BSC %>% 
   filter(nest_ID %!in% BSC_nests_with_issues$nest_ID)
+```
+### Bass Coast
+#test
+
+#### Flag potential issues in data
+As above, first we import the data and run a few checks to assess if there are any rows with the issues listed above
+```{r}
+BC_nest_data_issues <- 
+suppressMessages(
+  bind_rows(
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2024", "_", str_sub("2025", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2023", "_", str_sub("2024", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2022", "_", str_sub("2023", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2021", "_", str_sub("2022", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2020", "_", str_sub("2021", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2019", "_", str_sub("2020", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2018", "_", str_sub("2019", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2017", "_", str_sub("2018", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2016", "_", str_sub("2017", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2015", "_", str_sub("2016", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2014", "_", str_sub("2015", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2013", "_", str_sub("2014", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2012", "_", str_sub("2013", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2011", "_", str_sub("2012", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2010", "_", str_sub("2011", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2009", "_", str_sub("2010", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2008", "_", str_sub("2009", 3, 4)), 
+             col_types = "text", na = "n/a"),
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2007", "_", str_sub("2008", 3, 4)), 
+             col_types = "text", na = "n/a"), 
+  read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+             sheet = paste0("BC", " ", "2006", "_", str_sub("2007", 3, 4)), 
+             col_types = "text", na = "n/a")))%>% 
+    filter(!is.na(Season)) %>% 
+  rename(first_found = 13,
+         last_alive = 33,
+         last_checked = 39,
+         Fate = `Hatch?`,
+         season = Season,
+         # site = Site,
+         site = `Suggested update to site name`,
+         nest_ID = `Nest ID`,
+         nest_hab = `Nest habitat`,
+         management_status = `Nest managed?`,
+         management_type = `Nest management type`,
+         nest_lat = `Nest latitude`,
+         nest_lon = `Nest longitude`,
+         state_1st_ob = `Age stage first observed`) %>% 
+  rename(
+    chick_1st_ob = !!names(.)[which(names(.) %in% c("Date chicks sighted", "Chicks first obsv date"))][1],
+    clutch_comp  = !!names(.)[which(names(.) %in% c("Known clutch complete date", "Known laying date"))][1]
+  ) %>% 
+  # chick_1st_ob = which(names(.) %in% c("Date chicks sighted", "Chicks first obsv date"))[1],
+  # clutch_comp = which(names(.) %in% c("Known clutch complete date", "Known laying date"))) %>% 
+  dplyr::select(season, site, nest_ID, first_found, last_alive, last_checked, Fate, nest_hab, 
+                management_status, management_type, nest_lat, nest_lon, site,
+                chick_1st_ob, clutch_comp, state_1st_ob) %>%
+  mutate(Fate = ifelse(Fate == "?", "Unk", Fate)) %>% 
+  mutate(Fate = toupper(Fate)) %>% 
+  filter(
+    is.na(first_found) | 
+      grepl("^\\s*-?\\d+(\\.\\d+)?\\s*$", first_found)
+  ) %>%
+  mutate(last_checked = ifelse(!is.na(last_checked) & !grepl("^\\s*-?\\d+(\\.\\d+)?\\s*$", last_checked), 
+                               NA, last_checked)) %>% 
+  mutate(last_alive = ifelse(!is.na(last_alive) & !grepl("^\\s*-?\\d+(\\.\\d+)?\\s*$", last_alive), 
+                             NA, last_alive)) %>% 
+  mutate(last_alive = ifelse(str_detect(last_alive, "Unk."), NA, last_alive),
+         Fate = ifelse(Fate == "Y", 0, 
+                       ifelse(Fate == "N", 1, 
+                              ifelse(Fate == "UNK", NA, "XXX")))) %>%
+  # remove nests without Fate information
+  filter(Fate %in% c("0", "1")) %>% 
+  mutate(chick_1st_ob = case_when(
+    # Excel serial dates stored as numbers
+    str_detect(chick_1st_ob, "^[0-9]+$") ~ as.Date(as.numeric(chick_1st_ob), origin = "1899-12-30"),
+    
+    # Dates with extra text in parentheses — extract only the date part
+    str_detect(chick_1st_ob, "^\\d{1,2}/\\d{1,2}/\\d{2,4}") ~ suppressWarnings(
+      dmy(str_extract(chick_1st_ob, "^\\d{1,2}/\\d{1,2}/\\d{2,4}"))
+    ),
+    
+    # Everything else (including "Unk", "Failed during laying") → NA
+    TRUE ~ as.Date(NA)
+  ), 
+  clutch_comp =  case_when(
+    # Excel serial dates stored as numbers
+    str_detect(clutch_comp, "^[0-9]+$") ~ as.Date(as.numeric(clutch_comp), origin = "1899-12-30"),
+    
+    # Dates with extra text in parentheses — extract only the date part
+    str_detect(clutch_comp, "^\\d{1,2}/\\d{1,2}/\\d{2,4}") ~ suppressWarnings(
+      dmy(str_extract(clutch_comp, "^\\d{1,2}/\\d{1,2}/\\d{2,4}"))
+    ),
+    
+    # Everything else (including "Unk", "Failed during laying") → NA
+    TRUE ~ as.Date(NA)
+  )) %>%
+  # if the clutch completion date is NA, then estimate it as 35 days before estimated hatch date
+  # using the date of first chick observation and the size of the chicks when seen
+  mutate(clutch_comp = ifelse(!is.na(clutch_comp), clutch_comp, 
+                              ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob),
+                                     ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 35,
+                                            ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 35,
+                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19 - 35,
+                                                          ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 35,
+                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 35,
+                                                                        ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 35, NA)))))), 
+                                     ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date()) %>% 
+  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
+                              ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
+                                     ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
+                                            ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
+                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19,
+                                                          ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30,
+                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35,
+                                                                        ifelse(state_1st_ob == "wet in nest", chick_1st_ob, NA)))))), 
+                                     ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob) & is.na(last_alive), NA, NA))) %>% as.Date()) %>% 
+  # mutate(last_alive2 = ifelse(Fate == 0 & !is.na(chick_1st_ob) & last_alive2 > chick_1st_ob, chick_1st_ob, last_alive2) %>% as.Date()) %>% 
+  mutate(last_alive = ifelse(!is.na(last_alive2), 
+                             paste0(str_sub(as.character(last_alive2), 9, 10),
+                                    str_sub(as.character(last_alive2), 6, 7),
+                                    str_sub(as.character(last_alive2), 1, 4)), last_alive)) %>% 
+  mutate(
+    last_checked = ifelse(!is.na(last_alive) & is.na(last_checked),
+                          last_alive,
+                          ifelse(is.na(last_alive) & is.na(last_checked),
+                                 first_found, last_checked))) %>%
+  mutate(
+    last_alive = ifelse(is.na(last_alive) & Fate == "0" & !is.na(last_checked),
+                        last_checked,
+                        ifelse(is.na(last_alive) & Fate == "1" & !is.na(last_checked),
+                               first_found,
+                               last_alive))) %>%
+  filter(
+    (is.na(last_alive) | nchar(last_alive) == 8) &
+      (is.na(first_found) | nchar(first_found) == 8) &
+      (is.na(last_checked) | nchar(last_checked) == 8)
+  ) %>% 
+  mutate(first_found2 = as.Date(paste(str_sub(first_found, 5, 8),
+                                      str_sub(first_found, 3, 4),
+                                      str_sub(first_found, 1, 2), sep = "-")),
+         last_alive2 = as.Date(paste(str_sub(last_alive, 5, 8),
+                                     str_sub(last_alive, 3, 4),
+                                     str_sub(last_alive, 1, 2), sep = "-")),
+         last_checked2 = as.Date(paste(str_sub(last_checked, 5, 8),
+                                       str_sub(last_checked, 3, 4),
+                                       str_sub(last_checked, 1, 2), sep = "-"))) %>% 
+  mutate(last_checked2 = ifelse(!is.na(last_alive2) & !is.na(last_checked2) & last_checked2 < last_alive2, 
+                                last_alive2, last_checked2) %>% as.Date()) %>% 
+  mutate(first_found2 = ifelse(!is.na(clutch_comp) & ((last_alive2 - first_found2) > 40 | (last_alive2 - first_found2) < 0)
+                               & ((last_alive2 - clutch_comp) < 40 | (last_alive2 - clutch_comp) > 0), 
+                               clutch_comp, first_found2) %>% as.Date()) %>% 
+  mutate(FirstFound = as.numeric(format(first_found2 + 180, "%j")),
+         LastPresent = as.numeric(format(last_alive2 + 180, "%j")),
+         LastChecked = as.numeric(format(last_checked2 + 180, "%j"))) %>% 
+  # mutate(FirstFound = ((as.integer(format(first_found2, "%j")) -
+  #                         as.integer(format(as.Date("2001-06-01"), "%j")) + 1) %% 365) %>%
+  #          replace(. == 0, 365),#as.numeric(format(first_found2 + 180, "%j")),
+  #        LastPresent = ((as.integer(format(last_alive2, "%j")) -
+  #                          as.integer(format(as.Date("2001-06-01"), "%j")) + 1) %% 365) %>%
+  #          replace(. == 0, 365),#as.numeric(format(last_alive2 + 180, "%j")),
+  #        LastChecked = ((as.integer(format(last_checked2, "%j")) -
+  #                          as.integer(format(as.Date("2001-06-01"), "%j")) + 1) %% 365) %>%
+  #          replace(. == 0, 365)) %>% #as.numeric(format(last_checked2 + 180, "%j"))) %>% 
+  mutate(management_type = tolower(management_type)) %>%
+  mutate(nest_hab = tolower(nest_hab)) %>%
+  mutate(management_type = str_replace(management_type, "acess", "access")) %>%
+  mutate(management_type = str_replace(management_type, "and", ",")) %>%
+  mutate(management_type = str_replace(management_type, "temporary", "")) %>%
+  mutate(management_type = str_replace_all(management_type, " ", "")) %>%
+  mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
+  mutate(management_type = str_replace_all(management_type, "banners", "")) %>%
+  mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
+  mutate(sign_access = ifelse(str_detect(management_type, "signaccess"), 1, 0)) %>%
+  mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
+  mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
+  mutate(perm_fence = ifelse(str_detect(management_type, "permanentfence"), 1, 0)) %>% # & nest_hab == "dune", 1, 0)) %>%
+  mutate(wardens = ifelse(str_detect(management_type, "wardens"), 1, 0)) %>% 
+  mutate(none = ifelse(str_detect(management_type, "none"), 1, 
+                       ifelse(is.na(management_type) & management_status == "N", 1, 0))) %>%
+  mutate(other = ifelse(str_detect(management_type, "other"), 1, 0)) %>%
+  mutate(management_level = ifelse((sign_access == 1 | perm_fence == 1) & sign_nest == 1 & rope_fence == 1 & wardens == 1, 4,
+                                   ifelse(rope_fence == 1, 3,
+                                          ifelse(sign_nest == 1, 2,
+                                                 ifelse(sign_access == 1 | perm_fence == 1, 1,
+                                                        ifelse(none == 1, 0, NA)))))) %>%
+  mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
+  mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
+  mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
+  mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
+  mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
+  dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
+                -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
+  group_by(season) %>%
+  mutate(nocc = max(max(LastChecked, na.rm = TRUE), max(LastPresent, na.rm = TRUE)),
+         season = as.factor(season),
+         nest_hab = as.factor(nest_hab),
+         management_status = as.factor(management_status)) %>% 
+  mutate(region = "MP") %>%
+  mutate(site = as.factor(site)) %>%
+  mutate(issue1 = ifelse(nchar(first_found) != 8, "found date is not 8 characters; ", NA)) %>% 
+  mutate(issue2 = ifelse(nchar(last_alive) != 8, "last seen alive date is not 8 characters; ", NA)) %>% 
+  mutate(issue3 = ifelse(nchar(last_checked) != 8, "last checked date is not 8 characters; ", NA)) %>% 
+  mutate(issue4 = ifelse(is.na(first_found), "found date missing; ", NA)) %>% 
+  mutate(issue5 = ifelse(is.na(last_alive), "last seen alive date missing; ", NA)) %>% 
+  mutate(issue6 = ifelse(is.na(last_checked), "last checked date missing; ", NA)) %>% 
+  mutate(issue7 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>% 
+  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit"), 
+                         "Nest habitat is not beach, dune, foredune/face, or estuary/spit; ", NA)) %>% 
+  mutate(issue9 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
+  mutate(found_and_alive_diff = last_alive2 - first_found2) %>% 
+  mutate(issue10 = ifelse(found_and_alive_diff > 40 , "Double check dates because incubation time greater than 40 days; ", NA)) %>% 
+  mutate(issue11 = ifelse(first_found2 > last_alive2, "Found date is after Last Alive date (should be greater or equal); ", NA)) %>% 
+  mutate(issue12 = ifelse(first_found2 > last_checked2, "Found date is after Last Checked date (should be greater or equal); ", NA)) %>%
+  mutate(issue13 = ifelse(last_checked2 < last_alive2, "Last Checked date is before Last Alive date (should be greater or equal); ", NA)) %>% 
+  mutate(issues = ifelse(is.na(issue1) & is.na(issue2) & is.na(issue3) & 
+                           is.na(issue4) & is.na(issue5) & is.na(issue6) & 
+                           is.na(issue7) & is.na(issue8) & is.na(issue9) & 
+                           is.na(issue10) & is.na(issue11) & is.na(issue12) & is.na(issue13), NA, 
+                         paste0(issue1, issue2, issue3, 
+                                issue4, issue5, issue6, 
+                                issue7, issue8, issue9,
+                                issue10, issue11, issue12, issue13))) %>% 
+  mutate(issues = str_remove_all(issues, "NA")) %>% 
+  mutate(issues = ifelse(is.na(issues), "usable", issues)) %>% 
+  dplyr::select(-issue1, -issue2, -issue3, 
+                -issue4, -issue5, -issue6, 
+                -issue7, -issue8, -issue9, 
+                -issue10, -issue11, -issue12, -issue13) %>% 
+  filter(issues != "usable") %>%
+  arrange(issues)
+```
+
+#### all issues (probably most of these can't be resolved)
+```{r}
+# Create a new workbook to store issues as two sheets
+BC_nest_issues <- createWorkbook()
+
+# Add all_issues sheet
+addWorksheet(BC_nest_issues, "all_issues")
+
+# view issues interactively in RStudio Viewer
+BC_nest_data_issues %>%
+  datatable(class = 'cell-border stripe', rownames = FALSE, filter = 'top')
+
+# write BSC_nest_data_check
+writeData(BC_nest_issues, sheet = "all_issues", BC_nest_data_issues)
+```
+
+#### date-specific issues (probably most of these CAN be resolved)
+```{r}
+# Add date_issues
+addWorksheet(BC_nest_issues, "date_issues")
+
+# there are some blank (but non-NA) observations of management_type
+BC_nest_data_issues %>% filter(is.na(management_type))
+
+# view issues interactively in RStudio Viewer
+BC_nest_data_issues %>% 
+  filter(first_found != "Not found" & last_alive != "Not seen" & last_checked != "Not seen" & last_checked != "Not revisited") %>%
+  filter(str_detect(issues, "date")) %>%
+  mutate(issues = str_remove_all(issues, "Management type is not sufficient for making levels; ")) %>%
+  mutate(issues = str_remove_all(issues, "Nest habitat is not beach, dune, foredune/face, estuary/spit, or rocks; ")) %>%
+  dplyr::select(season, nest_ID, nest_hab, first_found, first_found2, last_alive, last_alive2, last_checked, last_checked2, 
+                Fate, found_and_alive_diff, issues)  %>%
+  datatable(class = 'cell-border stripe', rownames = FALSE, filter = 'top')
+
+# write BC_nest_data_check
+BC_nest_data_issues %>% 
+  filter(first_found != "Not found" & last_alive != "Not seen" & last_checked != "Not seen" & last_checked != "Not revisited") %>%
+  filter(str_detect(issues, "date")) %>%
+  mutate(issues = str_remove_all(issues, "Management type is not sufficient for making levels; ")) %>%
+  mutate(issues = str_remove_all(issues, "Nest habitat is not Beach, Dune, Foredune/face, or Estuary/spit; ")) %>%
+  dplyr::select(season, nest_ID, first_found, first_found2, last_alive, last_alive2, last_checked, last_checked2, 
+                Fate, found_and_alive_diff, issues) %>% 
+  writeData(BC_nest_issues, sheet = "date_issues", .)
+
+# Save the workbook
+saveWorkbook(BC_nest_issues, here("data/nest_issues_commented/BC_nest_data_issues_220825.xlsx"), overwrite = TRUE)
+```
+
+#### Import data
+```{r}
+nest_data_BC <-
+  bind_rows(
+    nest_import(year_1 = "2024", year_2 = "2025", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2023", year_2 = "2024", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+   nest_import(year_1 = "2022", year_2 = "2023", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+   nest_import(year_1 = "2021", year_2 = "2022", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2020", year_2 = "2021", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2019", year_2 = "2020", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2018", year_2 = "2019", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2017", year_2 = "2018", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2016", year_2 = "2017", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                       last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2015", year_2 = "2016", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2014", year_2 = "2015", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2013", year_2 = "2014", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2012", year_2 = "2013", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2011", year_2 = "2012", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2010", year_2 = "2011", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
+    nest_import(year_1 = "2009", year_2 = "2010", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 12, 
+                        last_alive_date_col = 30, 
+                        last_checked_col = 36),
+    nest_import(year_1 = "2008", year_2 = "2009", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 12, 
+                        last_alive_date_col = 30, 
+                        last_checked_col = 36),
+    nest_import(year_1 = "2007", year_2 = "2008", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2006", year_2 = "2007", 
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
+                        first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35)) %>% 
+  group_by(season) %>% 
+  mutate(nocc = max(max(LastChecked, na.rm = TRUE), max(LastPresent, na.rm = TRUE)),
+         season = as.factor(season),
+         nest_hab = as.factor(nest_hab),
+         management_status = as.factor(management_status)) %>% 
+  filter(!is.na(FirstFound) & !is.na(LastPresent) & !is.na(LastChecked)) %>% 
+  filter(management_status %in% c("Y", "N")) %>% 
+  filter(nest_hab %in% c("beach", "dune", "foredune/face", "estuary/spit")) %>%
+  filter(!is.na(management_level)) %>% # 
+  mutate(region = "BC") %>% 
+  mutate(site = as.factor(site)) %>%
+  group_by(season, site) %>%
+  arrange(first_found2, .by_group = TRUE) %>%
+  mutate(rank = row_number()) %>%
+  ungroup() %>%
+  mutate(nest_ID_new = paste(season, site, rank, sep = "_")) %>% 
+  ungroup()
+```
+
+#### Visual inspections of data
+```{r}
+nest_data_BC_check <-
+  nest_data_BC %>% 
+  ungroup() %>% 
+  mutate(first_found2_md = paste(format(first_found2 + 180, format = "%m"),
+                                 format(first_found2 + 180, format = "%d"),
+                                 sep = "-"),
+         last_alive2_md = paste(format(last_alive2 + 180, format = "%m"),
+                                format(last_alive2 + 180, format = "%d"),
+                                sep = "-"),
+         last_checked2_md = paste(format(last_checked2 + 180, format = "%m"),
+                                  format(last_checked2 + 180, format = "%d"),
+                                  sep = "-")) %>% 
+  mutate(first_found2_trans = as.Date(paste("2020", first_found2_md, sep = "-"), format = "%Y-%m-%d") - 179,
+         last_alive2_trans = as.Date(paste("2020", last_alive2_md, sep = "-"), format = "%Y-%m-%d") - 179,
+         last_checked2_trans = as.Date(paste("2020", last_checked2_md, sep = "-"), format = "%Y-%m-%d") - 179) %>% 
+  mutate(season_label = paste0("season ", str_sub(season, 1, 4), " to ", str_sub(season, 5, 6)))
+```
+
+##### Spatial distribution of data
+Note that this map only shows data that are in a decimal degrees format (e.g., `-38.31`), NOT degree minute seconds (e.g., `38 27.59`). The map is interactive, so click on an outlier to see its metadata
+```{r}
+nest_data_BC_sf <-
+  nest_data_BC %>% 
+  as.data.frame() %>% 
+  mutate(nest_lon = as.numeric(nest_lon),
+         nest_lat = as.numeric(nest_lat)) %>% 
+  filter(!is.na(nest_lon) & !is.na(nest_lat)) %>%
+  st_as_sf(coords = c("nest_lon", "nest_lat"), 
+           crs = 4326) %>% suppressWarnings()
+
+mapview(nest_data_BC_sf,
+        zcol = "season", 
+        popup = popupTable(nest_data_BC_sf,
+                           zcol = c("season",
+                                    "site",
+                                    "nest_ID")))
+```
+
+##### Year-specific Found Date Distributions
+```{r, fig.height=10}
+ggplot(nest_data_BC_check, aes(first_found2_trans, fill = Fate)) +
+  geom_histogram(bins = 30,
+                 alpha = 0.8, color = "white", linewidth = 0.2) +
+  scale_fill_manual(values = c("1" = brewer.pal(8, "Set1")[c(1)], "0" = brewer.pal(8, "Set1")[c(2)]),
+                    name = "Nest Fate",
+                    labels = c("Hatched", "Failed")) +
+  ylab("weekly number of nests") +
+  scale_x_date(date_labels = "%B", 
+               # expand = c(0.01, 0.01), 
+               date_breaks = "1 months", limits = c(min(nest_data_BC_check$first_found2_trans, na.rm = TRUE), 
+                                                    max(nest_data_BC_check$last_checked2_trans, na.rm = TRUE))) +
+  facet_wrap("season_label") +
+  scale_y_continuous(limits = c(0, 12), breaks = c(2, 4, 6, 8, 10)) +
+  luke_theme +
+  xlab("Found date") +
+  theme(legend.position = "top",
+        panel.grid.major = element_line(colour = "grey70", 
+                                        size = 0.15),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+```
+
+##### Year-specific Last Alive Date Distributions
+```{r, fig.height=10}
+ggplot(nest_data_BC_check, aes(last_alive2_trans, fill = as.factor(Fate))) +
+  geom_histogram(bins = 30,
+                 alpha = 0.8, color = "white", linewidth = 0.2) +
+  scale_fill_manual(values = c("1" = brewer.pal(8, "Set1")[c(1)], "0" = brewer.pal(8, "Set1")[c(2)]),
+                    name = "Nest Fate",
+                    labels = c("Hatched", "Failed")) +
+  ylab("weekly number of nests") +
+  scale_x_date(date_labels = "%B", 
+               expand = c(0.01, 0.01), 
+               date_breaks = "1 months", limits = c(min(nest_data_BC_check$first_found2_trans, na.rm = TRUE), 
+                                                    max(nest_data_BC_check$last_checked2_trans, na.rm = TRUE))) +
+  facet_wrap("season_label") +
+  scale_y_continuous(limits = c(0, 12), breaks = c(2, 4, 6, 8, 10, 12)) +
+  luke_theme +
+  xlab("Last alive date") +
+  theme(legend.position = "top",
+        panel.grid.major = element_line(colour = "grey70", 
+                                        size = 0.15),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+```
+
+##### Year-specific Last Checked Date Distributions
+```{r, fig.height=10}
+ggplot(nest_data_BC_check, aes(last_checked2_trans, fill = as.factor(Fate))) +
+  geom_histogram(bins = 30,
+                 alpha = 0.8, color = "white", linewidth = 0.2) +
+  scale_fill_manual(values = c("1" = brewer.pal(8, "Set1")[c(1)], "0" = brewer.pal(8, "Set1")[c(2)]),
+                    name = "Nest Fate",
+                    labels = c("Hatched", "Failed")) +
+  ylab("weekly number of nests") +
+  scale_x_date(date_labels = "%B",
+               expand = c(0.01, 0.01),
+               date_breaks = "1 months", limits = c(min(nest_data_BC_check$first_found2_trans, na.rm = TRUE),
+                                                    max(nest_data_BC_check$last_checked2_trans, na.rm = TRUE))) +
+  facet_wrap("season_label") +
+  scale_y_continuous(limits = c(0, 12), breaks = c(2, 4, 6, 8, 10, 12)) +
+  luke_theme +
+  xlab("Last checked date") +
+  theme(legend.position = "top",
+        panel.grid.major = element_line(colour = "grey70", 
+                                        size = 0.15),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+```
+
+##### Tally number of nests per year in the dataset
+```{r}
+nest_data_BC_check %>% 
+  group_by(season) %>% 
+  summarise(n())
+
+nest_data_BC_check %>% 
+  summarise(n())
+```
+
+
+##### Incubation length distribution
+```{r}
+# assess if there are nests with unusually long incubation periods
+nest_data_BC_check %>% 
+  mutate(found_and_alive_diff = last_alive2 - first_found2) %>%
+  arrange(desc(found_and_alive_diff)) %>% 
+  filter(first_found2 < last_alive2 & first_found2 < last_checked2 & found_and_alive_diff < 100) %>% 
+  ggplot() +
+  geom_histogram(aes(found_and_alive_diff)) +
+  luke_theme +
+  xlab("Time between found date and last alive date (days)") +
+  ylab("Frquency of nests")
+```
+
+```{r, echo=FALSE}
+#### Date issues
+
+# check if there are any data in which the last alive date is a) beyond the nocc, b) less than 1, or c) NA 
+filter(nest_data_BC, LastPresent > nocc | LastPresent < 1 | is.na(LastPresent)) # should be nothing if correct
+# check if there are any data in which the found date is a) beyond the nocc, or b) less than 1
+filter(nest_data_BC, FirstFound > nocc | FirstFound < 1) # should be nothing if correct
+# check if there are any data in which the found date is a) after the last alive or b) after the last checked date 
+filter(nest_data_BC, FirstFound > LastPresent | FirstFound > LastChecked)  # should be nothing if correct
+
+# extract nests with issues
+BC_nests_with_issues <- 
+  nest_data_BC %>% 
+  mutate(issue1 = ifelse(nchar(first_found) != 8, "found date is not 8 characters; ", NA)) %>% 
+  mutate(issue2 = ifelse(nchar(last_alive) != 8, "last seen alive date is not 8 characters; ", NA)) %>% 
+  mutate(issue3 = ifelse(nchar(last_checked) != 8, "last checked date is not 8 characters; ", NA)) %>% 
+  mutate(issue4 = ifelse(is.na(first_found), "found date missing; ", NA)) %>% 
+  mutate(issue5 = ifelse(is.na(last_alive), "last seen alive date missing; ", NA)) %>% 
+  mutate(issue6 = ifelse(is.na(last_checked), "last checked date missing; ", NA)) %>% 
+  mutate(issue7 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>% 
+  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit"), "Nest habitat is not Beach, Dune, Foredune/face, or Estuary/spit; ", NA)) %>% 
+  mutate(issue9 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
+  mutate(found_and_alive_diff = last_alive2 - first_found2) %>% 
+  mutate(issue10 = ifelse(found_and_alive_diff > 41 , "Double check dates because incubation time greater than 41 days; ", NA)) %>% 
+  mutate(issue11 = ifelse(first_found2 > last_alive2, "Found date is after Last Alive date (should be greater or equal); ", NA)) %>% 
+  mutate(issue12 = ifelse(first_found2 > last_checked2, "Found date is after Last Checked date (should be greater or equal); ", NA)) %>%
+  mutate(issue13 = ifelse(last_checked2 < last_alive2, "Last Checked date is before Last Alive date (should be greater or equal); ", NA)) %>% 
+  mutate(issues = ifelse(is.na(issue1) & is.na(issue2) & is.na(issue3) & 
+                           is.na(issue4) & is.na(issue5) & is.na(issue6) & 
+                           is.na(issue7) & is.na(issue8) & is.na(issue9) & 
+                           is.na(issue10) & is.na(issue11) & is.na(issue12) & is.na(issue13), NA, 
+                         paste0(issue1, issue2, issue3, 
+                                issue4, issue5, issue6, 
+                                issue7, issue8, issue9,
+                                issue10, issue11, issue12, issue13))) %>% 
+  mutate(issues = str_remove_all(issues, "NA")) %>% 
+  mutate(issues = ifelse(is.na(issues), "usable", issues)) %>% 
+  dplyr::select(-issue1, -issue2, -issue3, 
+                -issue4, -issue5, -issue6, 
+                -issue7, -issue8, -issue9, 
+                -issue10, -issue11, -issue12, -issue13) %>% 
+  filter(issues != "usable") %>% #dplyr::select(nest_ID, issues) %>% 
+  arrange(issues)
+
+# see a table of the types of issues (5 with incubation > 35 days and 1 with Found date is after Last Alive date)
+BC_nests_with_issues %>% pull(issues) %>% table()
+BC_nests_with_issues %>% select(issues, season, site)
+
+# remove nests with issues
+nest_data_BC <- 
+  nest_data_BC %>% 
+  filter(nest_ID %!in% BC_nests_with_issues$nest_ID)
 ```
 
 ## Importing and checking threat data
