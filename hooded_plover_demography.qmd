@@ -6655,6 +6655,7 @@ hooded_plover_nest_plot_BSC
 
 ```{r}
 hatch_dates_BSC_MP_FP <- 
+  # NOTE: for MP need to use nest_ID "1" for chick data merge
   bind_rows(nest_data_BSC, nest_data_MP, nest_data_FP) %>% 
   filter(Fate == 0) %>% 
   mutate(hatch_date = ifelse(Fate == 0 & !is.na(clutch_comp), clutch_comp + 28, 
@@ -6663,7 +6664,7 @@ hatch_dates_BSC_MP_FP <-
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
                                                    ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19,
                                                           ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30,
-                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 28,
+                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob, NA)))))), 
                                      ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date())
 ```
@@ -6726,6 +6727,8 @@ MP_chick_data <-
                   n_chicks_seen, habitat, chick_age, management_type, lat, lon) %>%
     left_join(., hatch_dates_BSC_MP_FP %>% select(nest_ID, hatch_date), by = "nest_ID")
 
+### NOTE: proritise Nest data (clutch completion date)
+
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
   "1/3 adult size, fluffy" = -3,
@@ -6751,10 +6754,12 @@ MP_chick_data_clean_hatch_dates <-
   left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
   filter(hatch_date == hatch_date2 | (is.na(hatch_date) & !is.na(hatch_date2)))
 
+### NOTE: if nest based hatch dates do not match chick based dates, then use nest hatch dates
+
 #### assess errors in hatch dates ----
 # check for nest_IDs with differences in the two hatch_dates, these need to be checked
 MP_chick_data %>%
-  left_join(., na_hatch_dates, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
   select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
   distinct() %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date%>%
@@ -6795,7 +6800,7 @@ MP_chick_data_issues <-
   mutate(sign_access = ifelse(str_detect(management_type, "signaccess"), 1, 0)) %>%
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
-  mutate(perm_fence = ifelse(str_detect(management_type, "permanentfence"), 1, 0)) %>% # & nest_hab == "dune", 1, 0)) %>%
+  mutate(perm_fence = ifelse(str_detect(management_type, "permanentfence"), 1, 0)) %>%
   mutate(wardens = ifelse(str_detect(management_type, "wardens"), 1, 0)) %>% 
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type), 1, 0))) %>%
@@ -6847,10 +6852,15 @@ MP_chick_data_issues <-
 
 # view issues interactively in RStudio Viewer
 MP_chick_data_issues %>% 
-  filter(issues != "usable") %>%
+  filter(issues != "usable") %>% 
   dplyr::select(season, nest_ID, date, management_status, management_level, 
                 hatch_date, hatch_date2, hatch_date_diff, issues)  %>%
   datatable(class = 'cell-border stripe', rownames = FALSE, filter = 'top')
+
+MP_chick_data_issues %>% select(-c(date, management_status, management_level)) %>% 
+  distinct() %>% 
+  pull(issues) %>% 
+  table()
 ```
 
 ```{r}
@@ -6877,6 +6887,8 @@ MP_chick_data_clean <-
 ```
 
 ```{r}
+### NOTE: use the management status and type from the Nest data (see columns "Chick manged?" and "Chick management type")
+
 # assess how often management levels and status changed over the chick obs
 MP_chick_data_clean %>% 
   group_by(nest_ID) %>% 
@@ -7323,7 +7335,11 @@ ggplot() +
   geom_errorbar(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
               aes(x = mgmt_s, ymin = lcl, ymax = ucl, color = mgmt_s)) +
   ylab("daily brood survival") +
-  xlab("managed?")
+  xlab("managed?") +
+  scale_y_continuous(limits = c(0, 1))
+
+filter(Chick_mgmt_s_surv, X1 == "Phi") %>% 
+  mutate(fledgling_success = estimate^35)
 
 # seasonal dependent survival (hatch date)
 ggplot() +
