@@ -260,7 +260,7 @@ nest_import <-
       mutate(clutch_comp = ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob),
                                         ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 35,
                                                ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 35,
-                                                      ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19 - 35,
+                                                      ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19 - 35,
                                                              ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 35,
                                                                     ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 35,
                                                                            ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 35, NA)))))), 
@@ -271,7 +271,7 @@ nest_import <-
                                  ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                         ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                                ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
-                                                      ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19,
+                                                      ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19,
                                                              ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30,
                                                                     ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35,
                                                                            ifelse(state_1st_ob == "wet in nest", chick_1st_ob, NA)))))), 
@@ -470,7 +470,7 @@ suppressMessages(
          season = Season,
          # site = Site,
          site = `Suggested update to site name`,
-         nest_ID = `Nest ID`,
+         nest_ID = `Nest ID_2`,
          nest_hab = `Nest habitat`,
          management_status = `Nest managed?`,
          management_type = `Nest management type`,
@@ -526,22 +526,22 @@ suppressMessages(
     # Everything else (including "Unk", "Failed during laying") → NA
     TRUE ~ as.Date(NA)
   )) %>%
-  # if the clutch completion date is NA, then estimate it as 35 days before estimated hatch date
+  # if the clutch completion date is NA, then estimate it as 35 days before estimated hatch date #28 days incubation length
   # using the date of first chick observation and the size of the chicks when seen
   mutate(clutch_comp = ifelse(!is.na(clutch_comp), clutch_comp, 
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob),
-                                     ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 35,
-                                            ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 35,
-                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19 - 35,
-                                                          ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 35,
-                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 35,
-                                                                        ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 35, NA)))))), 
+                                     ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 28,
+                                            ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 28,
+                                                   ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19 - 28,
+                                                          ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 28,
+                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 28,
+                                                                        ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 28, NA)))))), 
                                      ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date()) %>% 
   mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
-                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19,
+                                                   ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19,
                                                           ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30,
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob, NA)))))), 
@@ -981,7 +981,7 @@ MP_nests_with_issues <-
   mutate(issue5 = ifelse(is.na(last_alive), "last seen alive date missing; ", NA)) %>% 
   mutate(issue6 = ifelse(is.na(last_checked), "last checked date missing; ", NA)) %>% 
   mutate(issue7 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>% 
-  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit", "rocks"), "Nest habitat is not Beach, Dune, Foredune/face, Estuary/spit, or Rocks; ", NA)) %>% 
+  mutate(issue8 = ifelse(nest_hab %!in% c("beach", "dune", "foredune/face", "estuary/spit"), "Nest habitat is not Beach, Dune, Foredune/face, or Estuary/spit; ", NA)) %>% 
   mutate(issue9 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
   mutate(found_and_alive_diff = last_alive2 - first_found2) %>% 
   mutate(issue10 = ifelse(found_and_alive_diff > 41 , "Double check dates because incubation time greater than 41 days; ", NA)) %>% 
@@ -1078,7 +1078,7 @@ suppressMessages(
          season = Season,
          # site = Site,
          site = `Suggested update to site name`,
-         nest_ID = `Nest ID`,
+         nest_ID = `Nest ID_2`,
          nest_hab = `Nest habitat`,
          management_status = `Nest managed?`,
          management_type = `Nest management type`,
@@ -1134,22 +1134,22 @@ suppressMessages(
     # Everything else (including "Unk", "Failed during laying") → NA
     TRUE ~ as.Date(NA)
   )) %>%
-  # if the clutch completion date is NA, then estimate it as 35 days before estimated hatch date
+  # if the clutch completion date is NA, then estimate it as 28 days before estimated hatch date
   # using the date of first chick observation and the size of the chicks when seen
   mutate(clutch_comp = ifelse(!is.na(clutch_comp), clutch_comp, 
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob),
-                                     ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 35,
-                                            ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 35,
-                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19 - 35,
-                                                          ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 35,
-                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 35,
-                                                                        ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 35, NA)))))), 
+                                     ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 28,
+                                            ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 28,
+                                                   ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19 - 28,
+                                                          ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 28,
+                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 28,
+                                                                        ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 28, NA)))))), 
                                      ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date()) %>% 
   mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
-                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19,
+                                                   ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19,
                                                           ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30,
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob, NA)))))), 
@@ -1235,7 +1235,7 @@ suppressMessages(
          season = as.factor(season),
          nest_hab = as.factor(nest_hab),
          management_status = as.factor(management_status)) %>% 
-  mutate(region = "MP") %>%
+  mutate(region = "FP") %>%
   mutate(site = as.factor(site)) %>%
   mutate(issue1 = ifelse(nchar(first_found) != 8, "found date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(nchar(last_alive) != 8, "last seen alive date is not 8 characters; ", NA)) %>% 
@@ -1299,7 +1299,7 @@ FP_nest_data_issues %>%
   filter(first_found != "Not found" & last_alive != "Not seen" & last_checked != "Not seen" & last_checked != "Not revisited") %>%
   filter(str_detect(issues, "date")) %>%
   mutate(issues = str_remove_all(issues, "Management type is not sufficient for making levels; ")) %>%
-  mutate(issues = str_remove_all(issues, "Nest habitat is not beach, dune, foredune/face, estuary/spit, or rocks; ")) %>%
+  mutate(issues = str_remove_all(issues, "Nest habitat is not beach, dune, foredune/face, or estuary/spit; ")) %>%
   dplyr::select(season, nest_ID, nest_hab, first_found, first_found2, last_alive, last_alive2, last_checked, last_checked2, 
                 Fate, found_and_alive_diff, issues)  %>%
   datatable(class = 'cell-border stripe', rownames = FALSE, filter = 'top')
@@ -1309,7 +1309,7 @@ FP_nest_data_issues %>%
   filter(first_found != "Not found" & last_alive != "Not seen" & last_checked != "Not seen" & last_checked != "Not revisited") %>%
   filter(str_detect(issues, "date")) %>%
   mutate(issues = str_remove_all(issues, "Management type is not sufficient for making levels; ")) %>%
-  mutate(issues = str_remove_all(issues, "Nest habitat is not Beach, Dune, Foredune/face, Estuary/spit, or Rocks; ")) %>%
+  mutate(issues = str_remove_all(issues, "Nest habitat is not Beach, Dune, Foredune/face, or Estuary/spit; ")) %>%
   dplyr::select(season, nest_ID, first_found, first_found2, last_alive, last_alive2, last_checked, last_checked2, 
                 Fate, found_and_alive_diff, issues) %>% 
   writeData(FP_nest_issues, sheet = "date_issues", .)
@@ -1674,7 +1674,7 @@ suppressMessages(
          season = Season,
          # site = Site,
          site = `Suggested update to site name`,
-         nest_ID = `Nest ID`,
+         nest_ID = `Nest ID_2`,
          nest_hab = `Nest habitat`,
          management_status = `Nest managed?`,
          management_type = `Nest management type`,
@@ -1730,22 +1730,22 @@ suppressMessages(
     # Everything else (including "Unk", "Failed during laying") → NA
     TRUE ~ as.Date(NA)
   )) %>%
-  # if the clutch completion date is NA, then estimate it as 35 days before estimated hatch date
+  # if the clutch completion date is NA, then estimate it as 28 days before estimated hatch date
   # using the date of first chick observation and the size of the chicks when seen
   mutate(clutch_comp = ifelse(!is.na(clutch_comp), clutch_comp, 
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob),
-                                     ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 35,
-                                            ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 35,
-                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19 - 35,
-                                                          ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 35,
-                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 35,
-                                                                        ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 35, NA)))))), 
+                                     ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 28,
+                                            ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 28,
+                                                   ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19 - 28,
+                                                          ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 28,
+                                                                 ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 28,
+                                                                        ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 28, NA)))))), 
                                      ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date()) %>% 
   mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
-                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19,
+                                                   ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19,
                                                           ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30,
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob, NA)))))), 
@@ -2350,7 +2350,7 @@ suppressMessages(
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 35,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 35,
-                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19 - 35,
+                                                   ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19 - 35,
                                                           ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 35,
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 35,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 35, NA)))))), 
@@ -2359,7 +2359,7 @@ suppressMessages(
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
-                                                   ifelse(state_1st_ob == "2/3 adult size, fluffy", chick_1st_ob - 19,
+                                                   ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19,
                                                           ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30,
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob, NA)))))), 
