@@ -174,7 +174,7 @@ This function imports the HOPL nest survival data stored as Excel sheets into R,
 
 ```{r}
 nest_import <-
-  function(year_1, year_2, file_name, site, extra_text = NULL, 
+  function(year_1, year_2, file_name, site, extra_text = NULL, Nest_ID_col_name = "Nest ID_2", 
            first_found_date_col, last_alive_date_col, last_checked_col) {
     if(is.null(extra_text)){
       file <- 
@@ -197,7 +197,7 @@ nest_import <-
              season = Season,
              # site = Site,
              site = `Suggested update to site name`,
-             nest_ID = `Nest ID_2`,
+             nest_ID = Nest_ID_col_name,
              nest_hab = `Nest habitat`,
              management_status = `Nest managed?`,
              management_type = `Nest management type`,
@@ -205,12 +205,14 @@ nest_import <-
              nest_lon = `Nest longitude`,
              chick_1st_ob = which(names(file) %in% c("Date chicks sighted", "Chicks first obsv date"))[1],
              clutch_comp = which(names(file) %in% c("Known clutch complete date", "Known laying date")),
-             state_1st_ob = `Age stage first observed`) %>% 
-      
+             state_1st_ob = `Age stage first observed`,
+             chick_management_status = which(names(file) %in% c("Chick manged?", "Chick managed?")),
+             chick_management_type = `Chick management type`) %>% 
       # consolidate columns
       dplyr::select(season, site, nest_ID, first_found, last_alive, last_checked, Fate, nest_hab, 
                     management_status, management_type, nest_lat, nest_lon,
-                    chick_1st_ob, clutch_comp, state_1st_ob) %>% 
+                    chick_1st_ob, clutch_comp, state_1st_ob, 
+                    chick_management_status, chick_management_type) %>% 
       
       # wrangle: clean up Fate column for consistency
       mutate(Fate = ifelse(Fate == "?", "Unk", as.character(Fate))) %>% 
@@ -722,92 +724,92 @@ nest_data_MP <-
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 13, 
                         last_alive_date_col = 33, 
-                        last_checked_col = 39),
+                        last_checked_col = 39, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2022", year_2 = "2023", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 13, 
                         last_alive_date_col = 33, 
-                        last_checked_col = 39),
+                        last_checked_col = 39, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2021", year_2 = "2022", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 13, 
                         last_alive_date_col = 33, 
-                        last_checked_col = 39),
+                        last_checked_col = 39, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2020", year_2 = "2021", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2019", year_2 = "2020", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2018", year_2 = "2019", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2017", year_2 = "2018", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2016", year_2 = "2017", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2015", year_2 = "2016", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2014", year_2 = "2015", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2013", year_2 = "2014", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2012", year_2 = "2013", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2011", year_2 = "2012", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2010", year_2 = "2011", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2009", year_2 = "2010", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2008", year_2 = "2009", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2007", year_2 = "2008", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36),
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID"),
     nest_import(year_1 = "2006", year_2 = "2007", 
                         file_name = "MP Nesting Summary All Years_19062025.xlsx", site = "MP",
                         first_found_date_col = 12, 
                         last_alive_date_col = 31, 
-                        last_checked_col = 36)) %>% 
+                        last_checked_col = 36, Nest_ID_col_name = "Nest ID")) %>% 
   group_by(season) %>% 
   mutate(nocc = max(max(LastChecked, na.rm = TRUE), max(LastPresent, na.rm = TRUE)),
          season = as.factor(season),
@@ -2229,7 +2231,7 @@ nest_data_BSC <-
 #### Flag potential issues in data
 As above, first we import the data and run a few checks to assess if there are any rows with the issues listed above
 ```{r}
-BC_nest_data_issues <- 
+BC_nest_data_issues <-
 suppressMessages(
   bind_rows(
   read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
@@ -2288,7 +2290,7 @@ suppressMessages(
              col_types = "text", na = "n/a"), 
   read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
              sheet = paste0("BC", " ", "2006", "_", str_sub("2007", 3, 4)), 
-             col_types = "text", na = "n/a")))%>% 
+             col_types = "text", na = "n/a"))) %>% 
     filter(!is.na(Season)) %>% 
   rename(first_found = 13,
          last_alive = 33,
@@ -9437,7 +9439,6 @@ hooded_plover_nest_plot_PI
 
 ```{r}
 hatch_dates_BSC_MP_FP_BC_PI <- 
-  # NOTE: for MP need to use nest_ID "1" for chick data merge
   bind_rows(nest_data_BSC, nest_data_MP, nest_data_FP, nest_data_BC, nest_data_PI) %>% 
   filter(Fate == "0") %>% 
   mutate(hatch_date = ifelse(Fate == "0" & !is.na(clutch_comp), clutch_comp + 28, 
@@ -9506,10 +9507,12 @@ MP_chick_data <-
            lon = `Observation Longitude`) %>% 
     mutate(season = str_sub(nest_ID, 1, 6)) %>% 
     dplyr::select(region, season, site, nest_ID, date, n_adults_seen, n_juvs_seen, 
-                  n_chicks_seen, habitat, chick_age, management_type, lat, lon) %>%
-    left_join(., hatch_dates_BSC_MP_FP %>% select(nest_ID, hatch_date), by = "nest_ID")
-
-### NOTE: proritise Nest data (clutch completion date)
+                  n_chicks_seen, habitat, chick_age, lat, lon) %>%
+    left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
+                select(nest_ID, hatch_date, chick_management_status, 
+                       chick_management_type), by = "nest_ID") %>% 
+  rename(management_type = chick_management_type,
+         management_status = chick_management_status)
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -9534,13 +9537,14 @@ hatch_dates_from_chick_data <- MP_chick_data %>%
 MP_chick_data_clean_hatch_dates <- 
   MP_chick_data %>%
   left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
-  filter(hatch_date == hatch_date2 | (is.na(hatch_date) & !is.na(hatch_date2)))
-
-### NOTE: if nest based hatch dates do not match chick based dates, then use nest hatch dates
+  filter(hatch_date == hatch_date2 | 
+           (is.na(hatch_date) & !is.na(hatch_date2)) | 
+           (!is.na(hatch_date) & is.na(hatch_date2)))
 
 #### assess errors in hatch dates ----
 # check for nest_IDs with differences in the two hatch_dates, these need to be checked
-MP_chick_data %>%
+MP_chick_data_clean_hatch_dates <- 
+  MP_chick_data %>%
   left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
   select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
   distinct() %>%
@@ -9550,26 +9554,14 @@ MP_chick_data %>%
   mutate(hatch_date_diff = hatch_date - hatch_date2) %>% 
   mutate(hatch_date_diff = ifelse(is.na(hatch_date_diff), 0, hatch_date_diff))  %>% 
   arrange(desc(abs(hatch_date_diff))) %>% 
-  filter(hatch_date_diff != 0 | is.na(hatch_date_diff) | (hatch_date == hatch_date2))
-
-MP_chick_data %>%
-  left_join(., na_hatch_dates, by = "nest_ID") %>% 
-  select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
-  distinct() %>%
-  mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date%>%
-  group_by(nest_ID) %>%
-  slice_min(order_by = date, n = 1, with_ties = FALSE) %>% 
-  mutate(hatch_date_diff = hatch_date - hatch_date2) %>% 
-  mutate(hatch_date_diff = ifelse(is.na(hatch_date_diff), 0, hatch_date_diff))  %>% 
-  arrange(desc(abs(hatch_date_diff))) %>%
-  pull(hatch_date_diff) %>%
-  as.numeric() %>%
-  hist(main = "Distribution of hatch_date_diff",
-       xlab = "Days difference")
+  filter(hatch_date_diff == 0 & 
+           (!is.na(hatch_date) & !is.na(hatch_date2)) | 
+           (is.na(hatch_date) & !is.na(hatch_date2)))
 
 #### wrangle management data ----
 MP_chick_data_issues <- 
   MP_chick_data %>% 
+  filter(nest_ID %in% MP_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
   mutate(habitat = tolower(habitat)) %>%
   mutate(management_type = str_replace(management_type, "acess", "access")) %>%
@@ -9585,7 +9577,7 @@ MP_chick_data_issues <-
   mutate(perm_fence = ifelse(str_detect(management_type, "permanentfence"), 1, 0)) %>%
   mutate(wardens = ifelse(str_detect(management_type, "wardens"), 1, 0)) %>% 
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
-                       ifelse(is.na(management_type), 1, 0))) %>%
+                       ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
   mutate(other = ifelse(str_detect(management_type, "other"), 1, 0)) %>%
   mutate(management_level = ifelse((sign_access == 1 | perm_fence == 1) & sign_nest == 1 & rope_fence == 1 & wardens == 1, 4,
                                    ifelse(rope_fence == 1, 3,
@@ -9649,7 +9641,7 @@ MP_chick_data_issues %>% select(-c(date, management_status, management_level)) %
 MP_chick_data_clean <-
   MP_chick_data_issues %>% 
   filter(issues == "usable") %>% 
-  mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
+  # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
   select(region, season, site, nest_ID, hatch_date, date, 
          n_adults_seen, n_juvs_seen, n_chicks_seen, lat, lon, 
@@ -9669,17 +9661,12 @@ MP_chick_data_clean <-
 ```
 
 ```{r}
-### NOTE: use the management status and type from the Nest data (see columns "Chick manged?" and "Chick management type")
-
 # assess how often management levels and status changed over the chick obs
 MP_chick_data_clean %>% 
   group_by(nest_ID) %>% 
   summarise(n_management_level = n_distinct(management_level),
-            n_management_status = n_distinct(management_status))
-
-# this one had dynamic management for example
-MP_chick_data_clean %>% 
-  filter(nest_ID == "201213_Koonya East_3") %>% View()
+            n_management_status = n_distinct(management_status)) %>% 
+  arrange(desc(n_management_level))
 ```
 
 ```{r}
@@ -9739,7 +9726,7 @@ MP_chick_ch <-
     remove = TRUE        # keep the original columns
   ) %>%
   filter(str_detect(ch, "1")) %>%
-  mutate(ch = paste0("1", ch)) %>% 
+  mutate(ch = paste0("1", str_sub(ch, start = 2, end = nchar(ch)))) %>% 
   mutate(hatch_date_j = as.numeric(format(hatch_date + 180, "%j"))) %>% 
   mutate(management_level_max = as.factor(management_level_max)) %>% 
   mutate(region = as.factor(region)) %>% 
@@ -9852,7 +9839,7 @@ saveRDS(MP_chicks_p_run, "output/MP_chicks_p_run.rds")
 MP_chicks_p_run <- readRDS("output/MP_chicks_p_run.rds")
 
 # Extract estimates of survival from top model
-Chick_p_reals <- MP_chicks_p_run[[8]]$results$real
+Chick_p_reals <- MP_chicks_p_run[[4]]$results$real
 
 # wrangle dataframe to get annual estimates (grouped by "Year")
 Groups <- data.frame(str_split_fixed(rownames(Chick_p_reals), " ", n = 5))
@@ -9977,57 +9964,61 @@ MP_chicks_Phi <- function()
   Phi.quadage.mgmt_s <-
     list(formula = ~Quadratic + mgmt_s)
 
-  # additive effect of hach date and age and management level
-  Phi.date.age.mgmt_l <-
-    list(formula = ~date_j + Time + mgmt_l)
-
-  # additive effect of hatch date and quadratic age and management level
-  Phi.date.quadage.mgmt_l <-
-    list(formula = ~date_j + Quadratic + mgmt_l)
+  # # additive effect of hach date and age and management level
+  # Phi.date.age.mgmt_l <-
+  #   list(formula = ~date_j + Time + mgmt_l)
+  # 
+  # # additive effect of hatch date and quadratic age and management level
+  # Phi.date.quadage.mgmt_l <-
+  #   list(formula = ~date_j + Quadratic + mgmt_l)
+  # 
+  # # interaction between hatch date and age and management level
+  # Phi.date.x.age.mgmt_l <-
+  #   list(formula = ~date_j * Time + mgmt_l)
+  # 
+  # # interaction between hatch date and quadratic age and management level
+  # Phi.date.x.quadage.mgmt_l <-
+  #   list(formula = ~date_j * Quadratic + mgmt_l)
+  # 
+  # # interaction between year and hatch date and management level
+  # Phi.season.x.date.mgmt_l <-
+  #   list(formula = ~season * date_j + mgmt_l)
+  # 
+  # # additive between year and hatch date and management level
+  # Phi.season.date.mgmt_l <-
+  #   list(formula = ~season + date_j + mgmt_l)
+  # 
+  # # additive effect of hach date and age and management status
+  # Phi.date.age.mgmt_s <-
+  #   list(formula = ~date_j + Time + mgmt_s)
+  # 
+  # # additive effect of hatch date and quadratic age and management status
+  # Phi.date.quadage.mgmt_s <-
+  #   list(formula = ~date_j + Quadratic + mgmt_s)
+  # 
+  # # interaction between hatch date and age and management status
+  # Phi.date.x.age.mgmt_s <-
+  #   list(formula = ~date_j * Time + mgmt_s)
+  # 
+  # # interaction between hatch date and quadratic age and management status
+  # Phi.date.x.quadage.mgmt_s <-
+  #   list(formula = ~date_j * Quadratic + mgmt_s)
+  # 
+  # # interaction between year and hatch date and management status
+  # Phi.season.x.date.mgmt_s <-
+  #   list(formula = ~season * date_j + mgmt_s)
+  # 
+  # # additive between year and hatch date and management status
+  # Phi.season.date.mgmt_s <-
+  #   list(formula = ~season + date_j + mgmt_s)
+  # 
+  # # best structure of p determined from previous analysis
+  # p.year.x.quadage <- 
+  #   list(formula = ~season * Quadratic)
   
-  # interaction between hatch date and age and management level
-  Phi.date.x.age.mgmt_l <-
-    list(formula = ~date_j * Time + mgmt_l)
-
-  # interaction between hatch date and quadratic age and management level
-  Phi.date.x.quadage.mgmt_l <-
-    list(formula = ~date_j * Quadratic + mgmt_l)
-
-  # interaction between year and hatch date and management level
-  Phi.season.x.date.mgmt_l <-
-    list(formula = ~season * date_j + mgmt_l)
-  
-  # additive between year and hatch date and management level
-  Phi.season.date.mgmt_l <-
-    list(formula = ~season + date_j + mgmt_l)
-  
-  # additive effect of hach date and age and management status
-  Phi.date.age.mgmt_s <-
-    list(formula = ~date_j + Time + mgmt_s)
-
-  # additive effect of hatch date and quadratic age and management status
-  Phi.date.quadage.mgmt_s <-
-    list(formula = ~date_j + Quadratic + mgmt_s)
-  
-  # interaction between hatch date and age and management status
-  Phi.date.x.age.mgmt_s <-
-    list(formula = ~date_j * Time + mgmt_s)
-
-  # interaction between hatch date and quadratic age and management status
-  Phi.date.x.quadage.mgmt_s <-
-    list(formula = ~date_j * Quadratic + mgmt_s)
-
-  # interaction between year and hatch date and management status
-  Phi.season.x.date.mgmt_s <-
-    list(formula = ~season * date_j + mgmt_s)
-  
-  # additive between year and hatch date and management status
-  Phi.season.date.mgmt_s <-
-    list(formula = ~season + date_j + mgmt_s)
-  
-  # best structure of p determined from previous analysis
-  p.year.x.quadage <- 
-    list(formula = ~season * Quadratic)
+    # best structure of p determined from previous analysis
+  p.quadage <- 
+    list(formula = ~Quadratic)
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
@@ -10055,10 +10046,14 @@ saveRDS(MP_chicks_Phi_run, "output/MP_chicks_Phi_run.rds")
 MP_chicks_Phi_run <- readRDS("output/MP_chicks_Phi_run.rds")
 
 # Extract estimates of survival from top models
-Chick_dot_surv <- MP_chicks_Phi_run[[21]]$results$real
-Chick_quadage_surv <- MP_chicks_Phi_run[[26]]$results$real
-Chick_hatch_date_surv <- MP_chicks_Phi_run[[10]]$results$real
-Chick_mgmt_s_surv <- MP_chicks_Phi_run[[23]]$results$real
+Chick_dot_surv <- MP_chicks_Phi_run[[13]]$results$real
+Chick_quadage_surv <- MP_chicks_Phi_run[[18]]$results$real
+Chick_hatch_date_surv <- MP_chicks_Phi_run[[8]]$results$real
+Chick_mgmt_s_surv <- MP_chicks_Phi_run[[15]]$results$real
+Chick_mgmt_l_surv <- MP_chicks_Phi_run[[14]]$results$real
+Chick_mgmt_s_x_quadage_surv <- MP_chicks_Phi_run[[20]]$results$real
+Chick_mgmt_s_quadage_surv <- MP_chicks_Phi_run[[17]]$results$real
+Chick_mgmt_l_quadage_surv <- MP_chicks_Phi_run[[16]]$results$real
 
 Groups <- data.frame(str_split_fixed(rownames(Chick_dot_surv), " ", n = 5))
 Chick_dot_surv <- cbind(Groups, Chick_dot_surv)
@@ -10083,6 +10078,30 @@ Chick_mgmt_s_surv <- cbind(Groups, Chick_mgmt_s_surv)
 Chick_mgmt_s_surv$season <- unlist(substr(Chick_mgmt_s_surv$X2, 2, 7))
 Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_surv$X4))
 Chick_mgmt_s_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_surv$X2, 11, 11))
+
+Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_surv), " ", n = 5))
+Chick_mgmt_l_surv <- cbind(Groups, Chick_mgmt_l_surv)
+Chick_mgmt_l_surv$season <- unlist(substr(Chick_mgmt_l_surv$X2, 2, 7))
+Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_surv$X4))
+Chick_mgmt_l_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_surv$X2, 10, 10))
+
+Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_quadage_surv), " ", n = 5))
+Chick_mgmt_s_quadage_surv <- cbind(Groups, Chick_mgmt_s_quadage_surv)
+Chick_mgmt_s_quadage_surv$season <- unlist(substr(Chick_mgmt_s_quadage_surv$X2, 2, 7))
+Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_quadage_surv$X4))
+Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_quadage_surv$X2, 11, 11))
+
+Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_x_quadage_surv), " ", n = 5))
+Chick_mgmt_s_x_quadage_surv <- cbind(Groups, Chick_mgmt_s_x_quadage_surv)
+Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
+Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_x_quadage_surv$X4))
+Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_x_quadage_surv$X2, 11, 11))
+
+Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_quadage_surv), " ", n = 5))
+Chick_mgmt_l_quadage_surv <- cbind(Groups, Chick_mgmt_l_quadage_surv)
+Chick_mgmt_l_quadage_surv$season <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 2, 7))
+Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_quadage_surv$X4))
+Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 10, 10))
 
 # constant survival
 ggplot() +
@@ -10110,6 +10129,33 @@ ggplot() +
   ylab("daily brood survival") +
   xlab("brood age (days)")
 
+# quadratic age-dependent survival and management status
+ggplot() +
+  geom_line(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+            aes(x = age, y = estimate, color = mgmt_s)) +
+  geom_ribbon(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
+  ylab("daily brood survival") +
+  xlab("brood age (days)")
+
+# quadratic age-dependent survival and management level
+ggplot() +
+  geom_line(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+            aes(x = age, y = estimate, color = mgmt_l)) +
+  geom_ribbon(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
+  ylab("daily brood survival") +
+  xlab("brood age (days)")
+
+# quadratic age-dependent survival and management status
+ggplot() +
+  geom_line(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
+            aes(x = age, y = estimate, color = mgmt_s)) +
+  geom_ribbon(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
+              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
+  ylab("daily brood survival") +
+  xlab("brood age (days)")
+
 # management status-dependent survival
 ggplot() +
   geom_point(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
@@ -10120,25 +10166,35 @@ ggplot() +
   xlab("managed?") +
   scale_y_continuous(limits = c(0, 1))
 
+# management level-dependent survival
+ggplot() +
+  geom_point(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
+            aes(x = mgmt_l, y = estimate, color = mgmt_l)) +
+  geom_errorbar(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
+              aes(x = mgmt_l, ymin = lcl, ymax = ucl, color = mgmt_l)) +
+  ylab("daily brood survival") +
+  xlab("managed?") +
+  scale_y_continuous(limits = c(0, 1))
+
 filter(Chick_mgmt_s_surv, X1 == "Phi") %>% 
   mutate(fledgling_success = estimate^35)
 
 # seasonal dependent survival (hatch date)
-ggplot() +
-  geom_line(data = Chick_p_reals, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = Chick_p_reals, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
-  scale_color_gradient(
-    low = "black",
-    high = "red",
-    name = "season"
-  ) +
-  scale_fill_gradient(
-    low = "black",
-    high = "red",
-    name = "season"
-  ) +
-  ylab("detection probability of a brood") +
-  xlab("brood age (days)")
+# ggplot() +
+#   geom_line(data = Chick_p_reals, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
+#   geom_ribbon(data = Chick_p_reals, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+#   scale_color_gradient(
+#     low = "black",
+#     high = "red",
+#     name = "season"
+#   ) +
+#   scale_fill_gradient(
+#     low = "black",
+#     high = "red",
+#     name = "season"
+#   ) +
+#   ylab("detection probability of a brood") +
+#   xlab("brood age (days)")
 ```
 
 ## Explore correlations between "Fun days" and the threats
