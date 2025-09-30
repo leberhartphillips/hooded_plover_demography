@@ -257,19 +257,19 @@ nest_import <-
           # Everything else (including "Unk", "Failed during laying") → NA
           TRUE ~ as.Date(NA)
         )) %>%
-      # if the clutch completion date is NA, then estimate it as 35 days before estimated hatch date
+      # if the clutch completion date is NA, then estimate it as 35 days before estimated hatch date - 28 days
       # using the date of first chick observation and the size of the chicks when seen
       mutate(clutch_comp = ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob),
-                                        ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 35,
-                                               ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 35,
-                                                      ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19 - 35,
-                                                             ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 35,
-                                                                    ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 35,
-                                                                           ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 35, NA)))))), 
+                                        ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3 - 28,
+                                               ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10 - 28,
+                                                      ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19 - 28,
+                                                             ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30 - 28,
+                                                                    ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 28,
+                                                                           ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 28, NA)))))), 
                                         ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA)) %>% as.Date()) %>%
       # specify the last_alive2 date for hatched nests as the estimated hatch date
       # using the date of first chick observation and the size of the chicks when seen
-      mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
+      mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 28,
                                  ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                         ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                                ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
@@ -539,7 +539,7 @@ suppressMessages(
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 28,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 28, NA)))))), 
                                      ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date()) %>% 
-  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
+  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 28,
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
@@ -1147,7 +1147,7 @@ suppressMessages(
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 28,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 28, NA)))))), 
                                      ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date()) %>% 
-  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
+  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 28,
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
@@ -1614,7 +1614,10 @@ As above, first we import the data and run a few checks to assess if there are a
 BSC_nest_data_issues <- 
 suppressMessages(
   bind_rows(
-  read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"), 
+   read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"), 
+             sheet = paste0("BSC", " ", "2024", "_", str_sub("2025", 3, 4)), 
+             col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"), 
              sheet = paste0("BSC", " ", "2023", "_", str_sub("2024", 3, 4)), 
              col_types = "text", na = "n/a"),
   read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"), 
@@ -1743,7 +1746,7 @@ suppressMessages(
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 28,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 28, NA)))))), 
                                      ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date()) %>% 
-  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
+  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 28,
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
@@ -1920,6 +1923,11 @@ saveWorkbook(BSC_nest_issues, here("data/nest_issues_commented/BSC_nest_data_iss
 ```{r}
 nest_data_BSC <-
   bind_rows(
+    nest_import(year_1 = "2024", year_2 = "2025", 
+                        file_name = "BSC Nesting Summaries_All years_17062025.xlsx", site = "BSC",
+                        first_found_date_col = 13, 
+                        last_alive_date_col = 31, 
+                        last_checked_col = 37),
     nest_import(year_1 = "2023", year_2 = "2024", 
                         file_name = "BSC Nesting Summaries_All years_17062025.xlsx", site = "BSC",
                         first_found_date_col = 13, 
@@ -2356,7 +2364,7 @@ suppressMessages(
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 28,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 28, NA)))))), 
                                      ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date()) %>% 
-  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
+  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 28,
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
@@ -2535,97 +2543,97 @@ saveWorkbook(BC_nest_issues, here("data/nest_issues_commented/BC_nest_data_issue
 nest_data_BC <-
   bind_rows(
     nest_import(year_1 = "2024", year_2 = "2025", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2023", year_2 = "2024", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
    nest_import(year_1 = "2022", year_2 = "2023", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
    nest_import(year_1 = "2021", year_2 = "2022", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2020", year_2 = "2021", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2019", year_2 = "2020", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2018", year_2 = "2019", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2017", year_2 = "2018", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2016", year_2 = "2017", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                        last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2015", year_2 = "2016", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2014", year_2 = "2015", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2013", year_2 = "2014", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2012", year_2 = "2013", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2011", year_2 = "2012", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
     nest_import(year_1 = "2010", year_2 = "2011", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 13, 
                         last_alive_date_col = 31, 
                         last_checked_col = 37),
      #nest_import(year_1 = "2009", year_2 = "2010", 
-                        #file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        #file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         #first_found_date_col = 12, 
                         #last_alive_date_col = 30, 
                         #last_checked_col = 36),
     nest_import(year_1 = "2008", year_2 = "2009", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 12, 
                         last_alive_date_col = 30, 
                         last_checked_col = 36),
     nest_import(year_1 = "2007", year_2 = "2008", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 11, 
                         last_alive_date_col = 29, 
                         last_checked_col = 35),
     nest_import(year_1 = "2006", year_2 = "2007", 
-                        file_name = "PI Nesting summaries.xlsx", site = "BC",
+                        file_name = "Bass Coast_nesting summaries.xlsx", site = "BC",
                         first_found_date_col = 11, 
                         last_alive_date_col = 29, 
                         last_checked_col = 35)) %>% 
@@ -2887,12 +2895,12 @@ suppressMessages(
              sheet = paste0("PI", " ", "2012", "_", str_sub("2013", 3, 4)), 
              col_types = "text", na = "n/a")))%>% 
     filter(!is.na(Season)) %>% 
-  rename(first_found = 13,
-         last_alive = 33,
-         last_checked = 39,
+  rename(first_found = 11,
+         last_alive = 29,
+         last_checked = 35,
          Fate = `Hatch?`,
          season = Season,
-         # site = Site,
+         #site = Site,
          site = `Suggested update to site name`,
          nest_ID = `Nest ID_2`,
          nest_hab = `Nest habitat`,
@@ -2961,7 +2969,7 @@ suppressMessages(
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35 - 28,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob - 28, NA)))))), 
                                      ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date()) %>% 
-  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 35,
+  mutate(last_alive2 = ifelse(Fate == 0 & !is.na(clutch_comp) & is.na(last_alive), clutch_comp + 28,
                               ifelse(Fate == 0 & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob) & is.na(last_alive),
                                      ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
                                             ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
@@ -3136,106 +3144,73 @@ saveWorkbook(PI_nest_issues, here("data/nest_issues_commented/PI_nest_data_issue
 
 #### Import data
 ```{r}
-## I can't get the 2009/10 season to import properly so have removed it for now. There is only 1 nest in this season. Are you able to fix this for me
 nest_data_PI <-
   bind_rows(
     nest_import(year_1 = "2024", year_2 = "2025", 
                         file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
+                        first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
     nest_import(year_1 = "2023", year_2 = "2024", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-   nest_import(year_1 = "2022", year_2 = "2023", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-   nest_import(year_1 = "2021", year_2 = "2022", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2020", year_2 = "2021", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2019", year_2 = "2020", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2018", year_2 = "2019", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2017", year_2 = "2018", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2016", year_2 = "2017", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                       last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2015", year_2 = "2016", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2014", year_2 = "2015", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2013", year_2 = "2014", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2012", year_2 = "2013", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2011", year_2 = "2012", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-    nest_import(year_1 = "2010", year_2 = "2011", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 13, 
-                        last_alive_date_col = 31, 
-                        last_checked_col = 37),
-     #nest_import(year_1 = "2009", year_2 = "2010", 
-                        #file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        #first_found_date_col = 12, 
-                        #last_alive_date_col = 30, 
-                        #last_checked_col = 36),
-    nest_import(year_1 = "2008", year_2 = "2009", 
-                        file_name = "PI Nesting summaries.xlsx", site = "PI",
-                        first_found_date_col = 12, 
-                        last_alive_date_col = 30, 
-                        last_checked_col = 36),
-    nest_import(year_1 = "2007", year_2 = "2008", 
                         file_name = "PI Nesting summaries.xlsx", site = "PI",
                         first_found_date_col = 11, 
                         last_alive_date_col = 29, 
                         last_checked_col = 35),
-    nest_import(year_1 = "2006", year_2 = "2007", 
+   nest_import(year_1 = "2022", year_2 = "2023", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                        first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+   nest_import(year_1 = "2021", year_2 = "2022", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                        first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2020", year_2 = "2021", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                         first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2019", year_2 = "2020", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                        first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2018", year_2 = "2019", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                        first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2017", year_2 = "2018", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                         first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2016", year_2 = "2017", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                        first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2015", year_2 = "2016", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                       first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2014", year_2 = "2015", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                       first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2013", year_2 = "2014", 
+                        file_name = "PI Nesting summaries.xlsx", site = "PI",
+                         first_found_date_col = 11, 
+                        last_alive_date_col = 29, 
+                        last_checked_col = 35),
+    nest_import(year_1 = "2012", year_2 = "2013", 
                         file_name = "PI Nesting summaries.xlsx", site = "PI",
                         first_found_date_col = 11, 
                         last_alive_date_col = 29, 
                         last_checked_col = 35)) %>% 
-  
-
   
   group_by(season) %>% 
   mutate(nocc = max(max(LastChecked, na.rm = TRUE), max(LastPresent, na.rm = TRUE)),
@@ -3254,6 +3229,7 @@ nest_data_PI <-
   ungroup() %>%
   mutate(nest_ID_new = paste(season, site, rank, sep = "_")) %>% 
   ungroup()
+
 ```
 
 #### Visual inspections of data
@@ -3443,6 +3419,8 @@ PI_nests_with_issues %>% select(issues, season, site)
 nest_data_PI <- 
   nest_data_PI %>% 
   filter(nest_ID %!in% PI_nests_with_issues$nest_ID)
+
+
 ## Importing and checking threat data
 ```{r}
 MP_threat_data <- 
@@ -3513,7 +3491,7 @@ PI_threat_data <-
 threat_data <- 
   bind_rows(FP_threat_data, MP_threat_data, BC_threat_data, BC_threat_data, PI_threat_data)
 ```
-
+###Import threat data
 ```{r, eval=FALSE}
 threat_data_ <-
   threat_data %>% 
@@ -4286,7 +4264,7 @@ MP_start_school_holidays <-
   select(autumn_start, winter_start, spring_start, summer_start) %>% 
   pivot_longer(cols = everything(), names_to = "event") %>% 
   mutate(event = str_remove(event, "_start")) %>% 
-  mutate(region = "FP") %>% 
+  mutate(region = "MP") %>% 
   rename(start_date = value) %>% 
   mutate(year = year(start_date)) %>% 
   mutate(season = ifelse(month(start_date) < 6, year - 1, year)) %>% 
@@ -4314,11 +4292,11 @@ MP_holidays <-
   select(season, region, event, start_date, end_date) %>% 
   arrange(start_date)
 
-BC_holidays <- 
+BSC_holidays <- 
   bind_rows(MP_school_holidays, MP_holidays) %>% 
   select(season, region, event, start_date, end_date) %>% 
   arrange(start_date) %>% 
-  mutate(region = "BC")
+  mutate(region = "BSC")
 
 PI_holidays <- 
   bind_rows(MP_school_holidays, MP_holidays) %>% 
@@ -4454,8 +4432,8 @@ threat_data__ %>%
               aes(x = as.numeric(weekday), ymin = log(lower + 1), ymax = log(upper + 1))) +
   geom_line(data = mod_hum_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
   luke_theme +
-  xlab("day of the week") +
-  ylab("number of humans counted (log)")
+  xlab("Day of the week") +
+  ylab("Number of humans counted (log)")
 ```
 
 how do dog counts vary over the week?
@@ -4496,8 +4474,8 @@ threat_data__ %>%
   geom_line(data = mod_dogs_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
   # geom_smooth(aes(x = as.numeric(weekday), y = dogs_), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("number of dogs counted (log)")
+  xlab("Day of the week") +
+  ylab("Number of dogs counted (log)")
 ```
 
 how do dogs on leash counts vary over the week?
@@ -4538,8 +4516,8 @@ threat_data__ %>%
   geom_line(data = mod_dogs_on_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
   # geom_smooth(aes(x = as.numeric(weekday), y = dogs_on_), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("number of dogs on leashes counted (log)")
+  xlab("Day of the week") +
+  ylab("Number of dogs on leashes counted (log)")
 ```
 
 how do dogs off leash counts vary over the week?
@@ -4580,8 +4558,8 @@ threat_data__ %>%
   geom_line(data = mod_dogs_off_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
   # geom_smooth(aes(x = as.numeric(weekday), y = dogs_off_), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("number of dogs off leashes counted (log)")
+  xlab("Day of the week") +
+  ylab("Number of dogs off leashes counted (log)")
 ```
 
 how do corvid counts vary over the week?
@@ -4622,8 +4600,8 @@ threat_data__ %>%
   geom_line(data = mod_pred_birds_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
   # geom_smooth(aes(x = as.numeric(weekday), y = pred_birds_), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("number of corvids counted (log)")
+  xlab("Day of the week") +
+  ylab("Number of corvids counted (log)")
 ```
 
 how do gulls counts vary over the week?
@@ -4664,8 +4642,8 @@ threat_data__ %>%
   geom_line(data = mod_gulls_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
   # geom_smooth(aes(x = as.numeric(weekday), y = gulls_), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("number of gulls counted (log)")
+  xlab("Day of the week") +
+  ylab("Number of gulls counted (log)")
 ```
 
 how do vehicle counts vary over the week?
@@ -4706,8 +4684,8 @@ threat_data__ %>%
   geom_line(data = mod_vehicles_predicts, aes(x = as.numeric(weekday), y = fit), color = "white") +
   # geom_smooth(aes(x = as.numeric(weekday), y = vehicles_), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("number of vehicles counted")
+  xlab("Day of the week") +
+  ylab("Number of vehicles counted")
 ```
 
 Inspect the weekly variation in human prints
@@ -4730,8 +4708,8 @@ threat_data__ %>%
     ) +
   geom_smooth(aes(x = as.numeric(weekday), y = hum_pri), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("level of human prints recorded")
+  xlab("Day of the week") +
+  ylab("Level of human prints recorded")
 ```
 
 Inspect the weekly variation in dog prints
@@ -4754,8 +4732,8 @@ threat_data__ %>%
     ) +
   geom_smooth(aes(x = as.numeric(weekday), y = dog_pri), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("level of dogs prints recorded")
+  xlab("Day of the week") +
+  ylab("Level of dogs prints recorded")
 ```
 
 Inspect the weekly variation in vehicle prints
@@ -4778,8 +4756,8 @@ threat_data__ %>%
     ) +
   geom_smooth(aes(x = as.numeric(weekday), y = vehicle_pri), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("level of vehicle prints recorded")
+  xlab("Day of the week") +
+  ylab("Level of vehicle prints recorded")
 ```
 
 Inspect the weekly variation in fox prints
@@ -4802,8 +4780,8 @@ threat_data__ %>%
     ) +
   geom_smooth(aes(x = as.numeric(weekday), y = fox_pri), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
-  xlab("day of the week") +
-  ylab("level of fox prints recorded")
+  xlab("Day of the week") +
+  ylab("Level of fox prints recorded")
 ```
 
 check correlation between counts of the various threats
@@ -4862,6 +4840,16 @@ sites_intersect_FP <-
 
 sites_intersect_MP <- 
   inner_join(nest_data_MP, threat_data__ %>% filter(region == "MP"), by = c("season", "site"), relationship = "many-to-many") %>% 
+  dplyr::select(season, site) %>% distinct() %>% 
+  mutate(season_site = paste(season, site, sep = "_"))
+
+sites_intersect_BSC <- 
+  inner_join(nest_data_BSC, threat_data__ %>% filter(region == "BSC"), by = c("season", "site"), relationship = "many-to-many") %>% 
+  dplyr::select(season, site) %>% distinct() %>% 
+  mutate(season_site = paste(season, site, sep = "_"))
+
+sites_intersect_PI <- 
+  inner_join(nest_data_BC, threat_data__ %>% filter(region == "PI"), by = c("season", "site"), relationship = "many-to-many") %>% 
   dplyr::select(season, site) %>% distinct() %>% 
   mutate(season_site = paste(season, site, sep = "_"))
 
@@ -5029,6 +5017,80 @@ writeData(sites_diff_MP_xl, "fuzzy_matches_to_consider", fuzzy_result_MP)
 # Save the workbook
 saveWorkbook(sites_diff_MP_xl, here("data/nest_issues_commented/site_names_issues_MP.xlsx"), overwrite = TRUE)
 
+# BSC
+# Combine and classify unique season_site values
+sites_diff_BSC <- full_join(nest_data_BSC %>% ungroup() %>% 
+                             mutate(season_site = paste(season, site, sep = "_")) %>% 
+                             select(season_site) %>% distinct() %>% mutate(source = "nest_data_BSC"),
+                           threat_data__ %>% ungroup() %>% filter(region == "BSC")  %>%
+                             mutate(season_site = paste(season, site, sep = "_")) %>% 
+                             select(season_site) %>% distinct() %>% mutate(source = "threat_data_BSC"),
+                           by = "season_site")
+
+# Find unique values in each dataframe
+only_in_nest_data_BSC <- 
+  sites_diff_BSC %>% 
+  filter(is.na(source.y)) %>% 
+  select(season_site) %>%
+  # separate(season_site, into = c("season", "site"), sep = "_", extra = "merge") %>% 
+  mutate(issue = "only in nest survival data")
+
+only_in_threat_data_BSC <-
+  sites_diff_BSC %>% 
+  filter(is.na(source.x)) %>% 
+  select(season_site) %>%
+  # separate(season_site, into = c("season", "site"), sep = "_", extra = "merge") %>% 
+  mutate(issue = "only in threat data")
+
+# Perform fuzzy join
+fuzzy_result_BSC <-
+  stringdist_full_join(
+    nest_data_BSC %>% 
+    ungroup() %>% 
+    mutate(season_site = paste(season, site, sep = "_")) %>% 
+    select(season_site) %>% distinct() %>% mutate(source = "nest_data_BSC") %>% 
+    mutate(season_site_clean = clean_text(season_site)), 
+    threat_data__ %>% 
+    ungroup() %>% 
+    filter(region == "BSC")  %>%
+    mutate(season_site = paste(season, site, sep = "_")) %>% 
+    select(season_site) %>% distinct() %>% mutate(source = "threat_data_BSC") %>% 
+    mutate(season_site_clean = clean_text(season_site)), 
+    by = "season_site_clean", 
+    method = "jw", # Jaro-Winkler distance
+    max_dist = 0.2, # Adjust for optimal matching
+    distance_col = "dist") %>% 
+  left_join(., only_in_nest_data_BSC, by = c("season_site.x" = "season_site")) %>% 
+  left_join(., only_in_threat_data_BSC, by = c("season_site.y" = "season_site")) %>% 
+  mutate(nest_season = str_extract(season_site.x, "^\\d{6}"),
+         threat_season = str_extract(season_site.y, "^\\d{6}")) %>% 
+  filter(nest_season == threat_season) %>% 
+  group_by(season_site.x) %>%
+  slice_min(order_by = dist) %>%  # Keep only the best fuzzy match per season
+  ungroup() %>% 
+  mutate(site_nest_data = str_remove(season_site.x, "^\\d{6}_?"),
+         site_threat_data = str_remove(season_site.y, "^\\d{6}_?")) %>% 
+  filter(issue.x == "only in nest survival data") %>% 
+  select(nest_season, site_nest_data, site_threat_data, dist) %>% 
+  arrange(desc(dist)) %>% 
+  rename(season = nest_season)
+
+# Create a new workbook
+sites_diff_BSC_xl <- createWorkbook()
+
+# Add each dataframe as a sheet
+addWorksheet(sites_diff_BSC_xl, "only_in_nest_data_BSC")
+writeData(sites_diff_BSC_xl, "only_in_nest_data_BSC", only_in_nest_data_BSC)
+
+addWorksheet(sites_diff_BSC_xl, "only_in_threat_data_BSC")
+writeData(sites_diff_BSC_xl, "only_in_threat_data_BSC", only_in_threat_data_BSC)
+
+addWorksheet(sites_diff_BSC_xl, "fuzzy_matches_to_consider")
+writeData(sites_diff_BSC_xl, "fuzzy_matches_to_consider", fuzzy_result_BSC)
+
+# Save the workbook
+saveWorkbook(sites_diff_BSC_xl, here("data/nest_issues_commented/site_names_issues_BSC.xlsx"), overwrite = TRUE)
+
 # BC
 # Combine and classify unique season_site values
 sites_diff_BC <- full_join(nest_data_BC %>% ungroup() %>% 
@@ -5103,9 +5165,84 @@ writeData(sites_diff_BC_xl, "fuzzy_matches_to_consider", fuzzy_result_BC)
 # Save the workbook
 saveWorkbook(sites_diff_BC_xl, here("data/nest_issues_commented/site_names_issues_BC.xlsx"), overwrite = TRUE)
   
-nrow(fuzzy_result_BC) + nrow(fuzzy_result_FP) + nrow(fuzzy_result_MP)
+# PI
+# Combine and classify unique season_site values
+sites_diff_PI <- full_join(nest_data_PI %>% ungroup() %>% 
+                             mutate(season_site = paste(season, site, sep = "_")) %>% 
+                             select(season_site) %>% distinct() %>% mutate(source = "nest_data_PI"),
+                           threat_data__ %>% ungroup() %>% filter(region == "PI")  %>%
+                             mutate(season_site = paste(season, site, sep = "_")) %>% 
+                             select(season_site) %>% distinct() %>% mutate(source = "threat_data_PI"),
+                           by = "season_site")
+
+# Find unique values in each dataframe
+only_in_nest_data_PI <- 
+  sites_diff_PI %>% 
+  filter(is.na(source.y)) %>% 
+  select(season_site) %>%
+  # separate(season_site, into = c("season", "site"), sep = "_", extra = "merge") %>% 
+  mutate(issue = "only in nest survival data")
+
+only_in_threat_data_PI <-
+  sites_diff_PI %>% 
+  filter(is.na(source.x)) %>% 
+  select(season_site) %>%
+  # separate(season_site, into = c("season", "site"), sep = "_", extra = "merge") %>% 
+  mutate(issue = "only in threat data")
+
+# Perform fuzzy join
+fuzzy_result_PI <-
+  stringdist_full_join(
+    nest_data_PI %>% 
+    ungroup() %>% 
+    mutate(season_site = paste(season, site, sep = "_")) %>% 
+    select(season_site) %>% distinct() %>% mutate(source = "nest_data_PI") %>% 
+    mutate(season_site_clean = clean_text(season_site)), 
+    threat_data__ %>% 
+    ungroup() %>% 
+    filter(region == "PI")  %>%
+    mutate(season_site = paste(season, site, sep = "_")) %>% 
+    select(season_site) %>% distinct() %>% mutate(source = "threat_data_PI") %>% 
+    mutate(season_site_clean = clean_text(season_site)), 
+    by = "season_site_clean", 
+    method = "jw", # Jaro-Winkler distance
+    max_dist = 0.2, # Adjust for optimal matching
+    distance_col = "dist") %>% 
+  left_join(., only_in_nest_data_PI, by = c("season_site.x" = "season_site")) %>% 
+  left_join(., only_in_threat_data_PI, by = c("season_site.y" = "season_site")) %>% 
+  mutate(nest_season = str_extract(season_site.x, "^\\d{6}"),
+         threat_season = str_extract(season_site.y, "^\\d{6}")) %>% 
+  filter(nest_season == threat_season) %>% 
+  group_by(season_site.x) %>%
+  slice_min(order_by = dist) %>%  # Keep only the best fuzzy match per season
+  ungroup() %>% 
+  mutate(site_nest_data = str_remove(season_site.x, "^\\d{6}_?"),
+         site_threat_data = str_remove(season_site.y, "^\\d{6}_?")) %>% 
+  filter(issue.x == "only in nest survival data") %>% 
+  select(nest_season, site_nest_data, site_threat_data, dist) %>% 
+  arrange(desc(dist)) %>% 
+  rename(season = nest_season)
+
+# Create a new workbook
+sites_diff_PI_xl <- createWorkbook()
+
+# Add each dataframe as a sheet
+addWorksheet(sites_diff_PI_xl, "only_in_nest_data_PI")
+writeData(sites_diff_PI_xl, "only_in_nest_data_PI", only_in_nest_data_PI)
+
+addWorksheet(sites_diff_PI_xl, "only_in_threat_data_PI")
+writeData(sites_diff_PI_xl, "only_in_threat_data_PI", only_in_threat_data_PI)
+
+addWorksheet(sites_diff_PI_xl, "fuzzy_matches_to_consider")
+writeData(sites_diff_PI_xl, "fuzzy_matches_to_consider", fuzzy_result_PI)
+
+# Save the workbook
+saveWorkbook(sites_diff_PI_xl, here("data/nest_issues_commented/site_names_issues_PI.xlsx"), overwrite = TRUE)
+
+nrow(fuzzy_result_BC) + nrow(fuzzy_result_FP) + nrow(fuzzy_result_MP)+ nrow(fuzzy_result_BSC)+ nrow(fuzzy_result_PI)
 ```
 ### Summarise Threat data and Merge to Nest Data
+
 #### Fleurieu Peninsula: summarise threat data
 ```{r}
 nest_data_FP_with_threat_data <- 
@@ -5590,6 +5727,247 @@ nest_data_MP_with_threat_data <- readRDS(file = "output/nest_data_MP_with_threat
 
 #### Bellarine / Surf Coast: summarise threat data
 ```{r}
+nest_data_BSC_with_threat_data <- 
+  nest_data_BSC %>% 
+  mutate(season_site = paste(season, site, sep = "_")) %>% 
+  filter(season_site %in% sites_intersect_BSC$season_site) %>%
+  dplyr::select(season, site, region, nest_ID, 
+                FirstFound, LastPresent, LastChecked,
+                first_found2, last_alive2, last_checked2,
+                management_status, management_level,
+                nest_hab, Fate) %>% 
+  rename(status = management_status,
+         level = management_level) %>% 
+  mutate(level = paste0("L", level)) %>% 
+  mutate(level = factor(level, 
+                        levels = c("L0", "L1", 
+                                   "L2", "L3", 
+                                   "L4"))) %>% 
+  ungroup() %>% 
+  mutate(
+    hum_a = NA,
+    veh_a = NA,
+    dog_a = NA,
+    don_a = NA,
+    dof_a = NA,
+    hof_a = NA,
+    pbd_a = NA,
+    gul_a = NA,
+    hum_m = NA,
+    veh_m = NA,
+    dog_m = NA,
+    don_m = NA,
+    dof_m = NA,
+    hof_m = NA,
+    pbd_m = NA,
+    gul_m = NA,
+    hum_b = NA,
+    veh_b = NA,
+    dog_b = NA,
+    don_b = NA,
+    dof_b = NA,
+    pbd_b = NA,
+    gul_b = NA,
+    hof_b = NA,
+    hum_p = NA,
+    veh_p = NA,
+    dog_p = NA,
+    hof_p = NA,
+    fox_p = NA,
+    n_surveys = NA,
+    days_active = NA,
+    fundays = NA, 
+    uncertain_days = NA,
+    halfway = NA) %>% 
+  filter(FirstFound <= LastPresent & FirstFound <= LastChecked & LastPresent <= LastChecked) %>% 
+  filter(first_found2 <= last_alive2 & first_found2 <= last_checked2 & last_alive2 <= last_checked2)
+
+BSC_threat_data_subset <- 
+  threat_data__ %>% 
+  filter(region == "BSC") %>% 
+  mutate(season_site = paste(season, site, sep = "_")) %>% 
+  filter(season_site %in% sites_intersect_BSC$season_site) %>%
+  ungroup()
+
+for(i in 1:nrow(nest_data_BSC_with_threat_data)){
+  FirstFound <- nest_data_BSC_with_threat_data$FirstFound[i]
+  LastPresent <- nest_data_BSC_with_threat_data$LastPresent[i]
+  LastChecked <- nest_data_BSC_with_threat_data$LastChecked[i]
+  FirstFound2 <- nest_data_BSC_with_threat_data$first_found2[i]
+  LastPresent2 <- nest_data_BSC_with_threat_data$last_alive2[i]
+  LastChecked2 <- nest_data_BSC_with_threat_data$last_checked2[i]
+  halfway <- (LastChecked - LastPresent)/2
+  days_active <- (LastPresent + halfway) - FirstFound
+  uncertain_days <- LastChecked - LastPresent
+  site_ <- as.character(nest_data_BSC_with_threat_data$site[i])
+  season_ <- as.character(nest_data_BSC_with_threat_data$season[i])
+  
+  fundays_df <- 
+    data.frame(date = seq(from = LastPresent2, to = LastChecked2, 1)) %>% 
+    # mutate(weekday = weekdays(dates)) %>% 
+    mutate(weekday = factor(as.factor(weekdays(date)), 
+                            levels = c("Monday", "Tuesday", "Wednesday", 
+                                       "Thursday", "Friday", "Saturday", 
+                                       "Sunday")),
+           region = "BSC") %>% 
+    mutate(year = year(date)) %>% 
+    mutate(season = ifelse(month(date) < 6, year - 1, year)) %>% 
+    mutate(season = ifelse(month(date) >= 6, 
+                           paste0(year, substr(year + 1, 3, 4)), 
+                           paste0(season, substr(year, 3, 4)))) %>% 
+    left_join(., holidays, by = c("region", "season"), relationship = "many-to-many") %>%
+    mutate(holiday = ifelse(date >= start_date & date <= end_date, 1, 0)) %>% 
+    group_by(region, season, date) %>% 
+    mutate(holiday = max(holiday, na.rm = TRUE)) %>% 
+    dplyr::select(-c(event, start_date, end_date)) %>% 
+    distinct() %>% 
+    ungroup() %>% 
+    mutate(day_type = ifelse(holiday == 1 | weekday %in% 
+                               c("Saturday", "Sunday"), "funday", "workday")) %>% 
+    mutate(funday = ifelse(day_type == "funday", 1, 0))
+    
+  BSC_threat_data_subset_ <- 
+    BSC_threat_data_subset %>% 
+    ungroup() %>% 
+    # data.frame() %>% 
+    # dplyr::filter(as.numeric(obs_date2) >= FirstFound & as.numeric(obs_date2) <= (LastPresent + halfway) & season == season_) %>%
+    # dplyr::filter(as.numeric(obs_date2) >= LastPresent & as.numeric(obs_date2) <= (LastPresent + halfway) & season == season_) %>%
+    dplyr::filter(as.numeric(obs_date2) >= LastPresent & as.numeric(obs_date2) <= (LastPresent + (LastChecked - LastPresent)) & season == season_) %>%
+    dplyr::filter(site == site_)
+  
+  if(nrow(BSC_threat_data_subset_) > 0){
+    avgeraged_threats <-
+      BSC_threat_data_subset_ %>% 
+      mutate(hum_bi = ifelse(humans > 0 | (!is.na(hum_pri)), 1, 0),
+             vehicle_bi = ifelse(vehicles > 0 | (!is.na(vehicle_pri)), 1, 0),
+             dogs_bi = ifelse(dogs > 0 | (!is.na(dog_pri)), 1, 0),
+             dogs_off_bi = ifelse(dogs_off > 0, 1, 0),
+             dogs_on_bi = ifelse(dogs_on > 0, 1, 0),
+             p_birds_bi = ifelse(pred_birds > 0, 1, 0),
+             gulls_bi = ifelse(gulls > 0, 1, 0),
+             hoof_bi = ifelse(hoofed_animals > 0 | (!is.na(hoofed_pri)), 1, 0)) %>%
+      dplyr::summarise(
+        # fundays = sum(funday),
+        hum_avg = mean(humans, na.rm = TRUE),
+        vehicles_avg = mean(vehicles, na.rm = TRUE),
+        dogs_avg = mean(dogs, na.rm = TRUE),
+        dogs_on_avg = mean(dogs_on, na.rm = TRUE),
+        dogs_off_avg = mean(dogs_off, na.rm = TRUE),
+        hoof_avg = mean(hoofed_animals, na.rm = TRUE),
+        p_birds_avg = mean(pred_birds, na.rm = TRUE),
+        gulls_avg = mean(gulls, na.rm = TRUE),
+        hum_max = max(humans, na.rm = TRUE),
+        vehicles_max = max(vehicles, na.rm = TRUE),
+        dogs_max = max(dogs, na.rm = TRUE),
+        dogs_on_max = max(dogs_on, na.rm = TRUE),
+        dogs_off_max = max(dogs_off, na.rm = TRUE),
+        hoof_max = max(hoofed_animals, na.rm = TRUE),
+        p_birds_max = max(pred_birds, na.rm = TRUE),
+        gulls_max = max(gulls, na.rm = TRUE),
+        hum_bi = max(hum_bi, na.rm = TRUE),
+        vehicle_bi = max(vehicle_bi, na.rm = TRUE),
+        dogs_bi = max(dogs_bi, na.rm = TRUE),
+        dogs_on_bi = max(dogs_on_bi, na.rm = TRUE),
+        dogs_off_bi = max(dogs_off_bi, na.rm = TRUE),
+        p_birds_bi = max(p_birds_bi, na.rm = TRUE),
+        gulls_bi = max(gulls_bi, na.rm = TRUE),
+        hoof_bi = max(hoof_bi, na.rm = TRUE),
+        hum_pr = max(hum_pri, na.rm = TRUE),
+        vehicle_pr = max(vehicle_pri, na.rm = TRUE),
+        dog_pr = max(dog_pri, na.rm = TRUE),
+        hoof_pr = max(hoofed_pri, na.rm = TRUE),
+        fox_pr = max(fox_pri, na.rm = TRUE),
+        n_surveys = n(),
+        days_active = days_active,
+        halfway = halfway, 
+        uncertain_days = uncertain_days)
+    
+    nest_data_BSC_with_threat_data$fundays[i] <- sum(fundays_df$funday)
+    nest_data_BSC_with_threat_data$hum_a[i] <- avgeraged_threats$hum_avg
+    nest_data_BSC_with_threat_data$veh_a[i] <- avgeraged_threats$vehicles_avg
+    nest_data_BSC_with_threat_data$dog_a[i] <- avgeraged_threats$dogs_avg
+    nest_data_BSC_with_threat_data$don_a[i] <- avgeraged_threats$dogs_on_avg
+    nest_data_BSC_with_threat_data$dof_a[i] <- avgeraged_threats$dogs_off_avg
+    nest_data_BSC_with_threat_data$hof_a[i] <- avgeraged_threats$hoof_avg
+    nest_data_BSC_with_threat_data$pbd_a[i] <- avgeraged_threats$p_birds_avg
+    nest_data_BSC_with_threat_data$gul_a[i] <- avgeraged_threats$gulls_avg
+    
+    nest_data_BSC_with_threat_data$hum_m[i] <- avgeraged_threats$hum_max
+    nest_data_BSC_with_threat_data$veh_m[i] <- avgeraged_threats$vehicles_max
+    nest_data_BSC_with_threat_data$dog_m[i] <- avgeraged_threats$dogs_max
+    nest_data_BSC_with_threat_data$don_m[i] <- avgeraged_threats$dogs_on_max
+    nest_data_BSC_with_threat_data$dof_m[i] <- avgeraged_threats$dogs_off_max
+    nest_data_BSC_with_threat_data$hof_m[i] <- avgeraged_threats$hoof_max
+    nest_data_BSC_with_threat_data$pbd_m[i] <- avgeraged_threats$p_birds_max
+    nest_data_BSC_with_threat_data$gul_m[i] <- avgeraged_threats$gulls_max
+    
+    nest_data_BSC_with_threat_data$hum_b[i] <- avgeraged_threats$hum_bi
+    nest_data_BSC_with_threat_data$veh_b[i] <- avgeraged_threats$vehicle_bi
+    nest_data_BSC_with_threat_data$dog_b[i] <- avgeraged_threats$dogs_bi
+    nest_data_BSC_with_threat_data$don_b[i] <- avgeraged_threats$dogs_on_bi
+    nest_data_BSC_with_threat_data$dof_b[i] <- avgeraged_threats$dogs_off_bi
+    nest_data_BSC_with_threat_data$pbd_b[i] <- avgeraged_threats$p_birds_bi
+    nest_data_BSC_with_threat_data$hof_b[i] <- avgeraged_threats$hoof_bi
+    nest_data_BSC_with_threat_data$gul_b[i] <- avgeraged_threats$gulls_bi
+    
+    nest_data_BSC_with_threat_data$hum_p[i] <- avgeraged_threats$hum_pr
+    nest_data_BSC_with_threat_data$veh_p[i] <- avgeraged_threats$vehicle_pr
+    nest_data_BSC_with_threat_data$dog_p[i] <- avgeraged_threats$dog_pr
+    nest_data_BSC_with_threat_data$hof_p[i] <- avgeraged_threats$hoof_pr
+    nest_data_BSC_with_threat_data$fox_p[i] <- avgeraged_threats$fox_pr
+    
+    nest_data_BSC_with_threat_data$n_surveys[i] <- avgeraged_threats$n_surveys
+    nest_data_BSC_with_threat_data$days_active[i] <- avgeraged_threats$days_active
+    nest_data_BSC_with_threat_data$halfway[i] <- avgeraged_threats$halfway
+    nest_data_BSC_with_threat_data$uncertain_days[i] <- avgeraged_threats$uncertain_days
+
+    
+  }else{
+    nest_data_BSC_with_threat_data$hum_a[i] <- NA
+    nest_data_BSC_with_threat_data$veh_a[i] <- NA
+    nest_data_BSC_with_threat_data$dog_a[i] <- NA
+    nest_data_BSC_with_threat_data$don_a[i] <- NA
+    nest_data_BSC_with_threat_data$dof_a[i] <- NA
+    nest_data_BSC_with_threat_data$hof_a[i] <- NA
+    nest_data_BSC_with_threat_data$pbd_a[i] <- NA
+    nest_data_BSC_with_threat_data$gul_a[i] <- NA
+    nest_data_BSC_with_threat_data$hum_m[i] <- NA
+    nest_data_BSC_with_threat_data$veh_m[i] <- NA
+    nest_data_BSC_with_threat_data$dog_m[i] <- NA
+    nest_data_BSC_with_threat_data$don_m[i] <- NA
+    nest_data_BSC_with_threat_data$dof_m[i] <- NA
+    nest_data_BSC_with_threat_data$hof_m[i] <- NA
+    nest_data_BSC_with_threat_data$pbd_m[i] <- NA
+    nest_data_BSC_with_threat_data$gul_m[i] <- NA
+    nest_data_BSC_with_threat_data$hum_b[i] <- NA
+    nest_data_BSC_with_threat_data$veh_b[i] <- NA
+    nest_data_BSC_with_threat_data$dog_b[i] <- NA
+    nest_data_BSC_with_threat_data$don_b[i] <- NA
+    nest_data_BSC_with_threat_data$dof_b[i] <- NA
+    nest_data_BSC_with_threat_data$pbd_b[i] <- NA
+    nest_data_BSC_with_threat_data$gul_b[i] <- NA
+    nest_data_BSC_with_threat_data$hof_b[i] <- NA
+    nest_data_BSC_with_threat_data$hum_p[i] <- NA
+    nest_data_BSC_with_threat_data$veh_p[i] <- NA
+    nest_data_BSC_with_threat_data$dog_p[i] <- NA
+    nest_data_BSC_with_threat_data$hof_p[i] <- NA
+    nest_data_BSC_with_threat_data$fox_p[i] <- NA
+    nest_data_BSC_with_threat_data$n_surveys[i] <- 0
+    nest_data_BSC_with_threat_data$days_active[i] <- days_active
+    nest_data_BSC_with_threat_data$halfway[i] <- halfway
+    nest_data_BSC_with_threat_data$uncertain_days[i] <- uncertain_days
+    nest_data_BSC_with_threat_data$fundays[i] <- NA
+  }
+}
+saveRDS(nest_data_BSC_with_threat_data, file = "output/nest_data_BSC_with_threat_data.rds")
+```
+
+```{r, echo=FALSE}
+nest_data_BSC_with_threat_data <- readRDS(file = "output/nest_data_BSC_with_threat_data.rds")
+```
+
+#### Bass Coast: summarise threat data
+```{r}
 nest_data_BC_with_threat_data <- 
   nest_data_BC %>% 
   mutate(season_site = paste(season, site, sep = "_")) %>% 
@@ -5832,12 +6210,259 @@ saveRDS(nest_data_BC_with_threat_data, file = "output/nest_data_BC_with_threat_d
 nest_data_BC_with_threat_data <- readRDS(file = "output/nest_data_BC_with_threat_data.rds")
 ```
 
+#### Phillip Island: summarise threat data
+```{r}
+nest_data_PI_with_threat_data <- 
+  nest_data_PI %>% 
+  mutate(season_site = paste(season, site, sep = "_")) %>% 
+  ####
+  
+  ####
+  filter(season_site %in% sites_intersect_PI$season_site) %>%
+  dplyr::select(season, site, region, nest_ID, 
+                FirstFound, LastPresent, LastChecked,
+                first_found2, last_alive2, last_checked2,
+                management_status, management_level,
+                nest_hab, Fate) %>% 
+  rename(status = management_status,
+         level = management_level) %>% 
+  mutate(level = paste0("L", level)) %>% 
+  mutate(level = factor(level, 
+                        levels = c("L0", "L1", 
+                                   "L2", "L3", 
+                                   "L4"))) %>% 
+  ungroup() %>% 
+  mutate(
+    hum_a = NA,
+    veh_a = NA,
+    dog_a = NA,
+    don_a = NA,
+    dof_a = NA,
+    hof_a = NA,
+    pbd_a = NA,
+    gul_a = NA,
+    hum_m = NA,
+    veh_m = NA,
+    dog_m = NA,
+    don_m = NA,
+    dof_m = NA,
+    hof_m = NA,
+    pbd_m = NA,
+    gul_m = NA,
+    hum_b = NA,
+    veh_b = NA,
+    dog_b = NA,
+    don_b = NA,
+    dof_b = NA,
+    pbd_b = NA,
+    gul_b = NA,
+    hof_b = NA,
+    hum_p = NA,
+    veh_p = NA,
+    dog_p = NA,
+    hof_p = NA,
+    fox_p = NA,
+    n_surveys = NA,
+    days_active = NA,
+    fundays = NA, 
+    uncertain_days = NA,
+    halfway = NA) %>% 
+  filter(FirstFound <= LastPresent & FirstFound <= LastChecked & LastPresent <= LastChecked) %>% 
+  filter(first_found2 <= last_alive2 & first_found2 <= last_checked2 & last_alive2 <= last_checked2)
+
+PI_threat_data_subset <- 
+  threat_data__ %>% 
+  filter(region == "PI") %>% 
+  mutate(season_site = paste(season, site, sep = "_")) %>% 
+  filter(season_site %in% sites_intersect_PI$season_site) %>%
+  ungroup()
+
+for(i in 1:nrow(nest_data_PI_with_threat_data)){
+  FirstFound <- nest_data_PI_with_threat_data$FirstFound[i]
+  LastPresent <- nest_data_PI_with_threat_data$LastPresent[i]
+  LastChecked <- nest_data_PI_with_threat_data$LastChecked[i]
+  FirstFound2 <- nest_data_PI_with_threat_data$first_found2[i]
+  LastPresent2 <- nest_data_PI_with_threat_data$last_alive2[i]
+  LastChecked2 <- nest_data_PI_with_threat_data$last_checked2[i]
+  halfway <- (LastChecked - LastPresent)/2
+  days_active <- (LastPresent + halfway) - FirstFound
+  uncertain_days <- LastChecked - LastPresent
+  site_ <- as.character(nest_data_PI_with_threat_data$site[i])
+  season_ <- as.character(nest_data_PI_with_threat_data$season[i])
+  
+  fundays_df <- 
+    data.frame(date = seq(from = LastPresent2, to = LastChecked2, 1)) %>% 
+    # mutate(weekday = weekdays(dates)) %>% 
+    mutate(weekday = factor(as.factor(weekdays(date)), 
+                            levels = c("Monday", "Tuesday", "Wednesday", 
+                                       "Thursday", "Friday", "Saturday", 
+                                       "Sunday")),
+           region = "PI") %>% 
+    mutate(year = year(date)) %>% 
+    mutate(season = ifelse(month(date) < 6, year - 1, year)) %>% 
+    mutate(season = ifelse(month(date) >= 6, 
+                           paste0(year, substr(year + 1, 3, 4)), 
+                           paste0(season, substr(year, 3, 4)))) %>% 
+    left_join(., holidays, by = c("region", "season"), relationship = "many-to-many") %>%
+    mutate(holiday = ifelse(date >= start_date & date <= end_date, 1, 0)) %>% 
+    group_by(region, season, date) %>% 
+    mutate(holiday = max(holiday, na.rm = TRUE)) %>% 
+    dplyr::select(-c(event, start_date, end_date)) %>% 
+    distinct() %>% 
+    ungroup() %>% 
+    mutate(day_type = ifelse(holiday == 1 | weekday %in% 
+                               c("Saturday", "Sunday"), "funday", "workday")) %>% 
+    mutate(funday = ifelse(day_type == "funday", 1, 0))
+    
+  PI_threat_data_subset_ <- 
+    PI_threat_data_subset %>% 
+    ungroup() %>% 
+    # data.frame() %>% 
+    # dplyr::filter(as.numeric(obs_date2) >= FirstFound & as.numeric(obs_date2) <= (LastPresent + halfway) & season == season_) %>%
+    # dplyr::filter(as.numeric(obs_date2) >= LastPresent & as.numeric(obs_date2) <= (LastPresent + halfway) & season == season_) %>%
+    dplyr::filter(as.numeric(obs_date2) >= LastPresent & as.numeric(obs_date2) <= (LastPresent + (LastChecked - LastPresent)) & season == season_) %>%
+    dplyr::filter(site == site_)
+  
+  if(nrow(PI_threat_data_subset_) > 0){
+    avgeraged_threats <-
+      PI_threat_data_subset_ %>% 
+      mutate(hum_bi = ifelse(humans > 0 | (!is.na(hum_pri)), 1, 0),
+             vehicle_bi = ifelse(vehicles > 0 | (!is.na(vehicle_pri)), 1, 0),
+             dogs_bi = ifelse(dogs > 0 | (!is.na(dog_pri)), 1, 0),
+             dogs_off_bi = ifelse(dogs_off > 0, 1, 0),
+             dogs_on_bi = ifelse(dogs_on > 0, 1, 0),
+             p_birds_bi = ifelse(pred_birds > 0, 1, 0),
+             gulls_bi = ifelse(gulls > 0, 1, 0),
+             hoof_bi = ifelse(hoofed_animals > 0 | (!is.na(hoofed_pri)), 1, 0)) %>%
+      dplyr::summarise(
+        # fundays = sum(funday),
+        hum_avg = mean(humans, na.rm = TRUE),
+        vehicles_avg = mean(vehicles, na.rm = TRUE),
+        dogs_avg = mean(dogs, na.rm = TRUE),
+        dogs_on_avg = mean(dogs_on, na.rm = TRUE),
+        dogs_off_avg = mean(dogs_off, na.rm = TRUE),
+        hoof_avg = mean(hoofed_animals, na.rm = TRUE),
+        p_birds_avg = mean(pred_birds, na.rm = TRUE),
+        gulls_avg = mean(gulls, na.rm = TRUE),
+        hum_max = max(humans, na.rm = TRUE),
+        vehicles_max = max(vehicles, na.rm = TRUE),
+        dogs_max = max(dogs, na.rm = TRUE),
+        dogs_on_max = max(dogs_on, na.rm = TRUE),
+        dogs_off_max = max(dogs_off, na.rm = TRUE),
+        hoof_max = max(hoofed_animals, na.rm = TRUE),
+        p_birds_max = max(pred_birds, na.rm = TRUE),
+        gulls_max = max(gulls, na.rm = TRUE),
+        hum_bi = max(hum_bi, na.rm = TRUE),
+        vehicle_bi = max(vehicle_bi, na.rm = TRUE),
+        dogs_bi = max(dogs_bi, na.rm = TRUE),
+        dogs_on_bi = max(dogs_on_bi, na.rm = TRUE),
+        dogs_off_bi = max(dogs_off_bi, na.rm = TRUE),
+        p_birds_bi = max(p_birds_bi, na.rm = TRUE),
+        gulls_bi = max(gulls_bi, na.rm = TRUE),
+        hoof_bi = max(hoof_bi, na.rm = TRUE),
+        hum_pr = max(hum_pri, na.rm = TRUE),
+        vehicle_pr = max(vehicle_pri, na.rm = TRUE),
+        dog_pr = max(dog_pri, na.rm = TRUE),
+        hoof_pr = max(hoofed_pri, na.rm = TRUE),
+        fox_pr = max(fox_pri, na.rm = TRUE),
+        n_surveys = n(),
+        days_active = days_active,
+        halfway = halfway, 
+        uncertain_days = uncertain_days)
+    
+    nest_data_PI_with_threat_data$fundays[i] <- sum(fundays_df$funday)
+    nest_data_PI_with_threat_data$hum_a[i] <- avgeraged_threats$hum_avg
+    nest_data_PI_with_threat_data$veh_a[i] <- avgeraged_threats$vehicles_avg
+    nest_data_PI_with_threat_data$dog_a[i] <- avgeraged_threats$dogs_avg
+    nest_data_PI_with_threat_data$don_a[i] <- avgeraged_threats$dogs_on_avg
+    nest_data_PI_with_threat_data$dof_a[i] <- avgeraged_threats$dogs_off_avg
+    nest_data_PI_with_threat_data$hof_a[i] <- avgeraged_threats$hoof_avg
+    nest_data_PI_with_threat_data$pbd_a[i] <- avgeraged_threats$p_birds_avg
+    nest_data_PI_with_threat_data$gul_a[i] <- avgeraged_threats$gulls_avg
+    
+    nest_data_PI_with_threat_data$hum_m[i] <- avgeraged_threats$hum_max
+    nest_data_PI_with_threat_data$veh_m[i] <- avgeraged_threats$vehicles_max
+    nest_data_PI_with_threat_data$dog_m[i] <- avgeraged_threats$dogs_max
+    nest_data_PI_with_threat_data$don_m[i] <- avgeraged_threats$dogs_on_max
+    nest_data_PI_with_threat_data$dof_m[i] <- avgeraged_threats$dogs_off_max
+    nest_data_PI_with_threat_data$hof_m[i] <- avgeraged_threats$hoof_max
+    nest_data_PI_with_threat_data$pbd_m[i] <- avgeraged_threats$p_birds_max
+    nest_data_PI_with_threat_data$gul_m[i] <- avgeraged_threats$gulls_max
+    
+    nest_data_PI_with_threat_data$hum_b[i] <- avgeraged_threats$hum_bi
+    nest_data_PI_with_threat_data$veh_b[i] <- avgeraged_threats$vehicle_bi
+    nest_data_PI_with_threat_data$dog_b[i] <- avgeraged_threats$dogs_bi
+    nest_data_PI_with_threat_data$don_b[i] <- avgeraged_threats$dogs_on_bi
+    nest_data_PI_with_threat_data$dof_b[i] <- avgeraged_threats$dogs_off_bi
+    nest_data_PI_with_threat_data$pbd_b[i] <- avgeraged_threats$p_birds_bi
+    nest_data_PI_with_threat_data$hof_b[i] <- avgeraged_threats$hoof_bi
+    nest_data_PI_with_threat_data$gul_b[i] <- avgeraged_threats$gulls_bi
+    
+    nest_data_PI_with_threat_data$hum_p[i] <- avgeraged_threats$hum_pr
+    nest_data_PI_with_threat_data$veh_p[i] <- avgeraged_threats$vehicle_pr
+    nest_data_PI_with_threat_data$dog_p[i] <- avgeraged_threats$dog_pr
+    nest_data_PI_with_threat_data$hof_p[i] <- avgeraged_threats$hoof_pr
+    nest_data_PI_with_threat_data$fox_p[i] <- avgeraged_threats$fox_pr
+    
+    nest_data_PI_with_threat_data$n_surveys[i] <- avgeraged_threats$n_surveys
+    nest_data_PI_with_threat_data$days_active[i] <- avgeraged_threats$days_active
+    nest_data_PI_with_threat_data$halfway[i] <- avgeraged_threats$halfway
+    nest_data_PI_with_threat_data$uncertain_days[i] <- avgeraged_threats$uncertain_days
+
+    
+  }else{
+    nest_data_PI_with_threat_data$hum_a[i] <- NA
+    nest_data_PI_with_threat_data$veh_a[i] <- NA
+    nest_data_PI_with_threat_data$dog_a[i] <- NA
+    nest_data_PI_with_threat_data$don_a[i] <- NA
+    nest_data_PI_with_threat_data$dof_a[i] <- NA
+    nest_data_PI_with_threat_data$hof_a[i] <- NA
+    nest_data_PI_with_threat_data$pbd_a[i] <- NA
+    nest_data_PI_with_threat_data$gul_a[i] <- NA
+    nest_data_PI_with_threat_data$hum_m[i] <- NA
+    nest_data_PI_with_threat_data$veh_m[i] <- NA
+    nest_data_PI_with_threat_data$dog_m[i] <- NA
+    nest_data_PI_with_threat_data$don_m[i] <- NA
+    nest_data_PI_with_threat_data$dof_m[i] <- NA
+    nest_data_PI_with_threat_data$hof_m[i] <- NA
+    nest_data_PI_with_threat_data$pbd_m[i] <- NA
+    nest_data_PI_with_threat_data$gul_m[i] <- NA
+    nest_data_PI_with_threat_data$hum_b[i] <- NA
+    nest_data_PI_with_threat_data$veh_b[i] <- NA
+    nest_data_PI_with_threat_data$dog_b[i] <- NA
+    nest_data_PI_with_threat_data$don_b[i] <- NA
+    nest_data_PI_with_threat_data$dof_b[i] <- NA
+    nest_data_PI_with_threat_data$pbd_b[i] <- NA
+    nest_data_PI_with_threat_data$gul_b[i] <- NA
+    nest_data_PI_with_threat_data$hof_b[i] <- NA
+    nest_data_PI_with_threat_data$hum_p[i] <- NA
+    nest_data_PI_with_threat_data$veh_p[i] <- NA
+    nest_data_PI_with_threat_data$dog_p[i] <- NA
+    nest_data_PI_with_threat_data$hof_p[i] <- NA
+    nest_data_PI_with_threat_data$fox_p[i] <- NA
+    nest_data_PI_with_threat_data$n_surveys[i] <- 0
+    nest_data_PI_with_threat_data$days_active[i] <- days_active
+    nest_data_PI_with_threat_data$halfway[i] <- halfway
+    nest_data_PI_with_threat_data$uncertain_days[i] <- uncertain_days
+    nest_data_PI_with_threat_data$fundays[i] <- NA
+  }
+}
+saveRDS(nest_data_PI_with_threat_data, file = "output/nest_data_PI_with_threat_data.rds")
+```
+
+```{r, echo=FALSE}
+nest_data_PI_with_threat_data <- readRDS(file = "output/nest_data_PI_with_threat_data.rds")
+```
+
+
 remove outlier data and those with very infrequent threat surveys (cut off: visited at least once per week)
 ```{r}
 ##### remove outlier data and those with very infrequent threat surveys
 nest_data_with_threat_data <-
   bind_rows(nest_data_FP_with_threat_data,
             nest_data_MP_with_threat_data,
+            nest_data_BSC_with_threat_data,
+            nest_data_PI_with_threat_data,
             nest_data_BC_with_threat_data) %>%
   filter(n_surveys > 0) %>% 
   # mutate(dof_b = ifelse(dof_b == 1, "Y", "N")) %>%
