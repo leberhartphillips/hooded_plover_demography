@@ -7437,7 +7437,7 @@ nest_survival_run_BC <- nest_survival_BC$model_selection
 nest_survival_run_BC$model.table %>% 
   dplyr::select(model, npar, DeltaAICc, weight) %>% 
   gt() %>% 
-  cols_label(model = html("<i>Bellarine / Surf Coast</i>"),
+  cols_label(model = html("<i>Bass Coast</i>"),
              npar = "K",
              DeltaAICc = "DeltaAICc",
              weight = "weight") %>% 
@@ -7593,7 +7593,7 @@ pred.fundays <-
   bind_rows(pred.fundays_FP, pred.fundays_MP, 
             pred.fundays_BC, pred.fundays_BSC, pred.fundays_PI)
 
-ggplot(pred.fundays, 
+ ggplot(pred.fundays, 
        aes(x = covdata, y = estimate, color = region, fill = region)) +
   geom_line(size = 1.5) +
   geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2) +
@@ -7604,10 +7604,11 @@ ggplot(pred.fundays,
   theme(legend.position = "none",
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("number of weekend days and holidays exposed to") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Number of weekend days and holidays exposed to") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
+
 ```
 
 ## Effect of management on mitigating the impact of weekends and holidays on nest survival
@@ -7730,8 +7731,8 @@ ggplot(pred.fundays_status,
         legend.title = element_blank(),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("number of weekend days and holidays exposed to") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Number of weekend days and holidays exposed to") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
 ```
@@ -7872,8 +7873,8 @@ ggplot() +
   theme(legend.position = c(0.8, 0.2),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("management level") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Management level") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0.4, 1)) +
   scale_colour_brewer(palette = "Dark2", 
                       name = "Region", 
@@ -8029,8 +8030,8 @@ ggplot() +
         strip.background = element_blank(),
         axis.title.x = element_blank(),
         axis.text.x = element_text(size = 10)) +
-  xlab("management level") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Management level") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0.4, 1)) +
   scale_colour_brewer(palette = "Dark2", 
                       name = "Region", 
@@ -8167,8 +8168,8 @@ ggplot() +
   theme(legend.position = c(0.5, 0.2),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("habitat") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Habitat") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0.75, 1)) +
   scale_colour_brewer(palette = "Dark2", 
                       name = "Region", 
@@ -8279,8 +8280,8 @@ ggplot(pred.dog_m,
         legend.title = element_blank(),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("maximum number of dogs exposed to") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Maximum number of dogs exposed to") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
 ```
@@ -8378,8 +8379,8 @@ ggplot(pred.dof_m,
         legend.title = element_blank(),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("maximum number of dogs off leash exposed to") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Maximum number of dogs off leash exposed to") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
 ```
@@ -8477,8 +8478,8 @@ ggplot(pred.hum_m,
         legend.title = element_blank(),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("maximum number of humans exposed to") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Maximum number of humans exposed to") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
 ```
@@ -8576,8 +8577,8 @@ ggplot(pred.pbd_m,
         legend.title = element_blank(),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("maximum number of ravens and magpies exposed to") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Maximum number of ravens and magpies exposed to") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
 ```
@@ -8677,8 +8678,8 @@ ggplot(pred.gul_m,
         legend.title = element_blank(),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("maximum number of gulls exposed to") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Maximum number of gulls exposed to") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
 ```
@@ -8852,8 +8853,8 @@ ggplot(pred.veh_m_status_FP,
         legend.title = element_blank(),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("maximum number of vehicles exposed to") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Maximum number of vehicles exposed to") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
 ```
@@ -8990,8 +8991,8 @@ ggplot() +
         legend.justification = c(1, 0),
         strip.background = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
-  xlab("season") + 
-  ylab("estimated daily survival rate (± 95% CI)") +
+  xlab("Season") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0.7, 1)) +
   scale_colour_brewer(palette = "Dark2") +
   scale_fill_brewer(palette = "Dark2") +
@@ -9116,7 +9117,7 @@ nest_survival_season_plot_FP <-
   scale_x_date(date_labels = "%B", 
                expand = c(0.01, 0.01), 
                date_breaks = "1 months") +
-  ylab("daily nest survival ± 95% CI") +
+  ylab("Daily nest survival ± 95% CI") +
   scale_y_continuous(limits = c(0, 1)) +
   luke_theme +
   theme(legend.position = "bottom",
@@ -9183,7 +9184,7 @@ nest_survival_season_plot_MP <-
   scale_x_date(date_labels = "%B", 
                expand = c(0.01, 0.01), 
                date_breaks = "1 months") +
-  ylab("daily nest survival ± 95% CI") +
+  ylab("Daily nest survival ± 95% CI") +
   scale_y_continuous(limits = c(0, 1)) +
   luke_theme +
   theme(legend.position = "bottom",
@@ -9251,7 +9252,7 @@ nest_survival_season_plot_BC <-
                expand = c(0.01, 0.01), 
                date_breaks = "1 months", limits = c(min(nest_survival_reals_dates_BC$date, na.rm = TRUE), 
                                                         max(nest_survival_reals_dates_BC$date, na.rm = TRUE))) +
-  ylab("daily nest survival ± 95% CI") +
+  ylab("Daily nest survival ± 95% CI") +
   scale_y_continuous(limits = c(0, 1)) +
   luke_theme +
   theme(legend.position = "bottom",
@@ -9292,7 +9293,7 @@ hooded_plover_nest_plot_BC <-
   nest_survival_season_plot_BC +
   plot_layout(widths = c(5), 
               heights = unit(c(1, 3), c('in', 'in'))) +
-  plot_annotation(tag_levels = 'A', title = "Bellarine / Surf Coast")
+  plot_annotation(tag_levels = 'A', title = "Bass Coast")
 
 ### BSC ---
 dates_for_plot_BSC <- 
@@ -9318,7 +9319,7 @@ nest_survival_season_plot_BSC <-
   scale_x_date(date_labels = "%B", 
                expand = c(0.01, 0.01), 
                date_breaks = "1 months") +
-  ylab("daily nest survival ± 95% CI") +
+  ylab("Daily nest survival ± 95% CI") +
   scale_y_continuous(limits = c(0, 1)) +
   luke_theme +
   theme(legend.position = "bottom",
@@ -9385,7 +9386,7 @@ nest_survival_season_plot_PI <-
   scale_x_date(date_labels = "%B", 
                expand = c(0.01, 0.01), 
                date_breaks = "1 months") +
-  ylab("daily nest survival ± 95% CI") +
+  ylab("Daily nest survival ± 95% CI") +
   scale_y_continuous(limits = c(0, 1)) +
   luke_theme +
   theme(legend.position = "bottom",
