@@ -8047,7 +8047,7 @@ ggplot() +
                                  "MP" = "Mornington Peninsula",
                                  "BC" = "Bass Coast",
                                  "PI" = "Phillip Island")) +
-  scale_x_discrete(labels = c("No management", "management"))
+  scale_x_discrete(labels = c("No management", "Management"))
 ```
 
 ## Effect of Habitat on nest survival
@@ -9451,6 +9451,22 @@ hatch_dates_BSC_MP_FP_BC_PI <-
                                                                  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35,
                                                                         ifelse(state_1st_ob == "wet in nest", chick_1st_ob, NA)))))), 
                                      ifelse(Fate == "0" & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date())
+
+## Find out number of nests with clutch comp dates and without
+hatch_dates_BSC_MP_FP_BC_PI %>% 
+  summarise(
+    with_clutch_comp = sum(!is.na(clutch_comp)),
+    without_clutch_comp = sum(is.na(clutch_comp))
+  )
+
+
+## Find out number of nests per management level that have clutch comp dates
+hatch_dates_BSC_MP_FP_BC_PI %>% 
+  filter(!is.na(clutch_comp)) %>%        # keep nests with clutch_comp
+  group_by(management_level) %>%       # group by management level
+  summarise(n_obs = n())        # count nests per level
+
+
 
 ```
 
@@ -11017,17 +11033,17 @@ MP_chicks_p_run$model.table %>%
 MP_chicks_p_run <- readRDS("output/MP_chicks_p_run.rds")
 
 # Extract estimates of survival from top model
-Chick_p_reals <- MP_chicks_p_run[[4]]$results$real
+Chick_p_reals_MP <- MP_chicks_p_run[[11]]$results$real
 
 # wrangle dataframe to get annual estimates (grouped by "Year")
-Groups <- data.frame(str_split_fixed(rownames(Chick_p_reals), " ", n = 5))
-Chick_p_reals <- cbind(Groups, Chick_p_reals)
-Chick_p_reals$season <- unlist(substr(Chick_p_reals$X2, 2, 7))
-Chick_p_reals$age <- as.numeric(sub("^a", "", Chick_p_reals$X4))
+Groups <- data.frame(str_split_fixed(rownames(Chick_p_reals_MP), " ", n = 5))
+Chick_p_reals_MP <- cbind(Groups, Chick_p_reals_MP)
+Chick_p_reals_MP$season <- unlist(substr(Chick_p_reals_MP$X2, 2, 7))
+Chick_p_reals_MP$age <- as.numeric(sub("^a", "", Chick_p_reals_MP$X4))
 
 ggplot() +
-  geom_line(data = Chick_p_reals, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = Chick_p_reals, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+  geom_line(data = Chick_p_reals_MP, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
+  geom_ribbon(data = Chick_p_reals_MP, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
   scale_color_gradient(
     low = "black",
     high = "red",
@@ -11041,12 +11057,12 @@ ggplot() +
   ylab("daily detection probability of a brood") +
   xlab("brood age (days)")
 
-Chick_p_reals <- Chick_p_reals[which(Chick_p_reals$X1 == "p"),]
+Chick_p_reals_MP <- Chick_p_reals_MP[which(Chick_p_reals_MP$X1 == "p"),]
 
 # clean dataframe
-Chick_p_reals <- Chick_p_reals[,-c(1:11)]
-Chick_p_reals$Age <- "Chick"
-row.names(Chick_p_reals) <- NULL
+Chick_p_reals_MP <- Chick_p_reals_MP[,-c(1:11)]
+Chick_p_reals_MP$Age <- "Chick"
+row.names(Chick_p_reals_MP) <- NULL
 ```
 ### Survival modelling (Phi)
 ```{r}
@@ -11194,8 +11210,8 @@ MP_chicks_Phi <- function()
   #   list(formula = ~season * Quadratic)
   
     # best structure of p determined from previous analysis
-  p.quadage <- 
-    list(formula = ~Quadratic)
+  p.year.x.quadage <- 
+    list(formula = ~season * Quadratic)
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
@@ -11249,6 +11265,7 @@ Chick_mgmt_l_surv <- MP_chicks_Phi_run[[14]]$results$real
 Chick_mgmt_s_x_quadage_surv <- MP_chicks_Phi_run[[20]]$results$real
 Chick_mgmt_s_quadage_surv <- MP_chicks_Phi_run[[17]]$results$real
 Chick_mgmt_l_quadage_surv <- MP_chicks_Phi_run[[16]]$results$real
+Chick_mgmt_s_hatch_date_surv <- MP_chicks_Phi_run[[11]]$results$real ## I've added this one so not sure how to put into analysis below
 
 Groups <- data.frame(str_split_fixed(rownames(Chick_dot_surv), " ", n = 5))
 Chick_dot_surv <- cbind(Groups, Chick_dot_surv)
@@ -11312,8 +11329,8 @@ ggplot() +
     high = "red",
     name = "season"
   ) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival
 ggplot() +
@@ -11321,8 +11338,8 @@ ggplot() +
             aes(x = age, y = estimate)) +
   geom_ribbon(data = filter(Chick_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
 ggplot() +
@@ -11330,8 +11347,8 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_s)) +
   geom_ribbon(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management level
 ggplot() +
@@ -11339,8 +11356,8 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_l)) +
   geom_ribbon(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
 ggplot() +
@@ -11348,8 +11365,8 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_s)) +
   geom_ribbon(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # management status-dependent survival
 ggplot() +
@@ -11357,8 +11374,8 @@ ggplot() +
             aes(x = mgmt_s, y = estimate, color = mgmt_s)) +
   geom_errorbar(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
               aes(x = mgmt_s, ymin = lcl, ymax = ucl, color = mgmt_s)) +
-  ylab("daily brood survival") +
-  xlab("managed?") +
+  ylab("Daily brood survival") +
+  xlab("Managed?") +
   scale_y_continuous(limits = c(0, 1))
 
 # management level-dependent survival
@@ -11367,8 +11384,8 @@ ggplot() +
             aes(x = mgmt_l, y = estimate, color = mgmt_l)) +
   geom_errorbar(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
               aes(x = mgmt_l, ymin = lcl, ymax = ucl, color = mgmt_l)) +
-  ylab("daily brood survival") +
-  xlab("managed?") +
+  ylab("Daily brood survival") +
+  xlab("Managed?") +
   scale_y_continuous(limits = c(0, 1))
 
 filter(Chick_mgmt_s_surv, X1 == "Phi") %>% 
