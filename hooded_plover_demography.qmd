@@ -625,7 +625,7 @@ suppressMessages(
   mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
   mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
   dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
-                -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
+                -wardens_no_sign, -wardens_no_fence, -just_wardens)%>%
   group_by(season) %>%
   mutate(nocc = max(max(LastChecked, na.rm = TRUE), max(LastPresent, na.rm = TRUE)),
          season = as.factor(season),
@@ -1233,7 +1233,7 @@ suppressMessages(
   mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
   mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
   dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
-                -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
+                -wardens_no_sign, -wardens_no_fence, -just_wardens)%>%
   group_by(season) %>%
   mutate(nocc = max(max(LastChecked, na.rm = TRUE), max(LastPresent, na.rm = TRUE)),
          season = as.factor(season),
