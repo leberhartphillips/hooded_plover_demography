@@ -370,7 +370,8 @@ nest_import <-
                                               ifelse(sign_nest == 1, 2,
                                                      # Level 1 is Sign Access or Permanent fence (but only if nest in dune)
                                                      ifelse((perm_fence == 1 & nest_hab == "dune") | sign_access == 1, 1,
-                                                            ifelse(none == 1, 0, NA))))))
+                                                            ifelse(none == 1, 0, NA))))))%>%
+    mutate(management_status = ifelse(management_level == 1, "N", management_status)) #changes level 1 management to management status N
   }
 
 ```
@@ -11906,11 +11907,14 @@ filter(Chick_mgmt_s_surv, X1 == "Phi") %>%
 ##BSC
 ### Mark-recapture modelling
 ```{r}
+
+BSC_chick_ch <- BSC_chick_ch[nchar(BSC_chick_ch$ch) == 35, ] #two brood had "ch" observations greater than 35 so i removed them
+
 # Create processed RMARK data format as CJS with "Year" as group
 BSC_chicks.proc <- process.data(BSC_chick_ch, model = "CJS",
                                groups = c("season", "region", 
                                           "mgmt_l", "mgmt_s"))
-    ##BSC_chick_ch <- BSC_chick_ch[nchar(BSC_chick_ch$ch) == 35, ] two brood had "ch" observations greater than 35 so i removed them
+    
 # Create the design data
 BSC_chicks.ddl <- make.design.data(BSC_chicks.proc)
 
@@ -12199,8 +12203,8 @@ BSC_chicks_Phi <- function()
   #   list(formula = ~season * Quadratic)
   
     # best structure of p determined from previous analysis
-  p.quadage <- 
-    list(formula = ~Quadratic)
+   Phi.season.x.date <-
+    list(formula = ~season * date_j)
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
@@ -12246,67 +12250,67 @@ BSC_chicks_Phi_run$model.table %>%
 BSC_chicks_Phi_run <- readRDS("output/BSC_chicks_Phi_run.rds")
 
 # Extract estimates of survival from top models
-Chick_dot_surv <- BSC_chicks_Phi_run[[13]]$results$real
-Chick_quadage_surv <- BSC_chicks_Phi_run[[18]]$results$real
-Chick_hatch_date_surv <- BSC_chicks_Phi_run[[8]]$results$real
-Chick_mgmt_s_surv <- BSC_chicks_Phi_run[[15]]$results$real
-Chick_mgmt_l_surv <- BSC_chicks_Phi_run[[14]]$results$real
-Chick_mgmt_s_x_quadage_surv <- BSC_chicks_Phi_run[[20]]$results$real
-Chick_mgmt_s_quadage_surv <- BSC_chicks_Phi_run[[17]]$results$real
-Chick_mgmt_l_quadage_surv <- BSC_chicks_Phi_run[[16]]$results$real
+BSC_Chick_dot_surv <- BSC_chicks_Phi_run[[13]]$results$real
+BSC_Chick_quadage_surv <- BSC_chicks_Phi_run[[16]]$results$real
+BSC_Chick_hatch_date_surv <- BSC_chicks_Phi_run[[1]]$results$real
+BSC_Chick_mgmt_s_surv <- BSC_chicks_Phi_run[[15]]$results$real
+BSC_Chick_mgmt_l_surv <- BSC_chicks_Phi_run[[14]]$results$real
+BSC_Chick_mgmt_s_x_quadage_surv <- BSC_chicks_Phi_run[[20]]$results$real
+BSC_Chick_mgmt_s_quadage_surv <- BSC_chicks_Phi_run[[18]]$results$real
+BSC_Chick_mgmt_l_quadage_surv <- BSC_chicks_Phi_run[[17]]$results$real # Top model, only one <2 delta 
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_dot_surv), " ", n = 5))
-Chick_dot_surv <- cbind(Groups, Chick_dot_surv)
-Chick_dot_surv$season <- unlist(substr(Chick_dot_surv$X2, 2, 7))
-Chick_dot_surv$age <- as.numeric(sub("^a", "", Chick_dot_surv$X4))
-Chick_dot_surv$mgmt_s <- unlist(substr(Chick_dot_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_dot_surv), " ", n = 5))
+BSC_Chick_dot_surv <- cbind(Groups, BSC_Chick_dot_surv)
+BSC_Chick_dot_surv$season <- unlist(substr(BSC_Chick_dot_surv$X2, 2, 7))
+BSC_Chick_dot_surv$age <- as.numeric(sub("^a", "", BSC_Chick_dot_surv$X4))
+BSC_Chick_dot_surv$mgmt_s <- unlist(substr(BSC_Chick_dot_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_quadage_surv), " ", n = 5))
-Chick_quadage_surv <- cbind(Groups, Chick_quadage_surv)
-Chick_quadage_surv$season <- unlist(substr(Chick_quadage_surv$X2, 2, 7))
-Chick_quadage_surv$age <- as.numeric(sub("^a", "", Chick_quadage_surv$X4))
-Chick_quadage_surv$mgmt_s <- unlist(substr(Chick_quadage_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_quadage_surv), " ", n = 5))
+BSC_Chick_quadage_surv <- cbind(Groups, BSC_Chick_quadage_surv)
+BSC_Chick_quadage_surv$season <- unlist(substr(BSC_Chick_quadage_surv$X2, 2, 7))
+BSC_Chick_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_quadage_surv$X4))
+BSC_Chick_quadage_surv$mgmt_s <- unlist(substr(BSC_Chick_quadage_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_hatch_date_surv), " ", n = 5))
-Chick_hatch_date_surv <- cbind(Groups, Chick_hatch_date_surv)
-Chick_hatch_date_surv$season <- unlist(substr(Chick_hatch_date_surv$X2, 2, 7))
-Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", Chick_hatch_date_surv$X4))
-Chick_hatch_date_surv$mgmt_s <- unlist(substr(Chick_hatch_date_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_hatch_date_surv), " ", n = 5))
+BSC_Chick_hatch_date_surv <- cbind(Groups, BSC_Chick_hatch_date_surv)
+BSC_Chick_hatch_date_surv$season <- unlist(substr(BSC_Chick_hatch_date_surv$X2, 2, 7))
+BSC_Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", BSC_Chick_hatch_date_surv$X4))
+BSC_Chick_hatch_date_surv$mgmt_s <- unlist(substr(BSC_Chick_hatch_date_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_surv), " ", n = 5))
-Chick_mgmt_s_surv <- cbind(Groups, Chick_mgmt_s_surv)
-Chick_mgmt_s_surv$season <- unlist(substr(Chick_mgmt_s_surv$X2, 2, 7))
-Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_surv$X4))
-Chick_mgmt_s_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_s_surv), " ", n = 5))
+BSC_Chick_mgmt_s_surv <- cbind(Groups, BSC_Chick_mgmt_s_surv)
+BSC_Chick_mgmt_s_surv$season <- unlist(substr(BSC_Chick_mgmt_s_surv$X2, 2, 7))
+BSC_Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_s_surv$X4))
+BSC_Chick_mgmt_s_surv$mgmt_s <- unlist(substr(BSC_Chick_mgmt_s_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_surv), " ", n = 5))
-Chick_mgmt_l_surv <- cbind(Groups, Chick_mgmt_l_surv)
-Chick_mgmt_l_surv$season <- unlist(substr(Chick_mgmt_l_surv$X2, 2, 7))
-Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_surv$X4))
-Chick_mgmt_l_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_surv$X2, 10, 10))
+Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_l_surv), " ", n = 5))
+BSC_Chick_mgmt_l_surv <- cbind(Groups, BSC_Chick_mgmt_l_surv)
+BSC_Chick_mgmt_l_surv$season <- unlist(substr(BSC_Chick_mgmt_l_surv$X2, 2, 7))
+BSC_Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_l_surv$X4))
+BSC_Chick_mgmt_l_surv$mgmt_l <- unlist(substr(BSC_Chick_mgmt_l_surv$X2, 10, 10))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_quadage_surv), " ", n = 5))
-Chick_mgmt_s_quadage_surv <- cbind(Groups, Chick_mgmt_s_quadage_surv)
-Chick_mgmt_s_quadage_surv$season <- unlist(substr(Chick_mgmt_s_quadage_surv$X2, 2, 7))
-Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_quadage_surv$X4))
-Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_quadage_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_s_quadage_surv), " ", n = 5))
+BSC_Chick_mgmt_s_quadage_surv <- cbind(Groups, BSC_Chick_mgmt_s_quadage_surv)
+BSC_Chick_mgmt_s_quadage_surv$season <- unlist(substr(BSC_Chick_mgmt_s_quadage_surv$X2, 2, 7))
+BSC_Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_s_quadage_surv$X4))
+BSC_Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(BSC_Chick_mgmt_s_quadage_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_x_quadage_surv), " ", n = 5))
-Chick_mgmt_s_x_quadage_surv <- cbind(Groups, Chick_mgmt_s_x_quadage_surv)
-Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
-Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_x_quadage_surv$X4))
-Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_x_quadage_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_s_x_quadage_surv), " ", n = 5))
+BSC_Chick_mgmt_s_x_quadage_surv <- cbind(Groups, BSC_Chick_mgmt_s_x_quadage_surv)
+BSC_Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(BSC_Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
+BSC_Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_s_x_quadage_surv$X4))
+BSC_Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(BSC_Chick_mgmt_s_x_quadage_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_quadage_surv), " ", n = 5))
-Chick_mgmt_l_quadage_surv <- cbind(Groups, Chick_mgmt_l_quadage_surv)
-Chick_mgmt_l_quadage_surv$season <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 2, 7))
-Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_quadage_surv$X4))
-Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 10, 10))
+Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_l_quadage_surv), " ", n = 5))
+BSC_Chick_mgmt_l_quadage_surv <- cbind(Groups, BSC_Chick_mgmt_l_quadage_surv)
+BSC_Chick_mgmt_l_quadage_surv$season <- unlist(substr(BSC_Chick_mgmt_l_quadage_surv$X2, 2, 7))
+BSC_Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_l_quadage_surv$X4))
+BSC_Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(BSC_Chick_mgmt_l_quadage_surv$X2, 10, 10))
 
 # constant survival
 ggplot() +
-  geom_line(data = Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = Chick_dot_surv, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+  geom_line(data = BSC_Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
+  geom_ribbon(data = BSC_Chick_dot_surv, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
   scale_color_gradient(
     low = "black",
     high = "red",
@@ -12317,50 +12321,50 @@ ggplot() +
     high = "red",
     name = "season"
   ) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival
 ggplot() +
-  geom_line(data = filter(Chick_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(BSC_Chick_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate)) +
-  geom_ribbon(data = filter(Chick_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(BSC_Chick_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
 ggplot() +
-  geom_line(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(BSC_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate, color = mgmt_s)) +
-  geom_ribbon(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(BSC_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
   ylab("daily brood survival") +
   xlab("brood age (days)")
 
 # quadratic age-dependent survival and management level
 ggplot() +
-  geom_line(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(BSC_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate, color = mgmt_l)) +
-  geom_ribbon(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(BSC_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
 ggplot() +
-  geom_line(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(BSC_Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate, color = mgmt_s)) +
-  geom_ribbon(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(BSC_Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
   ylab("daily brood survival") +
   xlab("brood age (days)")
 
 # management status-dependent survival
 ggplot() +
-  geom_point(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
+  geom_point(data = filter(BSC_Chick_mgmt_s_surv, X1 == "Phi"), 
             aes(x = mgmt_s, y = estimate, color = mgmt_s)) +
-  geom_errorbar(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
+  geom_errorbar(data = filter(BSC_Chick_mgmt_s_surv, X1 == "Phi"), 
               aes(x = mgmt_s, ymin = lcl, ymax = ucl, color = mgmt_s)) +
   ylab("daily brood survival") +
   xlab("managed?") +
@@ -12368,9 +12372,9 @@ ggplot() +
 
 # management level-dependent survival
 ggplot() +
-  geom_point(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
+  geom_point(data = filter(BSC_Chick_mgmt_l_surv, X1 == "Phi"), 
             aes(x = mgmt_l, y = estimate, color = mgmt_l)) +
-  geom_errorbar(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
+  geom_errorbar(data = filter(BSC_Chick_mgmt_l_surv, X1 == "Phi"), 
               aes(x = mgmt_l, ymin = lcl, ymax = ucl, color = mgmt_l)) +
   ylab("daily brood survival") +
   xlab("managed?") +
@@ -12518,17 +12522,13 @@ FP_chicks_p_run$model.table %>%
 FP_chicks_p_run <- readRDS("output/FP_chicks_p_run.rds")
 
 # Extract estimates of survival from top model
-Chick_p_reals <- FP_chicks_p_run[[4]]$results$real
-
-# wrangle dataframe to get annual estimates (grouped by "Year")
-Groups <- data.frame(str_split_fixed(rownames(Chick_p_reals), " ", n = 5))
-Chick_p_reals <- cbind(Groups, Chick_p_reals)
-Chick_p_reals$season <- unlist(substr(Chick_p_reals$X2, 2, 7))
-Chick_p_reals$age <- as.numeric(sub("^a", "", Chick_p_reals$X4))
+FP_Chick_p_reals <- cbind(Groups, FP_Chick_p_reals)
+FP_Chick_p_reals$season <- unlist(substr(FP_Chick_p_reals$X2, 2, 7))
+FP_Chick_p_reals$age <- as.numeric(sub("^a", "", FP_Chick_p_reals$X4))
 
 ggplot() +
-  geom_line(data = Chick_p_reals, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = Chick_p_reals, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+  geom_line(data = FP_Chick_p_reals, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
+  geom_ribbon(data = FP_Chick_p_reals, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
   scale_color_gradient(
     low = "black",
     high = "red",
@@ -12542,12 +12542,12 @@ ggplot() +
   ylab("daily detection probability of a brood") +
   xlab("brood age (days)")
 
-Chick_p_reals <- Chick_p_reals[which(Chick_p_reals$X1 == "p"),]
+FP_Chick_p_reals <- FP_Chick_p_reals[which(FP_Chick_p_reals$X1 == "p"),]
 
 # clean dataframe
-Chick_p_reals <- Chick_p_reals[,-c(1:11)]
-Chick_p_reals$Age <- "Chick"
-row.names(Chick_p_reals) <- NULL
+FP_Chick_p_reals <- FP_Chick_p_reals[,-c(1:11)]
+FP_Chick_p_reals$Age <- "Chick"
+row.names(FP_Chick_p_reals) <- NULL
 ```
 ### Survival modelling (Phi)
 ```{r}
@@ -12695,8 +12695,9 @@ FP_chicks_Phi <- function()
   #   list(formula = ~season * Quadratic)
   
     # best structure of p determined from previous analysis
-  p.quadage <- 
-    list(formula = ~Quadratic)
+   p.dot <- 
+    list(formula = ~1)
+  
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
@@ -12717,73 +12718,105 @@ FP_chicks_Phi_run <- FP_chicks_Phi()
 FP_chicks_Phi_run # best structure: Phi(~Year * Day_of_Season)
 
 saveRDS(FP_chicks_Phi_run, "output/FP_chicks_Phi_run.rds")
+
+#Create AIC model selection table
+
+FP_chicks_Phi_run <- readRDS(file = "output/FP_chicks_Phi_run.rds") 
+
+FP_chicks_Phi_run$model.table %>% 
+  dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
+  cols_label(model = html("<i>Fleurieu Peninsula</i>"), 
+             npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
+  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  cols_align(align = "left", columns = vars(model)) %>% 
+  tab_options(row_group.font.weight = "bold", 
+              row_group.background.color = brewer.pal(9,"Greys")[3], 
+              table.font.size = 12, data_row.padding = 3, 
+              row_group.padding = 4, summary_row.padding = 2, 
+              column_labels.font.size = 14, row_group.font.size = 12, 
+              table.width = pct(80))
 ```
 ### Extract results and visualize Phi
 ```{r}
 FP_chicks_Phi_run <- readRDS("output/FP_chicks_Phi_run.rds")
 
 # Extract estimates of survival from top models
-Chick_dot_surv <- FP_chicks_Phi_run[[13]]$results$real
-Chick_quadage_surv <- FP_chicks_Phi_run[[18]]$results$real
-Chick_hatch_date_surv <- FP_chicks_Phi_run[[8]]$results$real
-Chick_mgmt_s_surv <- FP_chicks_Phi_run[[15]]$results$real
-Chick_mgmt_l_surv <- FP_chicks_Phi_run[[14]]$results$real
-Chick_mgmt_s_x_quadage_surv <- FP_chicks_Phi_run[[20]]$results$real
-Chick_mgmt_s_quadage_surv <- FP_chicks_Phi_run[[17]]$results$real
-Chick_mgmt_l_quadage_surv <- FP_chicks_Phi_run[[16]]$results$real
+FP_Chick_dot_surv <- FP_chicks_Phi_run[[13]]$results$real
+FP_Chick_quadage_surv <- FP_chicks_Phi_run[[18]]$results$real
+FP_Chick_hatch_date_surv <- FP_chicks_Phi_run[[8]]$results$real
+FP_Chick_mgmt_s_surv <- FP_chicks_Phi_run[[15]]$results$real
+FP_Chick_mgmt_l_surv <- FP_chicks_Phi_run[[14]]$results$real #3rd model
+FP_Chick_mgmt_s_x_quadage_surv <- FP_chicks_Phi_run[[20]]$results$real
+FP_Chick_mgmt_s_quadage_surv <- FP_chicks_Phi_run[[17]]$results$real
+FP_Chick_mgmt_l_quadage_surv <- FP_chicks_Phi_run[[16]]$results$real
+FP_Chick_hatch_date_mgmt_l_surv <- FP_chicks_Phi_run[[6]]$results$real # top model
+FP_Chick_hatch_date_x_mgmt_l_surv <- FP_chicks_Phi_run[[10]]$results$real # second top model. only two models <2 Delta AIC
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_dot_surv), " ", n = 5))
-Chick_dot_surv <- cbind(Groups, Chick_dot_surv)
-Chick_dot_surv$season <- unlist(substr(Chick_dot_surv$X2, 2, 7))
-Chick_dot_surv$age <- as.numeric(sub("^a", "", Chick_dot_surv$X4))
-Chick_dot_surv$mgmt_s <- unlist(substr(Chick_dot_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_hatch_date_mgmt_l_surv), " ", n = 5))
+FP_Chick_hatch_date_mgmt_l_surv <- cbind(Groups, FP_Chick_hatch_date_mgmt_l_surv)
+FP_Chick_hatch_date_mgmt_l_surv$season <- unlist(substr(FP_Chick_hatch_date_mgmt_l_surv$X2, 2, 7))
+FP_Chick_hatch_date_mgmt_l_surv$age <- as.numeric(sub("^a", "", FP_Chick_hatch_date_mgmt_l_surv$X4))
+FP_Chick_hatch_date_mgmt_l_surv$mgmt_s <- unlist(substr(FP_Chick_hatch_date_mgmt_l_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_quadage_surv), " ", n = 5))
-Chick_quadage_surv <- cbind(Groups, Chick_quadage_surv)
-Chick_quadage_surv$season <- unlist(substr(Chick_quadage_surv$X2, 2, 7))
-Chick_quadage_surv$age <- as.numeric(sub("^a", "", Chick_quadage_surv$X4))
-Chick_quadage_surv$mgmt_s <- unlist(substr(Chick_quadage_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_hatch_date_x_mgmt_l_surv), " ", n = 5))
+FP_Chick_hatch_date_x_mgmt_l_surv <- cbind(Groups, FP_Chick_hatch_date_x_mgmt_l_surv)
+FP_Chick_hatch_date_x_mgmt_l_surv$season <- unlist(substr(FP_Chick_hatch_date_x_mgmt_l_surv$X2, 2, 7))
+FP_Chick_hatch_date_x_mgmt_l_surv$age <- as.numeric(sub("^a", "", FP_Chick_hatch_date_x_mgmt_l_surv$X4))
+FP_Chick_hatch_date_x_mgmt_l_surv$mgmt_s <- unlist(substr(FP_Chick_hatch_date_x_mgmt_l_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_hatch_date_surv), " ", n = 5))
-Chick_hatch_date_surv <- cbind(Groups, Chick_hatch_date_surv)
-Chick_hatch_date_surv$season <- unlist(substr(Chick_hatch_date_surv$X2, 2, 7))
-Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", Chick_hatch_date_surv$X4))
-Chick_hatch_date_surv$mgmt_s <- unlist(substr(Chick_hatch_date_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_dot_surv), " ", n = 5))
+FP_Chick_dot_surv <- cbind(Groups, FP_Chick_dot_surv)
+FP_Chick_dot_surv$season <- unlist(substr(FP_Chick_dot_surv$X2, 2, 7))
+FP_Chick_dot_surv$age <- as.numeric(sub("^a", "", FP_Chick_dot_surv$X4))
+FP_Chick_dot_surv$mgmt_s <- unlist(substr(FP_Chick_dot_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_surv), " ", n = 5))
-Chick_mgmt_s_surv <- cbind(Groups, Chick_mgmt_s_surv)
-Chick_mgmt_s_surv$season <- unlist(substr(Chick_mgmt_s_surv$X2, 2, 7))
-Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_surv$X4))
-Chick_mgmt_s_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_quadage_surv), " ", n = 5))
+FP_Chick_quadage_surv <- cbind(Groups, FP_Chick_quadage_surv)
+FP_Chick_quadage_surv$season <- unlist(substr(FP_Chick_quadage_surv$X2, 2, 7))
+FP_Chick_quadage_surv$age <- as.numeric(sub("^a", "", FP_Chick_quadage_surv$X4))
+FP_Chick_quadage_surv$mgmt_s <- unlist(substr(FP_Chick_quadage_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_surv), " ", n = 5))
-Chick_mgmt_l_surv <- cbind(Groups, Chick_mgmt_l_surv)
-Chick_mgmt_l_surv$season <- unlist(substr(Chick_mgmt_l_surv$X2, 2, 7))
-Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_surv$X4))
-Chick_mgmt_l_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_surv$X2, 10, 10))
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_hatch_date_surv), " ", n = 5))
+FP_Chick_hatch_date_surv <- cbind(Groups, FP_Chick_hatch_date_surv)
+FP_Chick_hatch_date_surv$season <- unlist(substr(FP_Chick_hatch_date_surv$X2, 2, 7))
+FP_Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", FP_Chick_hatch_date_surv$X4))
+FP_Chick_hatch_date_surv$mgmt_s <- unlist(substr(FP_Chick_hatch_date_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_quadage_surv), " ", n = 5))
-Chick_mgmt_s_quadage_surv <- cbind(Groups, Chick_mgmt_s_quadage_surv)
-Chick_mgmt_s_quadage_surv$season <- unlist(substr(Chick_mgmt_s_quadage_surv$X2, 2, 7))
-Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_quadage_surv$X4))
-Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_quadage_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_mgmt_s_surv), " ", n = 5))
+FP_Chick_mgmt_s_surv <- cbind(Groups, FP_Chick_mgmt_s_surv)
+FP_Chick_mgmt_s_surv$season <- unlist(substr(FP_Chick_mgmt_s_surv$X2, 2, 7))
+FP_Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", FP_Chick_mgmt_s_surv$X4))
+FP_Chick_mgmt_s_surv$mgmt_s <- unlist(substr(FP_Chick_mgmt_s_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_x_quadage_surv), " ", n = 5))
-Chick_mgmt_s_x_quadage_surv <- cbind(Groups, Chick_mgmt_s_x_quadage_surv)
-Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
-Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_x_quadage_surv$X4))
-Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_x_quadage_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_mgmt_l_surv), " ", n = 5))
+FP_Chick_mgmt_l_surv <- cbind(Groups, FP_Chick_mgmt_l_surv)
+FP_Chick_mgmt_l_surv$season <- unlist(substr(FP_Chick_mgmt_l_surv$X2, 2, 7))
+FP_Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", FP_Chick_mgmt_l_surv$X4))
+FP_Chick_mgmt_l_surv$mgmt_l <- unlist(substr(FP_Chick_mgmt_l_surv$X2, 10, 10))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_quadage_surv), " ", n = 5))
-Chick_mgmt_l_quadage_surv <- cbind(Groups, Chick_mgmt_l_quadage_surv)
-Chick_mgmt_l_quadage_surv$season <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 2, 7))
-Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_quadage_surv$X4))
-Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 10, 10))
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_mgmt_s_quadage_surv), " ", n = 5))
+FP_Chick_mgmt_s_quadage_surv <- cbind(Groups, FP_Chick_mgmt_s_quadage_surv)
+FP_Chick_mgmt_s_quadage_surv$season <- unlist(substr(FP_Chick_mgmt_s_quadage_surv$X2, 2, 7))
+FP_Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", FP_Chick_mgmt_s_quadage_surv$X4))
+FP_Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(FP_Chick_mgmt_s_quadage_surv$X2, 11, 11))
+
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_mgmt_s_x_quadage_surv), " ", n = 5))
+FP_Chick_mgmt_s_x_quadage_surv <- cbind(Groups, FP_Chick_mgmt_s_x_quadage_surv)
+FP_Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(FP_Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
+FP_Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", FP_Chick_mgmt_s_x_quadage_surv$X4))
+FP_Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(FP_Chick_mgmt_s_x_quadage_surv$X2, 11, 11))
+
+Groups <- data.frame(str_split_fixed(rownames(FP_Chick_mgmt_l_quadage_surv), " ", n = 5))
+FP_Chick_mgmt_l_quadage_surv <- cbind(Groups, FP_Chick_mgmt_l_quadage_surv)
+FP_Chick_mgmt_l_quadage_surv$season <- unlist(substr(FP_Chick_mgmt_l_quadage_surv$X2, 2, 7))
+FP_Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", FP_Chick_mgmt_l_quadage_surv$X4))
+FP_Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(FP_Chick_mgmt_l_quadage_surv$X2, 10, 10))
 
 # constant survival
 ggplot() +
-  geom_line(data = Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = Chick_dot_surv, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+  geom_line(data = FP_Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
+  geom_ribbon(data = FP_Chick_dot_surv, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
   scale_color_gradient(
     low = "black",
     high = "red",
@@ -12799,62 +12832,88 @@ ggplot() +
 
 # quadratic age-dependent survival
 ggplot() +
-  geom_line(data = filter(Chick_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(FP_Chick_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate)) +
-  geom_ribbon(data = filter(Chick_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(FP_Chick_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
   ylab("daily brood survival") +
   xlab("brood age (days)")
 
 # quadratic age-dependent survival and management status
 ggplot() +
-  geom_line(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(FP_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate, color = mgmt_s)) +
-  geom_ribbon(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(FP_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
   ylab("daily brood survival") +
   xlab("brood age (days)")
 
 # quadratic age-dependent survival and management level
 ggplot() +
-  geom_line(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(FP_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate, color = mgmt_l)) +
-  geom_ribbon(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(FP_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
   ylab("daily brood survival") +
   xlab("brood age (days)")
 
 # quadratic age-dependent survival and management status
 ggplot() +
-  geom_line(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(FP_Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate, color = mgmt_s)) +
-  geom_ribbon(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(FP_Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
   ylab("daily brood survival") +
   xlab("brood age (days)")
 
 # management status-dependent survival
 ggplot() +
-  geom_point(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
+ geom_point(data = filter(FP_Chick_mgmt_s_surv, X1 == "Phi"), 
             aes(x = mgmt_s, y = estimate, color = mgmt_s)) +
-  geom_errorbar(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
+  geom_errorbar(data = filter(FP_Chick_mgmt_s_surv, X1 == "Phi"), 
               aes(x = mgmt_s, ymin = lcl, ymax = ucl, color = mgmt_s)) +
-  ylab("daily brood survival") +
+ ylab("daily brood survival") +
   xlab("managed?") +
   scale_y_continuous(limits = c(0, 1))
 
 # management level-dependent survival
 ggplot() +
-  geom_point(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
+  geom_point(data = filter(FP_Chick_mgmt_l_surv, X1 == "Phi"), 
             aes(x = mgmt_l, y = estimate, color = mgmt_l)) +
-  geom_errorbar(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
+  geom_errorbar(data = filter(FP_Chick_mgmt_l_surv, X1 == "Phi"), 
               aes(x = mgmt_l, ymin = lcl, ymax = ucl, color = mgmt_l)) +
   ylab("daily brood survival") +
   xlab("managed?") +
-  scale_y_continuous(limits = c(0, 1))
+ scale_y_continuous(limits = c(0, 1))
 
-filter(Chick_mgmt_s_surv, X1 == "Phi") %>% 
+# interaction between hatch date and age and management level survival - top model
+ggplot() +
+  geom_line(
+    data = filter(FP_Chick_hatch_date_surv, X1 == "Phi"),
+    aes(x = date_j, y = estimate, color = mgmt_l)
+  ) +
+  geom_ribbon(
+    data = filter(FP_Chick_hatch_date_surv, X1 == "Phi"),
+    aes(x = date_j, ymin = lcl, ymax = ucl, fill = mgmt_l),
+    alpha = 0.2
+  ) +
+  labs(
+    y = "Daily brood survival probability (Φ)",
+    x = "Hatch date",
+    color = "Management level",
+    fill = "Management level"
+  ) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal(base_size = 14)
+
+
+filter(FP_Chick_mgmt_s_surv, X1 == "Phi") %>% 
   mutate(fledgling_success = estimate^35)
+
+
+filter(FP_Chick_hatch_date_mgmt_l_surv, X1 == "Phi") %>% #fledging success for top model
+  mutate(fledgling_success = estimate^35)
+
 
 # seasonal dependent survival (hatch date)
 # ggplot() +
@@ -13026,7 +13085,7 @@ row.names(Chick_p_reals) <- NULL
 ```
 ### Survival modelling (Phi)
 ```{r}
-# Find best structure of Phi while using p(~Year * Day_of_Season)
+# Find best structure of Phi while using p = ~season * date_j
 PI_chicks_Phi <- function() 
 {
   # Constant Phi
@@ -13170,9 +13229,9 @@ PI_chicks_Phi <- function()
   #   list(formula = ~season * Quadratic)
   
     # best structure of p determined from previous analysis
-  p.quadage <- 
-    list(formula = ~Quadratic)
-  
+ p.year.x.date <- 
+    list(formula = ~season * date_j) 
+ 
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
   
@@ -13192,50 +13251,74 @@ PI_chicks_Phi_run <- PI_chicks_Phi()
 PI_chicks_Phi_run # best structure: Phi(~Year * Day_of_Season)
 
 saveRDS(PI_chicks_Phi_run, "output/PI_chicks_Phi_run.rds")
+
+#Create AIC model selection table
+
+PI_chicks_Phi_run <- readRDS(file = "output/PI_chicks_Phi_run.rds") 
+
+PI_chicks_Phi_run$model.table %>% 
+  dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
+  cols_label(model = html("<i>Phillip Island</i>"), 
+             npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
+  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  cols_align(align = "left", columns = vars(model)) %>% 
+  tab_options(row_group.font.weight = "bold", 
+              row_group.background.color = brewer.pal(9,"Greys")[3], 
+              table.font.size = 12, data_row.padding = 3, 
+              row_group.padding = 4, summary_row.padding = 2, 
+              column_labels.font.size = 14, row_group.font.size = 12, 
+              table.width = pct(80))
 ```
 ### Extract results and visualize Phi
 ```{r}
 PI_chicks_Phi_run <- readRDS("output/PI_chicks_Phi_run.rds")
 
 # Extract estimates of survival from top models
-Chick_dot_surv <- PI_chicks_Phi_run[[13]]$results$real
-Chick_quadage_surv <- PI_chicks_Phi_run[[18]]$results$real
-Chick_hatch_date_surv <- PI_chicks_Phi_run[[8]]$results$real
-Chick_mgmt_s_surv <- PI_chicks_Phi_run[[15]]$results$real
-Chick_mgmt_l_surv <- PI_chicks_Phi_run[[14]]$results$real
-Chick_mgmt_s_x_quadage_surv <- PI_chicks_Phi_run[[20]]$results$real
-Chick_mgmt_s_quadage_surv <- PI_chicks_Phi_run[[17]]$results$real
-Chick_mgmt_l_quadage_surv <- PI_chicks_Phi_run[[16]]$results$real
+PI_Chick_age_surv <- PI_chicks_Phi_run[[3]]$results$real #top model
+PI_Chick_dot_surv <- PI_chicks_Phi_run[[13]]$results$real #3rd model
+PI_Chick_quadage_surv <- PI_chicks_Phi_run[[18]]$results$real # 2nd model
+PI_Chick_hatch_date_surv <- PI_chicks_Phi_run[[8]]$results$real # 4th model
+PI_Chick_mgmt_s_surv <- PI_chicks_Phi_run[[15]]$results$real
+PI_Chick_mgmt_l_surv <- PI_chicks_Phi_run[[14]]$results$real
+#PI_Chick_mgmt_s_x_quadage_surv <- PI_chicks_Phi_run[[20]]$results$real
+#PI_Chick_mgmt_s_quadage_surv <- PI_chicks_Phi_run[[17]]$results$real
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_dot_surv), " ", n = 5))
-Chick_dot_surv <- cbind(Groups, Chick_dot_surv)
-Chick_dot_surv$season <- unlist(substr(Chick_dot_surv$X2, 2, 7))
-Chick_dot_surv$age <- as.numeric(sub("^a", "", Chick_dot_surv$X4))
-Chick_dot_surv$mgmt_s <- unlist(substr(Chick_dot_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(PI_Chick_age_surv), " ", n = 5))
+PI_Chick_age_surv <- cbind(Groups, PI_Chick_age_surv)
+PI_Chick_age_surv$season <- unlist(substr(PI_Chick_age_surv$X2, 2, 7))
+PI_Chick_age_surv$age <- as.numeric(sub("^a", "", PI_Chick_age_surv$X4))
+PI_Chick_age_surv$mgmt_s <- unlist(substr(PI_Chick_age_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_quadage_surv), " ", n = 5))
-Chick_quadage_surv <- cbind(Groups, Chick_quadage_surv)
-Chick_quadage_surv$season <- unlist(substr(Chick_quadage_surv$X2, 2, 7))
-Chick_quadage_surv$age <- as.numeric(sub("^a", "", Chick_quadage_surv$X4))
-Chick_quadage_surv$mgmt_s <- unlist(substr(Chick_quadage_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(PI_Chick_dot_surv), " ", n = 5))
+PI_Chick_dot_surv <- cbind(Groups, PI_Chick_dot_surv)
+PI_Chick_dot_surv$season <- unlist(substr(PI_Chick_dot_surv$X2, 2, 7))
+PI_Chick_dot_surv$age <- as.numeric(sub("^a", "", PI_Chick_dot_surv$X4))
+PI_Chick_dot_surv$mgmt_s <- unlist(substr(PI_Chick_dot_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_hatch_date_surv), " ", n = 5))
-Chick_hatch_date_surv <- cbind(Groups, Chick_hatch_date_surv)
-Chick_hatch_date_surv$season <- unlist(substr(Chick_hatch_date_surv$X2, 2, 7))
-Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", Chick_hatch_date_surv$X4))
-Chick_hatch_date_surv$mgmt_s <- unlist(substr(Chick_hatch_date_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(PI_Chick_quadage_surv), " ", n = 5))
+PI_Chick_quadage_surv <- cbind(Groups, PI_Chick_quadage_surv)
+PI_Chick_quadage_surv$season <- unlist(substr(PI_Chick_quadage_surv$X2, 2, 7))
+PI_Chick_quadage_surv$age <- as.numeric(sub("^a", "", PI_Chick_quadage_surv$X4))
+PI_Chick_quadage_surv$mgmt_s <- unlist(substr(PI_Chick_quadage_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_surv), " ", n = 5))
-Chick_mgmt_s_surv <- cbind(Groups, Chick_mgmt_s_surv)
-Chick_mgmt_s_surv$season <- unlist(substr(Chick_mgmt_s_surv$X2, 2, 7))
-Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_surv$X4))
-Chick_mgmt_s_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_surv$X2, 11, 11))
+Groups <- data.frame(str_split_fixed(rownames(PI_Chick_hatch_date_surv), " ", n = 5))
+PI_Chick_hatch_date_surv <- cbind(Groups, PI_Chick_hatch_date_surv)
+PI_Chick_hatch_date_surv$season <- unlist(substr(PI_Chick_hatch_date_surv$X2, 2, 7))
+PI_Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", PI_Chick_hatch_date_surv$X4))
+PI_Chick_hatch_date_surv$mgmt_s <- unlist(substr(PI_Chick_hatch_date_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_surv), " ", n = 5))
-Chick_mgmt_l_surv <- cbind(Groups, Chick_mgmt_l_surv)
-Chick_mgmt_l_surv$season <- unlist(substr(Chick_mgmt_l_surv$X2, 2, 7))
-Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_surv$X4))
-Chick_mgmt_l_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_surv$X2, 10, 10))
+Groups <- data.frame(str_split_fixed(rownames(PI_Chick_mgmt_s_surv), " ", n = 5))
+PI_Chick_mgmt_s_surv <- cbind(Groups, PI_Chick_mgmt_s_surv)
+PI_Chick_mgmt_s_surv$season <- unlist(substr(PI_Chick_mgmt_s_surv))
+PI_Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", PI_Chick_mgmt_s_surv$X4))
+PI_Chick_mgmt_s_surv$mgmt_s <- unlist(substr(PI_Chick_mgmt_s_surv$X2, 11, 11))
+
+Groups <- data.frame(str_split_fixed(rownames(PI_Chick_mgmt_l_surv), " ", n = 5))
+PI_Chick_mgmt_l_surv <- cbind(Groups, PI_Chick_mgmt_l_surv)
+PI_Chick_mgmt_l_surv$season <- unlist(substr(PI_Chick_mgmt_l_surv$X2, 2, 7))
+PI_Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", PI_Chick_mgmt_l_surv$X4))
+PI_Chick_mgmt_l_surv$mgmt_l <- unlist(substr(PI_Chick_mgmt_l_surv$X2, 10, 10))
 
 Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_quadage_surv), " ", n = 5))
 Chick_mgmt_s_quadage_surv <- cbind(Groups, Chick_mgmt_s_quadage_surv)
@@ -13257,8 +13340,8 @@ Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 
 
 # constant survival
 ggplot() +
-  geom_line(data = Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = Chick_dot_surv, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+  geom_line(data = PI_Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
+  geom_ribbon(data = PI_Chick_dot_surv, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
   scale_color_gradient(
     low = "black",
     high = "red",
@@ -13269,26 +13352,35 @@ ggplot() +
     high = "red",
     name = "season"
   ) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival
 ggplot() +
-  geom_line(data = filter(Chick_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(PI_Chick_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate)) +
-  geom_ribbon(data = filter(Chick_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(PI_Chick_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
+
+# age-dependent survival Number 1 model
+ggplot() +
+  geom_line(data = filter(PI_Chick_age_surv, X1 == "Phi"), 
+            aes(x = age, y = estimate)) +
+  geom_ribbon(data = filter(PI_Chick_age_surv, X1 == "Phi"), 
+              aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
 ggplot() +
-  geom_line(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+  geom_line(data = filter(PI_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
             aes(x = age, y = estimate, color = mgmt_s)) +
-  geom_ribbon(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+  geom_ribbon(data = filter(PI_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management level
 ggplot() +
@@ -13296,8 +13388,8 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_l)) +
   geom_ribbon(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
 ggplot() +
@@ -13305,8 +13397,8 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_s)) +
   geom_ribbon(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("daily brood survival") +
-  xlab("brood age (days)")
+  ylab("Daily brood survival") +
+  xlab("Brood age (days)")
 
 # management status-dependent survival
 ggplot() +
@@ -13314,8 +13406,8 @@ ggplot() +
             aes(x = mgmt_s, y = estimate, color = mgmt_s)) +
   geom_errorbar(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
               aes(x = mgmt_s, ymin = lcl, ymax = ucl, color = mgmt_s)) +
-  ylab("daily brood survival") +
-  xlab("managed?") +
+  ylab("Daily brood survival") +
+  xlab("Managed?") +
   scale_y_continuous(limits = c(0, 1))
 
 # management level-dependent survival
