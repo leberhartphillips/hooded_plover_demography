@@ -7715,6 +7715,8 @@ pred.fundays_status_PI <-
   mutate(region = "PI",
          status = ifelse(par.index == 1, "N", "Y"))
 
+summary(S.fundays_status) # use this to find summary statistics for models
+
 pred.fundays_status <- 
   bind_rows(pred.fundays_status_FP, pred.fundays_status_MP, pred.fundays_status_BC, pred.fundays_status_BSC, pred.fundays_status_PI)
 
@@ -9614,6 +9616,7 @@ MP_chick_data_issues <-
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
+  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
@@ -9904,6 +9907,7 @@ BC_chick_data_issues <-
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
+  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
@@ -10194,6 +10198,7 @@ BSC_chick_data_issues <-
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
+  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
@@ -10481,6 +10486,7 @@ FP_chick_data_issues <-
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
+  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
@@ -10771,6 +10777,7 @@ PI_chick_data_issues <-
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
+  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
