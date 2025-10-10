@@ -9473,6 +9473,62 @@ hatch_dates_BSC_MP_FP_BC_PI %>%
 
 ```
 
+### Fundays for broods
+```{r}
+# Mike and Jas attempt to calculate fundays
+# need brood start and end date 
+MP_chick_data <- MP_chick_data %>%
+  mutate(
+    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
+  ) %>%
+  group_by(nest_ID) %>%
+  mutate(
+    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
+  ) %>%
+  ungroup()
+
+# Join threat and brood data to find out weekends and weekdays
+
+fundays_brood_df <- 
+    data.frame(date = seq(from = hatch_date, to = LastChecked2, 1)) %>% 
+    # mutate(weekday = weekdays(dates)) %>% 
+    mutate(weekday = factor(as.factor(weekdays(date)), 
+                            levels = c("Monday", "Tuesday", "Wednesday", 
+                                       "Thursday", "Friday", "Saturday", 
+                                       "Sunday")),
+           region = "FP") %>% 
+    mutate(year = year(date)) %>% 
+    mutate(season = ifelse(month(date) < 6, year - 1, year)) %>% 
+    mutate(season = ifelse(month(date) >= 6, 
+                           paste0(year, substr(year + 1, 3, 4)), 
+                           paste0(season, substr(year, 3, 4)))) %>% 
+    left_join(., holidays, by = c("region", "season"), relationship = "many-to-many") %>%
+    mutate(holiday = ifelse(date >= start_date & date <= end_date, 1, 0)) %>% 
+    group_by(region, season, date) %>% 
+    mutate(holiday = max(holiday, na.rm = TRUE)) %>% 
+    dplyr::select(-c(event, start_date, end_date)) %>% 
+    distinct() %>% 
+    ungroup() %>% 
+    mutate(day_type = ifelse(holiday == 1 | weekday %in% 
+                               c("Saturday", "Sunday"), "funday", "workday")) %>% 
+    mutate(funday = ifelse(day_type == "funday", 1, 0))
+
+
+
+#code to use to add dates if we need
+#mutate(hatch_date = ifelse(Fate == "0" & !is.na(clutch_comp), clutch_comp + 28, 
+                             # ifelse(Fate == "0" & is.na(clutch_comp) & !is.na(chick_1st_ob) & !is.na(state_1st_ob),
+                                   #  ifelse(state_1st_ob == "1/3 adult size, fluffy", chick_1st_ob - 3,
+                                        #    ifelse(state_1st_ob == "1/2 adult size, fluffy", chick_1st_ob - 10,
+                                               #    ifelse(state_1st_ob == "2/3 adult size, mottled grey", chick_1st_ob - 19,
+                                                        #  ifelse(state_1st_ob == "Adult size, mottled grey", chick_1st_ob - 30,
+                                                               #  ifelse(state_1st_ob == "Fledged", chick_1st_ob - 35,
+                                                                      #  ifelse(state_1st_ob == "wet in nest", chick_1st_ob, NA)))))), 
+                                  #   ifelse(Fate == "0" & is.na(clutch_comp) & !is.na(chick_1st_ob) & is.na(state_1st_ob), NA, NA))) %>% as.Date())
+
+```
+
+
 ## Check errors on import of chick data and wrangle
 ### MP Import
 ```{r}
