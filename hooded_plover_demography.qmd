@@ -11346,7 +11346,7 @@ ggplot() +
             aes(x = age, y = estimate)) +
   geom_ribbon(data = filter(Chick_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
-  ylab("Daily brood survival") +
+  ylab("Daily brood survival (95% CI)") +
   xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
@@ -11355,7 +11355,7 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_s)) +
   geom_ribbon(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("Daily brood survival") +
+  ylab("Daily brood survival (95% CI)") +
   xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management level
@@ -11364,7 +11364,7 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_l)) +
   geom_ribbon(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
-  ylab("Daily brood survival") +
+  ylab("Daily brood survival (95% CI)") +
   xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
@@ -11373,7 +11373,7 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_s)) +
   geom_ribbon(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("Daily brood survival") +
+  ylab("Daily brood survival (95% CI)") +
   xlab("Brood age (days)")
 
 # management status-dependent survival
@@ -11382,7 +11382,7 @@ ggplot() +
             aes(x = mgmt_s, y = estimate, color = mgmt_s)) +
   geom_errorbar(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
               aes(x = mgmt_s, ymin = lcl, ymax = ucl, color = mgmt_s)) +
-  ylab("Daily brood survival") +
+  ylab("Daily brood survival (95% CI)") +
   xlab("Managed?") +
   scale_y_continuous(limits = c(0, 1))
 
@@ -11392,7 +11392,7 @@ ggplot() +
             aes(x = mgmt_l, y = estimate, color = mgmt_l)) +
   geom_errorbar(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
               aes(x = mgmt_l, ymin = lcl, ymax = ucl, color = mgmt_l)) +
-  ylab("Daily brood survival") +
+  ylab("Daily brood survival (95% CI)") +
   xlab("Managed?") +
   scale_y_continuous(limits = c(0, 1))
 
