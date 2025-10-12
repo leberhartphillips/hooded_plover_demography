@@ -8014,6 +8014,56 @@ nest_survival_reals_status <-
             nest_survival_reals_BSC_status,
             nest_survival_reals_PI_status)
 
+
+## results table
+nest_survival_reals_status_table <- nest_survival_reals_status %>%
+  mutate(
+    region = dplyr::recode(region, !!!region_names),
+    status = dplyr::recode(status, "N" = "Unmanaged", "Y" = "Managed"),
+     Hatching_rate = (estimate ^ 28) * 100  # Convert to percentage
+  )
+
+nest_survival_reals_status_table %>%
+  arrange(region, status) %>%
+  gt(groupname_col = "region") %>%
+  cols_label(
+    status = "Management status",
+    estimate = "Daily nest survival",
+    se = "Standard error",
+    lcl = "Lower 95% CI",
+    ucl = "Upper 95% CI",
+    Hatching_rate = "Hatching rate (%)"
+  ) %>%
+  fmt_number(
+    columns = c(estimate, se, lcl, ucl),
+    decimals = 3,
+    use_seps = FALSE
+  ) %>%
+  fmt_number(
+    columns = vars(Hatching_rate),
+    decimals = 2,   # <-- two decimal places
+    use_seps = FALSE
+  ) %>%
+  cols_align(
+    align = "left",
+    columns = vars(status)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = vars(estimate, se, lcl, ucl, Hatching_rate)
+  ) %>%
+  tab_options(
+    row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = px(4),
+    row_group.padding = px(5),
+    summary_row.padding = px(2),
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80)
+  )
+
 ggplot() +
   geom_line(data = nest_survival_reals_status, 
             aes(x = status, y = estimate, color = region, group = region),
@@ -9489,29 +9539,41 @@ MP_chick_data <- MP_chick_data %>%
 
 # Join threat and brood data to find out weekends and weekdays
 
-fundays_brood_df <- 
-    data.frame(date = seq(from = hatch_date, to = LastChecked2, 1)) %>% 
-    # mutate(weekday = weekdays(dates)) %>% 
-    mutate(weekday = factor(as.factor(weekdays(date)), 
-                            levels = c("Monday", "Tuesday", "Wednesday", 
-                                       "Thursday", "Friday", "Saturday", 
-                                       "Sunday")),
-           region = "FP") %>% 
-    mutate(year = year(date)) %>% 
-    mutate(season = ifelse(month(date) < 6, year - 1, year)) %>% 
-    mutate(season = ifelse(month(date) >= 6, 
-                           paste0(year, substr(year + 1, 3, 4)), 
-                           paste0(season, substr(year, 3, 4)))) %>% 
-    left_join(., holidays, by = c("region", "season"), relationship = "many-to-many") %>%
-    mutate(holiday = ifelse(date >= start_date & date <= end_date, 1, 0)) %>% 
-    group_by(region, season, date) %>% 
-    mutate(holiday = max(holiday, na.rm = TRUE)) %>% 
-    dplyr::select(-c(event, start_date, end_date)) %>% 
-    distinct() %>% 
-    ungroup() %>% 
-    mutate(day_type = ifelse(holiday == 1 | weekday %in% 
-                               c("Saturday", "Sunday"), "funday", "workday")) %>% 
-    mutate(funday = ifelse(day_type == "funday", 1, 0))
+# Step 1: Clean and filter valid rows
+valid_rows <- MP_chick_data_clean %>%
+  mutate(hatch_date = as.Date(hatch_date),
+         last_checked = as.Date(last_checked)) %>%
+  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+
+# Step 2: Generate date sequences per nest
+fundays_brood_df <- pmap_dfr(valid_rows, function(nest_ID, hatch_date, last_checked, ...) {
+  tibble(nest_ID = nest_ID, date = seq(hatch_date, last_checked, by = "day"))
+}) %>%
+  mutate(
+    weekday = weekdays(date),
+    region = "MP",
+    year = year(date),
+    season = ifelse(month(date) < 6, year - 1, year),
+    season = ifelse(month(date) >= 6,
+                    paste0(year, substr(year + 1, 3, 4)),
+                    paste0(season, substr(year, 3, 4)))
+  ) %>%
+  left_join(holidays, by = c("region", "season")) %>%
+  mutate(holiday = ifelse(date >= start_date & date <= end_date, 1, 0)) %>%
+  group_by(region, season, date) %>%
+  mutate(holiday = max(holiday, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(day_type = ifelse(holiday == 1 | weekday %in% c("Saturday", "Sunday"), "funday", "workday"),
+         funday = ifelse(day_type == "funday", 1, 0))
+
+# Step 3: Count fundays per nest
+funday_counts <- fundays_brood_df %>%
+  group_by(nest_ID) %>%
+  summarise(funday_total = sum(funday, na.rm = TRUE))
+
+# Step 4: Merge back into MP_chick_data_clean
+MP_chick_data_clean <- MP_chick_data_clean %>%
+  left_join(funday_counts, by = "nest_ID")
 
 
 
@@ -13681,6 +13743,49 @@ humans_fun_day__fits <-
 
 row.names(humans_fun_day__fits) <- NULL
 
+## results table
+humans_fun_day__fits_table <- humans_fun_day__fits %>%
+  mutate(region = dplyr::recode(region, !!!region_names))
+
+humans_fun_day__fits_table %>%
+  mutate(funday = str_to_title(funday)) %>%
+  arrange(region, funday) %>%
+  gt(groupname_col = "region") %>%
+  cols_label(
+    funday = "Funday",
+    fit = "Humans",
+    se = "SE",
+    lower = "Lower 95% CI",
+    upper = "Upper 95% CI"
+  ) %>%
+  fmt_number(
+    columns = c(fit, se, lower, upper),
+    decimals = 3,
+    use_seps = FALSE
+  ) %>%
+   cols_align(
+    align = "left",
+    columns = vars(funday)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = vars(fit, se, lower, upper)
+  ) %>%
+  cols_width(
+    everything() ~ pct(20) 
+  ) %>%
+  tab_options(
+    row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = px(4),
+    row_group.padding = px(5),
+    summary_row.padding = px(2),
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80)
+  )
+
 ggplot() +
   geom_line(data = humans_fun_day__fits, 
             aes(x = funday, y = fit, color = region, group = region),
@@ -13823,6 +13928,49 @@ dogs_fun_day__fits <-
 
 row.names(dogs_fun_day__fits) <- NULL
 
+## results table
+dogs_fun_day__fits_table <- dogs_fun_day__fits %>%
+  mutate(region = dplyr::recode(region, !!!region_names))
+
+dogs_fun_day__fits_table %>%
+  mutate(funday = str_to_title(funday)) %>%
+  arrange(region, funday) %>%
+  gt(groupname_col = "region") %>%
+  cols_label(
+    funday = "Funday",
+    fit = "Dogs",
+    se = "SE",
+    lower = "Lower 95% CI",
+    upper = "Upper 95% CI"
+  ) %>%
+  fmt_number(
+    columns = c(fit, se, lower, upper),
+    decimals = 3,
+    use_seps = FALSE
+  ) %>%
+   cols_align(
+    align = "left",
+    columns = vars(funday)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = vars(fit, se, lower, upper)
+  ) %>%
+  cols_width(
+    everything() ~ pct(20) 
+  ) %>%
+  tab_options(
+    row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = px(4),
+    row_group.padding = px(5),
+    summary_row.padding = px(2),
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80)
+  )
+
 ggplot() +
   geom_line(data = dogs_fun_day__fits, 
             aes(x = funday, y = fit, color = region, group = region),
@@ -13963,6 +14111,49 @@ dogs_off_fun_day__fits <-
   mutate(funday = ifelse(funday == 0, "no", "yes"))
 
 row.names(dogs_off_fun_day__fits) <- NULL
+
+## results table
+dogs_off_fun_day__fits_table <- dogs_off_fun_day__fits %>%
+  mutate(region = dplyr::recode(region, !!!region_names))
+
+dogs_off_fun_day__fits_table %>%
+  mutate(funday = str_to_title(funday)) %>%
+  arrange(region, funday) %>%
+  gt(groupname_col = "region") %>%
+  cols_label(
+    funday = "Funday",
+    fit = "Dogs off leash",
+    se = "SE",
+    lower = "Lower 95% CI",
+    upper = "Upper 95% CI"
+  ) %>%
+  fmt_number(
+    columns = c(fit, se, lower, upper),
+    decimals = 3,
+    use_seps = FALSE
+  ) %>%
+   cols_align(
+    align = "left",
+    columns = vars(funday)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = vars(fit, se, lower, upper)
+  ) %>%
+  cols_width(
+    everything() ~ pct(20) 
+  ) %>%
+  tab_options(
+    row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = px(4),
+    row_group.padding = px(5),
+    summary_row.padding = px(2),
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80)
+  )
 
 ggplot() +
   geom_line(data = dogs_off_fun_day__fits, 
@@ -14107,6 +14298,50 @@ pred_birds_fun_day__fits <-
 
 row.names(pred_birds_fun_day__fits) <- NULL
 
+
+## results table
+pred_birds_fun_day__fits_table <- pred_birds_fun_day__fits %>%
+  mutate(region = dplyr::recode(region, !!!region_names))
+
+pred_birds_fun_day__fits_table %>%
+  mutate(funday = str_to_title(funday)) %>%
+  arrange(region, funday) %>%
+  gt(groupname_col = "region") %>%
+  cols_label(
+    funday = "Funday",
+    fit = "Predatory birds",
+    se = "SE",
+    lower = "Lower 95% CI",
+    upper = "Upper 95% CI"
+  ) %>%
+  fmt_number(
+    columns = c(fit, se, lower, upper),
+    decimals = 3,
+    use_seps = FALSE
+  ) %>%
+   cols_align(
+    align = "left",
+    columns = vars(funday)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = vars(fit, se, lower, upper)
+  ) %>%
+  cols_width(
+    everything() ~ pct(20) 
+  ) %>%
+  tab_options(
+    row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = px(4),
+    row_group.padding = px(5),
+    summary_row.padding = px(2),
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80)
+  )
+
 ggplot() +
   geom_line(data = pred_birds_fun_day__fits, 
             aes(x = funday, y = fit, color = region, group = region),
@@ -14248,6 +14483,51 @@ gulls_fun_day__fits <-
   mutate(funday = ifelse(funday == 0, "no", "yes"))
 
 row.names(gulls_fun_day__fits) <- NULL
+
+
+
+## results table
+gulls_fun_day__fits_table <- gulls_fun_day__fits %>%
+  mutate(region = dplyr::recode(region, !!!region_names))
+
+gulls_fun_day__fits_table %>%
+  mutate(funday = str_to_title(funday)) %>%
+  arrange(region, funday) %>%
+  gt(groupname_col = "region") %>%
+  cols_label(
+    funday = "Funday",
+    fit = "Gulls",
+    se = "SE",
+    lower = "Lower 95% CI",
+    upper = "Upper 95% CI"
+  ) %>%
+  fmt_number(
+    columns = c(fit, se, lower, upper),
+    decimals = 3,
+    use_seps = FALSE
+  ) %>%
+   cols_align(
+    align = "left",
+    columns = vars(funday)
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = vars(fit, se, lower, upper)
+  ) %>%
+  cols_width(
+    everything() ~ pct(20) 
+  ) %>%
+  tab_options(
+    row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = px(4),
+    row_group.padding = px(5),
+    summary_row.padding = px(2),
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80)
+  )
 
 ggplot() +
   geom_line(data = gulls_fun_day__fits, 
