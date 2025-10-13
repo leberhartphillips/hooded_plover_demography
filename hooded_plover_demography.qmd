@@ -9737,6 +9737,67 @@ MP_chick_data_clean <-
 ```
 
 ```{r}
+##MP
+# Jas and Mike attempt to calculate fundays
+# Find brood start and end date
+MP_chick_data_clean <- MP_chick_data_clean %>%
+  mutate(
+    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
+  ) %>%
+  group_by(nest_ID) %>%
+  mutate(
+    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
+  ) %>%
+  ungroup()
+#clean
+MP_chick_data_clean <- MP_chick_data_clean %>%
+  mutate(
+    hatch_date = as.Date(hatch_date),
+    last_checked = as.Date(last_checked)
+  ) %>%
+  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+
+
+funday_summary_MP <- MP_chick_data_clean %>%
+  rowwise() %>%
+   mutate(
+    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
+    },
+    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(sapply(all_days, function(d) {
+        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+        is_holiday <- any(
+          !is.na(holidays$start_date) &
+          !is.na(holidays$end_date) &
+          d >= holidays$start_date &
+          d <= holidays$end_date &
+          holidays$region == "MP"
+        )
+        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
+      }), na.rm = TRUE)
+    },
+    # Total fundays = weekends + holidays
+     funday_total = weekend_days + holiday_days
+  ) %>%
+  ungroup()
+
+# Step 3: Join funday count back to every row
+MP_chick_data_clean <- MP_chick_data_clean %>%
+  left_join(
+    funday_summary_MP %>% select(nest_ID, funday_total),
+    by = "nest_ID",
+    relationship = "many-to-many")
+
+```
+
+```{r}
 # assess how often management levels and status changed over the chick obs
 MP_chick_data_clean %>% 
   group_by(nest_ID) %>% 
@@ -9764,7 +9825,7 @@ MP_chick_data_clean_ <-
   filter(brood_age <= 35)
 
 MP_chick_data_clean_ %>% 
-  select(nest_ID, brood_age, offspring_seen) %>% 
+  select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
   as.data.frame() %>% 
   arrange(nest_ID, brood_age)
 
@@ -9774,7 +9835,7 @@ MP_chick_data_clean_wide <-
   MP_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date),
+    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -9788,10 +9849,6 @@ age_cols <- names(MP_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_I
   as.numeric() %>%                            # convert to numeric
   sort() %>%                                  # sort numerically
   paste0("age_", .)                           # add prefix back
-
-# Reorder the dataframe
-MP_chick_data_clean_wide <- MP_chick_data_clean_wide %>%
-  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, all_of(age_cols))
 
 MP_chick_ch <-
   MP_chick_data_clean_wide %>%
@@ -9809,7 +9866,8 @@ MP_chick_ch <-
   ungroup() %>% 
   rename(mgmt_l = management_level_max,
          mgmt_s = management_status_max,
-         date_j = hatch_date_j) %>% 
+         date_j = hatch_date_j,
+         funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
   select(-hatch_date, -nest_ID)
 ```
@@ -10028,6 +10086,64 @@ BC_chick_data_clean <-
 ```
 
 ```{r}
+#Fundays
+# Find brood start and end date
+BC_chick_data_clean <- BC_chick_data_clean %>%
+  mutate(
+    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
+  ) %>%
+  group_by(nest_ID) %>%
+  mutate(
+    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
+  ) %>%
+  ungroup()
+#clean
+BC_chick_data_clean <- BC_chick_data_clean %>%
+  mutate(
+    hatch_date = as.Date(hatch_date),
+    last_checked = as.Date(last_checked)
+  ) 
+# Join threat and brood data to find out weekends and weekdays
+funday_summary_BC <- BC_chick_data_clean %>%
+ rowwise() %>%
+  mutate(
+    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
+    },
+    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(sapply(all_days, function(d) {
+        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+        is_holiday <- any(
+          !is.na(holidays$start_date) &
+          !is.na(holidays$end_date) &
+          d >= holidays$start_date &
+          d <= holidays$end_date &
+          holidays$region == "BC"
+        )
+        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
+      }), na.rm = TRUE)
+    },
+    # Total fundays = weekends + holidays
+     funday_total = weekend_days + holiday_days
+  ) %>%
+  ungroup()
+
+# Step 3: Join funday count back to every row
+BC_chick_data_clean <- BC_chick_data_clean %>%
+  left_join(
+    funday_summary_BC %>% select(nest_ID, funday_total),
+    by = "nest_ID",
+    relationship = "many-to-many")
+
+```
+
+```{r}
 # assess how often management levels and status changed over the chick obs
 BC_chick_data_clean %>% 
   group_by(nest_ID) %>% 
@@ -10055,7 +10171,7 @@ BC_chick_data_clean_ <-
   filter(brood_age <= 35)
 
 BC_chick_data_clean_ %>% 
-  select(nest_ID, brood_age, offspring_seen) %>% 
+  select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
   as.data.frame() %>% 
   arrange(nest_ID, brood_age)
 
@@ -10065,7 +10181,7 @@ BC_chick_data_clean_wide <-
   BC_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date),
+    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -10082,7 +10198,7 @@ age_cols <- names(BC_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_I
 
 # Reorder the dataframe
 BC_chick_data_clean_wide <- BC_chick_data_clean_wide %>%
-  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, all_of(age_cols))
+  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total, all_of(age_cols))
 
 BC_chick_ch <-
   BC_chick_data_clean_wide %>%
@@ -10100,7 +10216,8 @@ BC_chick_ch <-
   ungroup() %>% 
   rename(mgmt_l = management_level_max,
          mgmt_s = management_status_max,
-         date_j = hatch_date_j) %>% 
+         date_j = hatch_date_j,
+         funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
   select(-hatch_date, -nest_ID)
 ```
@@ -10319,6 +10436,64 @@ BSC_chick_data_clean <-
 ```
 
 ```{r}
+## Fundays
+# Find brood start and end date
+BSC_chick_data_clean <- BSC_chick_data_clean %>%
+  mutate(date_formatted = as.Date(date, format = "%d%m%Y") ) %>%
+  group_by(nest_ID) %>%
+  mutate(last_checked = max(date_formatted, na.rm = TRUE)) %>%
+  ungroup()
+#clean
+BSC_chick_data_clean <- BSC_chick_data_clean %>%
+  mutate(
+    hatch_date = as.Date(hatch_date),
+    last_checked = as.Date(last_checked)
+  ) %>%
+  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+
+
+# Join threat and brood data to find out weekends and weekdays
+funday_summary_BSC <- BSC_chick_data_clean %>%
+  rowwise() %>%
+  mutate(
+    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
+    },
+    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(sapply(all_days, function(d) {
+        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+        is_holiday <- any(
+          !is.na(holidays$start_date) &
+          !is.na(holidays$end_date) &
+          d >= holidays$start_date &
+          d <= holidays$end_date &
+          holidays$region == "BSC"
+        )
+        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
+      }), na.rm = TRUE)
+    },
+    # Total fundays = weekends + holidays
+     funday_total = weekend_days + holiday_days
+  ) %>%
+  ungroup()
+
+
+# Step 3: Join funday count back to every row
+BSC_chick_data_clean <- BSC_chick_data_clean %>%
+  left_join(
+    funday_summary_BSC %>% select(nest_ID, funday_total),
+    by = "nest_ID",
+    relationship = "many-to-many")
+
+```
+
+```{r}
 # assess how often management levels and status changed over the chick obs
 BSC_chick_data_clean %>% 
   group_by(nest_ID) %>% 
@@ -10346,7 +10521,7 @@ BSC_chick_data_clean_ <-
   filter(brood_age <= 35)
 
 BSC_chick_data_clean_ %>% 
-  select(nest_ID, brood_age, offspring_seen) %>% 
+  select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
   as.data.frame() %>% 
   arrange(nest_ID, brood_age)
 
@@ -10356,7 +10531,7 @@ BSC_chick_data_clean_wide <-
   BSC_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date),
+    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -10373,7 +10548,7 @@ age_cols <- names(BSC_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_
 
 # Reorder the dataframe
 BSC_chick_data_clean_wide <- BSC_chick_data_clean_wide %>%
-  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, all_of(age_cols))
+  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total, all_of(age_cols))
 
 BSC_chick_ch <-
   BSC_chick_data_clean_wide %>%
@@ -10391,7 +10566,8 @@ BSC_chick_ch <-
   ungroup() %>% 
   rename(mgmt_l = management_level_max,
          mgmt_s = management_status_max,
-         date_j = hatch_date_j) %>% 
+         date_j = hatch_date_j,
+         funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
   select(-hatch_date, -nest_ID)
 ```
@@ -10607,6 +10783,57 @@ FP_chick_data_clean <-
 ```
 
 ```{r}
+## Fundays
+# Find brood start and end date
+FP_chick_data_clean <- FP_chick_data_clean %>%
+  mutate(date_formatted = as.Date(date, format = "%d%m%Y")) %>%
+  group_by(nest_ID) %>%
+  mutate(last_checked = max(date_formatted, na.rm = TRUE)) %>%
+  ungroup()
+#clean
+FP_chick_data_clean <- FP_chick_data_clean %>%
+  mutate(hatch_date = as.Date(hatch_date),
+    last_checked = as.Date(last_checked)) %>%
+  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+
+# Join threat and brood data to find out weekends and weekdays
+funday_summary_FP <- FP_chick_data_clean %>%
+  rowwise() %>%
+  mutate(
+    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
+    },
+    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(sapply(all_days, function(d) {
+        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+        is_holiday <- any(
+          !is.na(holidays$start_date) &
+          !is.na(holidays$end_date) &
+          d >= holidays$start_date &
+          d <= holidays$end_date &
+          holidays$region == "FP")
+        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
+      }), na.rm = TRUE)},
+    
+# Total fundays = weekends + holidays
+     funday_total = weekend_days + holiday_days) %>%
+  ungroup()
+
+# Step 3: Join funday count back to every row
+FP_chick_data_clean <- FP_chick_data_clean %>%
+  left_join(funday_summary_FP %>% select(nest_ID, funday_total),
+    by = "nest_ID",
+    relationship = "many-to-many")
+
+```
+
+```{r}
 # assess how often management levels and status changed over the chick obs
 FP_chick_data_clean %>% 
   group_by(nest_ID) %>% 
@@ -10634,7 +10861,7 @@ FP_chick_data_clean_ <-
   filter(brood_age <= 35)
 
 FP_chick_data_clean_ %>% 
-  select(nest_ID, brood_age, offspring_seen) %>% 
+  select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
   as.data.frame() %>% 
   arrange(nest_ID, brood_age)
 
@@ -10644,7 +10871,7 @@ FP_chick_data_clean_wide <-
   FP_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date),
+    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -10661,7 +10888,7 @@ age_cols <- names(FP_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_I
 
 # Reorder the dataframe
 FP_chick_data_clean_wide <- FP_chick_data_clean_wide %>%
-  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, all_of(age_cols))
+  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total, all_of(age_cols))
 
 FP_chick_ch <-
   FP_chick_data_clean_wide %>%
@@ -10679,7 +10906,8 @@ FP_chick_ch <-
   ungroup() %>% 
   rename(mgmt_l = management_level_max,
          mgmt_s = management_status_max,
-         date_j = hatch_date_j) %>% 
+         date_j = hatch_date_j,
+         funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
   select(-hatch_date, -nest_ID)
 ```
@@ -10898,6 +11126,58 @@ PI_chick_data_clean <-
 ```
 
 ```{r}
+## PI
+# Find brood start and end date
+PI_chick_data_clean <- PI_chick_data_clean %>%
+  mutate(date_formatted = as.Date(date, format = "%d%m%Y")) %>%
+  group_by(nest_ID) %>%
+  mutate(last_checked = max(date_formatted, na.rm = TRUE)) %>%
+  ungroup()
+#clean
+PI_chick_data_clean <- PI_chick_data_clean %>%
+  mutate(hatch_date = as.Date(hatch_date),
+    last_checked = as.Date(last_checked)) %>%
+  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+
+# Join threat and brood data to find out weekends and weekdays
+funday_summary_PI <- PI_chick_data_clean %>%
+ rowwise() %>%
+  mutate(
+    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
+    },
+    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+      0L
+    } else {
+      all_days <- seq(hatch_date, last_checked, by = "day")
+      sum(sapply(all_days, function(d) {
+        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+        is_holiday <- any(
+          !is.na(holidays$start_date) &
+          !is.na(holidays$end_date) &
+          d >= holidays$start_date &
+          d <= holidays$end_date &
+          holidays$region == "PI"
+        )
+        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
+      }), na.rm = TRUE) },
+  
+  # Total fundays = weekends + holidays
+     funday_total = weekend_days + holiday_days) %>%
+  ungroup()
+
+# Step 3: Join funday count back to every row
+PI_chick_data_clean <- PI_chick_data_clean %>%
+  left_join(funday_summary_PI %>% select(nest_ID, funday_total),
+    by = "nest_ID",
+    relationship = "many-to-many")
+
+```
+
+```{r}
 # assess how often management levels and status changed over the chick obs
 PI_chick_data_clean %>% 
   group_by(nest_ID) %>% 
@@ -10925,7 +11205,7 @@ PI_chick_data_clean_ <-
   filter(brood_age <= 35)
 
 PI_chick_data_clean_ %>% 
-  select(nest_ID, brood_age, offspring_seen) %>% 
+  select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
   as.data.frame() %>% 
   arrange(nest_ID, brood_age)
 
@@ -10935,7 +11215,7 @@ PI_chick_data_clean_wide <-
   PI_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date),
+    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -10952,7 +11232,7 @@ age_cols <- names(PI_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_I
 
 # Reorder the dataframe
 PI_chick_data_clean_wide <- PI_chick_data_clean_wide %>%
-  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, all_of(age_cols))
+  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total, all_of(age_cols))
 
 PI_chick_ch <-
   PI_chick_data_clean_wide %>%
@@ -10970,315 +11250,10 @@ PI_chick_ch <-
   ungroup() %>% 
   rename(mgmt_l = management_level_max,
          mgmt_s = management_status_max,
-         date_j = hatch_date_j) %>% 
+         date_j = hatch_date_j,
+         funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
   select(-hatch_date, -nest_ID)
-```
-
-### Fundays for broods
-```{r}
-##MP
-# Jas and Mike attempt to calculate fundays
-# Find brood start and end date
-MP_chick_data_clean <- MP_chick_data %>%
-  mutate(
-    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
-  ) %>%
-  group_by(nest_ID) %>%
-  mutate(
-    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
-  ) %>%
-  ungroup()
-#clean
-MP_chick_data_clean <- MP_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
-  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
-
-
-funday_summary_MP <- MP_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
- rowwise() %>%
-  mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "MP"
-        )
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE)
-    },
-    # Total fundays = weekends + holidays
-     funday_total = weekend_days + holiday_days
-  ) %>%
-  ungroup()
-
-# Step 3: Join funday count back to every row
-MP_chick_data_clean <- MP_chick_data_clean %>%
-  left_join(funday_summary_MP, by = "nest_ID", relationship = "many-to-many")
-
-```
-```{r}
-##BC
-# Find brood start and end date
-BC_chick_data_clean <- BC_chick_data %>%
-  mutate(
-    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
-  ) %>%
-  group_by(nest_ID) %>%
-  mutate(
-    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
-  ) %>%
-  ungroup()
-#clean
-BC_chick_data_clean <- BC_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) 
-# Join threat and brood data to find out weekends and weekdays
-funday_summary_BC <- BC_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
- rowwise() %>%
-  mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "BC"
-        )
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE)
-    },
-    # Total fundays = weekends + holidays
-     funday_total = weekend_days + holiday_days
-  ) %>%
-  ungroup()
-
-# Step 3: Join funday count back to every row
-BC_chick_data_clean <- BC_chick_data_clean %>%
-  left_join(funday_summary_BC, by = "nest_ID", relationship = "many-to-many")
-
-```
-```{r}
-## BSC
-# Find brood start and end date
-BSC_chick_data_clean <- BSC_chick_data %>%
-  mutate(
-    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
-  ) %>%
-  group_by(nest_ID) %>%
-  mutate(
-    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
-  ) %>%
-  ungroup()
-#clean
-BSC_chick_data_clean <- BSC_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
-  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
-
-
-# Join threat and brood data to find out weekends and weekdays
-funday_summary_BSC <- BSC_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
- rowwise() %>%
-  mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "BSC"
-        )
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE)
-    },
-    # Total fundays = weekends + holidays
-     funday_total = weekend_days + holiday_days
-  ) %>%
-  ungroup()
-
-
-# Step 3: Join funday count back to every row
-BSC_chick_data_clean <- BSC_chick_data_clean %>%
-  left_join(funday_summary_BSC, by = "nest_ID", relationship = "many-to-many")
-
-```
-```{r}
-## FP
-# Find brood start and end date
-FP_chick_data_clean <- FP_chick_data %>%
-  mutate(
-    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
-  ) %>%
-  group_by(nest_ID) %>%
-  mutate(
-    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
-  ) %>%
-  ungroup()
-#clean
-FP_chick_data_clean <- FP_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
-  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
-
-
-# Join threat and brood data to find out weekends and weekdays
-funday_summary_FP <- FP_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
- rowwise() %>%
-  mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "FP"
-        )
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE)
-    },
-    # Total fundays = weekends + holidays
-     funday_total = weekend_days + holiday_days
-  ) %>%
-  ungroup()
-
-# Step 3: Join funday count back to every row
-FP_chick_data_clean <- FP_chick_data_clean %>%
-  left_join(funday_summary_FP, by = "nest_ID", relationship = "many-to-many")
-
-```
-```{r}
-## PI
-# Find brood start and end date
-PI_chick_data_clean <- PI_chick_data %>%
-  mutate(
-    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
-  ) %>%
-  group_by(nest_ID) %>%
-  mutate(
-    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
-  ) %>%
-  ungroup()
-#clean
-PI_chick_data_clean <- PI_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
-  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
-
-
-# Join threat and brood data to find out weekends and weekdays
-funday_summary_PI <- PI_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
- rowwise() %>%
-  mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "PI"
-        )
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE)
-    },
-    # Total fundays = weekends + holidays
-     funday_total = weekend_days + holiday_days
-  ) %>%
-  ungroup()
-
-
-# Step 3: Join funday count back to every row
-PI_chick_data_clean <- PI_chick_data_clean %>%
-  left_join(funday_summary_PI, by = "nest_ID", relationship = "many-to-many")
-
 ```
 
 ##MP
@@ -11289,6 +11264,8 @@ MP_chicks.proc <- process.data(MP_chick_ch, model = "CJS",
                                groups = c("season", "region", 
                                           "mgmt_l", "mgmt_s"))
 
+
+
 # Create the design data
 MP_chicks.ddl <- make.design.data(MP_chicks.proc)
 
@@ -11297,10 +11274,14 @@ time <- c(0:(MP_chicks.proc$nocc[1]-1))
 Quadratic <- time^2
 Cubic <- time^3
 quad_time <- data.frame(time, Quadratic, Cubic)
+funday_cov <- data.frame(time = 0:(MP_chicks.proc$nocc[1]-1),
+                         funday = MP_chick_ch$funday[1:MP_chicks.proc$nocc[1]])
 MP_chicks.ddl$p <- merge_design.covariates(MP_chicks.ddl$Phi, 
                                               quad_time, bygroup = FALSE, bytime = TRUE)
 MP_chicks.ddl$Phi <- merge_design.covariates(MP_chicks.ddl$Phi, 
                                                 quad_time, bygroup = FALSE, bytime = TRUE)
+MP_chicks.ddl$Phi <- merge_design.covariates(MP_chicks.ddl$Phi, 
+                                             funday_cov, bygroup = FALSE, bytime = TRUE)
 ```
 ### Detection probability modelling
 ```{r}
@@ -11431,7 +11412,7 @@ row.names(Chick_p_reals_MP) <- NULL
 ```
 ### Survival modelling (Phi)
 ```{r}
-# Find best structure of Phi while using p(~Year * Day_of_Season)
+# Find best structure of Phi while using p(~season * Quadratic)
 MP_chicks_Phi <- function() 
 {
   # Constant Phi
@@ -11461,8 +11442,8 @@ MP_chicks_Phi <- function()
   # Phi varies by management status
   Phi.mgmt_s <-
     list(formula = ~mgmt_s)
-
-  # interaction between hatch date and age
+  
+    # interaction between hatch date and age
   Phi.date.x.age <-
     list(formula = ~date_j * Time)
 
@@ -11521,6 +11502,26 @@ MP_chicks_Phi <- function()
   # interaction between year and hatch date and management status
   Phi.quadage.mgmt_s <-
     list(formula = ~Quadratic + mgmt_s)
+  
+  # Phi varies with number of fun days
+  Phi.funday <-
+    list(formula = ~ funday)
+  
+  # Additive effect of funday and management level
+  Phi.funday.mgmt_l <-
+    list(formula = ~ funday + mgmt_l)
+
+  # Additive effect of funday and management status
+  Phi.funday.mgmt_s <-
+    list(formula = ~ funday + mgmt_s)
+  
+   # Interaction between funday and management level
+  Phi.funday.x.mgmt_l <-
+    list(formula = ~ funday * mgmt_l)
+
+   # Interaction between funday and management status
+  Phi.funday.x.mgmt_s <-
+    list(formula = ~ funday * mgmt_s)
 
   # # additive effect of hach date and age and management level
   # Phi.date.age.mgmt_l <-
@@ -11623,14 +11624,17 @@ MP_chicks_Phi_run <- readRDS("output/MP_chicks_Phi_run.rds")
 
 # Extract estimates of survival from top models
 Chick_dot_surv <- MP_chicks_Phi_run[[13]]$results$real
-Chick_quadage_surv <- MP_chicks_Phi_run[[18]]$results$real
+Chick_quadage_surv <- MP_chicks_Phi_run[[23]]$results$real
 Chick_hatch_date_surv <- MP_chicks_Phi_run[[8]]$results$real
-Chick_mgmt_s_surv <- MP_chicks_Phi_run[[15]]$results$real
-Chick_mgmt_l_surv <- MP_chicks_Phi_run[[14]]$results$real
-Chick_mgmt_s_x_quadage_surv <- MP_chicks_Phi_run[[20]]$results$real
-Chick_mgmt_s_quadage_surv <- MP_chicks_Phi_run[[17]]$results$real
-Chick_mgmt_l_quadage_surv <- MP_chicks_Phi_run[[16]]$results$real
-Chick_mgmt_s_hatch_date_surv <- MP_chicks_Phi_run[[11]]$results$real ## I've added this one so not sure how to put into analysis below
+Chick_mgmt_s_surv <- MP_chicks_Phi_run[[20]]$results$real
+Chick_mgmt_l_surv <- MP_chicks_Phi_run[[19]]$results$real
+Chick_mgmt_s_x_quadage_surv <- MP_chicks_Phi_run[[25]]$results$real
+Chick_mgmt_s_quadage_surv <- MP_chicks_Phi_run[[22]]$results$real
+Chick_mgmt_l_quadage_surv <- MP_chicks_Phi_run[[21]]$results$real
+Chick_funday_x_mgmt_s_surv      <- MP_chicks_Phi_run[[18]]$results$real
+Chick_funday_x_mgmt_l_surv      <- MP_chicks_Phi_run[[14]]$results$real
+Chick_funday_mgmt_s_surv  <- MP_chicks_Phi_run[[15]]$results$real
+Chick_funday_surv            <- MP_chicks_Phi_run[[16]]$results$real
 
 Groups <- data.frame(str_split_fixed(rownames(Chick_dot_surv), " ", n = 5))
 Chick_dot_surv <- cbind(Groups, Chick_dot_surv)
@@ -11679,6 +11683,30 @@ Chick_mgmt_l_quadage_surv <- cbind(Groups, Chick_mgmt_l_quadage_surv)
 Chick_mgmt_l_quadage_surv$season <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 2, 7))
 Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_quadage_surv$X4))
 Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 10, 10))
+
+Groups <- data.frame(str_split_fixed(rownames(Chick_funday_x_mgmt_s_surv), " ", n = 5))
+Chick_funday_x_mgmt_s_surv <- cbind(Groups, Chick_funday_x_mgmt_s_surv)
+Chick_funday_x_mgmt_s_surv$season <- unlist(substr(Chick_funday_x_mgmt_s_surv$X2, 2, 7))
+Chick_funday_x_mgmt_s_surv$age <- as.numeric(sub("^a", "", Chick_funday_x_mgmt_s_surv$X4))
+Chick_funday_x_mgmt_s_surv$mgmt_l <- unlist(substr(Chick_funday_x_mgmt_s_surv$X2, 10, 10))
+
+Groups <- data.frame(str_split_fixed(rownames(Chick_funday_x_mgmt_l_surv), " ", n = 5))
+Chick_funday_x_mgmt_l_surv <- cbind(Groups, Chick_funday_x_mgmt_l_surv)
+Chick_funday_x_mgmt_l_surv$season <- unlist(substr(Chick_funday_x_mgmt_l_surv$X2, 2, 7))
+Chick_funday_x_mgmt_l_surv$age <- as.numeric(sub("^a", "", Chick_funday_x_mgmt_l_surv$X4))
+Chick_funday_x_mgmt_l_surv$mgmt_l <- unlist(substr(Chick_funday_x_mgmt_l_surv$X2, 10, 10))
+
+Groups <- data.frame(str_split_fixed(rownames(Chick_funday_mgmt_s_surv), " ", n = 5))
+Chick_funday_mgmt_s_surv <- cbind(Groups, Chick_funday_mgmt_s_surv)
+Chick_funday_mgmt_s_surv$season <- unlist(substr(Chick_funday_mgmt_s_surv$X2, 2, 7))
+Chick_funday_mgmt_s_surv$age <- as.numeric(sub("^a", "", Chick_funday_mgmt_s_surv$X4))
+Chick_funday_mgmt_s_surv$mgmt_l <- unlist(substr(Chick_funday_mgmt_s_surv$X2, 10, 10))
+
+Groups <- data.frame(str_split_fixed(rownames(Chick_funday_surv), " ", n = 5))
+Chick_funday_surv <- cbind(Groups, Chick_funday_surv)
+Chick_funday_surv$season <- unlist(substr(Chick_funday_surv$X2, 2, 7))
+Chick_funday_surv$age <- as.numeric(sub("^a", "", Chick_funday_surv$X4))
+Chick_funday_surv$mgmt_l <- unlist(substr(Chick_funday_surv$X2, 10, 10))
 
 # constant survival
 ggplot() +
@@ -11772,6 +11800,64 @@ filter(Chick_mgmt_s_surv, X1 == "Phi") %>%
 #   ) +
 #   ylab("detection probability of a brood") +
 #   xlab("brood age (days)")
+
+# --- Model 18: Phi(~funday * mgmt_s) ---
+ggplot(Chick_funday_x_mgmt_s_surv %>% filter(X1 == "Phi"), 
+       aes(x = funday, y = estimate, color = mgmt_s, group = mgmt_s)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
+  labs(
+    title = "Model 18: Phi(~funday * mgmt_s)",
+    x = "Fundays (weekends/holidays)",
+    y = "Daily brood survival (Phi)",
+    color = "Small-scale management",
+    fill = "Small-scale management"
+  ) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_minimal(base_size = 14)
+
+# --- Model 14: Phi(~funday + mgmt_l) ---
+ggplot(Chick_funday_x_mgmt_l_surv %>% filter(X1 == "Phi"), 
+       aes(x = funday, y = estimate, color = mgmt_l, group = mgmt_l)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
+  labs(
+    title = "Model 14: Phi(~funday + mgmt_l)",
+    x = "Fundays (weekends/holidays)",
+    y = "Daily brood survival (Phi)",
+    color = "Large-scale management",
+    fill = "Large-scale management"
+  ) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_minimal(base_size = 14)
+
+# --- Model 15: Phi(~funday + mgmt_s) ---
+ggplot(Chick_funday_mgmt_s_surv %>% filter(X1 == "Phi"), 
+       aes(x = funday, y = estimate, color = mgmt_s, group = mgmt_s)) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
+  labs(
+    title = "Model 15: Phi(~funday + mgmt_s)",
+    x = "Fundays (weekends/holidays)",
+    y = "Daily brood survival (Phi)",
+    color = "Small-scale management",
+    fill = "Small-scale management"
+  ) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_minimal(base_size = 14)
+
+# --- Model 16: Phi(~funday) ---
+ggplot(Chick_funday_surv %>% filter(X1 == "Phi"), 
+       aes(x = funday, y = estimate)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = lcl, ymax = ucl), width = 0.1) +
+  labs(
+    title = "Model 16: Phi(~funday)",
+    x = "Fundays (weekends/holidays)",
+    y = "Daily brood survival (Phi)"
+  ) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_minimal(base_size = 14)
 ```
 
 ##BC
