@@ -8020,8 +8020,7 @@ nest_survival_reals_status_table <- nest_survival_reals_status %>%
   mutate(
     region = dplyr::recode(region, !!!region_names),
     status = dplyr::recode(status, "N" = "Unmanaged", "Y" = "Managed"),
-     Hatching_rate = (estimate ^ 28) * 100  # Convert to percentage
-  )
+     Hatching_rate = (estimate ^ 28) * 100)
 
 nest_survival_reals_status_table %>%
   arrange(region, status) %>%
@@ -8063,7 +8062,29 @@ nest_survival_reals_status_table %>%
     row_group.font.size = 12,
     table.width = pct(80)
   )
+#hatch rate graph
+unique_regions <- unique(nest_hatch_rate$region)
+region_cols <- setNames(brewer.pal(length(unique_regions), "Dark2"), unique_regions)
 
+nest_survival_reals_status_table <- nest_survival_reals_status_table %>%
+  mutate(fill_col = ifelse(
+    status == "Managed",
+    alpha(region_cols[region], 0.5),  # lighter Managed
+    region_cols[region]                # solid Unmanaged
+  ))
+# Plot
+ggplot(nest_survival_reals_status_table, aes(x = region, y = Hatching_rate, fill = fill_col)) +
+  geom_col(position = position_dodge(width = 0.8), color = "black", width = 0.7) +
+  scale_fill_identity() +  # use the colours as-is
+  ylim(0, 100) +
+  labs(x = "Region", y = "Hatching rate (%)") +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x = element_text(angle = 25, hjust = 1),
+    panel.grid.minor = element_blank()
+  )
+
+# graph
 ggplot() +
   geom_line(data = nest_survival_reals_status, 
             aes(x = status, y = estimate, color = region, group = region),
@@ -11595,7 +11616,7 @@ MP_chicks_Phi <- function()
 MP_chicks_Phi_run <- MP_chicks_Phi()
 
 # inspect Phi AIC table to find top model
-MP_chicks_Phi_run # best structure: Phi(~Year * Day_of_Season)
+MP_chicks_Phi_run # best structure: Phi(~season * Quadratic)
 
 saveRDS(MP_chicks_Phi_run, "output/MP_chicks_Phi_run.rds")
 
@@ -11707,6 +11728,22 @@ MP_Chick_funday_surv$season <- unlist(substr(MP_Chick_funday_surv$X2, 2, 7))
 MP_Chick_funday_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_surv$X4))
 MP_Chick_funday_surv$mgmt_l <- unlist(substr(MP_Chick_funday_surv$X2, 10, 10))
 
+# plotting top model MP_Chick_funday_surv
+MP_chicks.ddl$Phi$ID <- seq_len(nrow(MP_chicks.ddl$Phi))
+MP_Chick_funday_surv$ID <- seq_len(nrow(MP_Chick_funday_surv))
+
+funday_map <- MP_chicks.ddl$Phi[, c("ID", "funday")]
+
+
+MP_Chick_funday_surv <- merge(MP_Chick_funday_surv, funday_map, by = "ID")
+ggplot(MP_Chick_funday_surv, aes(x = funday, y = estimate)) +
+  geom_smooth(method = "loess", se = TRUE, color = "#0072B2", fill = "#0072B2", alpha = 0.2) +
+  labs(
+    x = "Number of fundays a brood is exposed to",
+    y = "Daily brood survival (95% CI)"
+  ) +
+  theme_minimal()
+
 # constant survival
 ggplot() +
   geom_line(data = MP_Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
@@ -11721,7 +11758,7 @@ ggplot() +
     high = "red",
     name = "season"
   ) +
-  ylab("Daily brood survival") +
+  ylab("Daily brood survival (95% CI)") +
   xlab("Brood age (days)")
 
 # quadratic age-dependent survival
@@ -12300,7 +12337,7 @@ ggplot() +
   scale_y_continuous(limits = c(0, 1))
 
 
-filter(BC_Chick_mgmt_s_surv, X1 == "Phi") %>% 
+filter(BC_Chick_dot_surv, X1 == "Phi") %>% 
   mutate(fledgling_success = estimate^35)
 
 # seasonal dependent survival (hatch date)
@@ -12868,6 +12905,7 @@ FP_chicks.ddl$Phi <- merge_design.covariates(FP_chicks.ddl$Phi,
                                                 quad_time, bygroup = FALSE, bytime = TRUE)
 FP_chicks.ddl$Phi <- merge_design.covariates(FP_chicks.ddl$Phi, 
                                              funday_cov, bygroup = FALSE, bytime = TRUE)
+
 ```
 ### Detection probability modelling
 ```{r}
