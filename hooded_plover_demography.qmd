@@ -8020,7 +8020,9 @@ nest_survival_reals_status_table <- nest_survival_reals_status %>%
   mutate(
     region = dplyr::recode(region, !!!region_names),
     status = dplyr::recode(status, "N" = "Unmanaged", "Y" = "Managed"),
-     Hatching_rate = (estimate ^ 28) * 100)
+     Hatching_rate = (estimate ^ 28) * 100,
+    lcl_hatch_rate = (lcl ^ 28) * 100,
+    ucl_hatch_rate = (ucl ^ 28) * 100)
 
 nest_survival_reals_status_table %>%
   arrange(region, status) %>%
@@ -8031,26 +8033,21 @@ nest_survival_reals_status_table %>%
     se = "Standard error",
     lcl = "Lower 95% CI",
     ucl = "Upper 95% CI",
-    Hatching_rate = "Hatching rate (%)"
-  ) %>%
+    Hatching_rate = "Hatching rate (%)") %>%
   fmt_number(
     columns = c(estimate, se, lcl, ucl),
     decimals = 3,
-    use_seps = FALSE
-  ) %>%
+    use_seps = FALSE) %>%
   fmt_number(
     columns = vars(Hatching_rate),
     decimals = 2,   # <-- two decimal places
-    use_seps = FALSE
-  ) %>%
+    use_seps = FALSE ) %>%
   cols_align(
     align = "left",
-    columns = vars(status)
-  ) %>%
+    columns = vars(status)  ) %>%
   cols_align(
     align = "center",
-    columns = vars(estimate, se, lcl, ucl, Hatching_rate)
-  ) %>%
+    columns = vars(estimate, se, lcl, ucl, Hatching_rate) ) %>%
   tab_options(
     row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
@@ -8060,8 +8057,8 @@ nest_survival_reals_status_table %>%
     summary_row.padding = px(2),
     column_labels.font.size = 14,
     row_group.font.size = 12,
-    table.width = pct(80)
-  )
+    table.width = pct(80))
+
 #hatch rate graph
 unique_regions <- unique(nest_hatch_rate$region)
 region_cols <- setNames(brewer.pal(length(unique_regions), "Dark2"), unique_regions)
@@ -8072,17 +8069,24 @@ nest_survival_reals_status_table <- nest_survival_reals_status_table %>%
     alpha(region_cols[region], 0.5),  # lighter Managed
     region_cols[region]                # solid Unmanaged
   ))
-# Plot
-ggplot(nest_survival_reals_status_table, aes(x = region, y = Hatching_rate, fill = fill_col)) +
-  geom_col(position = position_dodge(width = 0.8), color = "black", width = 0.7) +
-  scale_fill_identity() +  # use the colours as-is
-  ylim(0, 100) +
+# hatching rate bar chart
+ggplot(nest_survival_reals_status_table,
+       aes(x = region, y = Hatching_rate, fill = region, alpha = status)) +
+  geom_col(position = position_dodge(width = 0.8), color = NA, width = 0.7) +
+  geom_errorbar(aes(ymin = lcl_hatch_rate, ymax = ucl_hatch_rate),
+                width = 0.2, position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = region_cols, guide = FALSE) +
+  scale_alpha_manual(name = NULL,
+    values = c("Unmanaged" = 1, "Managed" = 0.5),
+    labels = c("Unmanaged (darker)", "Managed (lighter)")) +
+  guides(alpha = guide_legend(override.aes = list(fill = "grey50", color = NA))) + 
+  coord_cartesian(ylim = c(0, 50)) +
   labs(x = "Region", y = "Hatching rate (%)") +
   theme_minimal(base_size = 13) +
-  theme(
-    axis.text.x = element_text(angle = 25, hjust = 1),
-    panel.grid.minor = element_blank()
-  )
+  theme(axis.text.x = element_text(angle = 25, hjust = 1),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.key = element_rect(color = NA))
 
 # graph
 ggplot() +
@@ -9548,6 +9552,51 @@ hatch_dates_BSC_MP_FP_BC_PI %>%
 ## Check errors on import of chick data and wrangle
 ### MP Import
 ```{r}
+#first get all nest IDs
+MP_nest_ID <-
+  suppressMessages(
+    bind_rows(
+          read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"), 
+               sheet = paste0("MP", " ", "2023", "_", str_sub("2024", 3, 4)), 
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2022", "_", str_sub("2023", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2021", "_", str_sub("2022", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2020", "_", str_sub("2021", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2019", "_", str_sub("2020", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2018", "_", str_sub("2019", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2017", "_", str_sub("2018", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2016", "_", str_sub("2017", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2015", "_", str_sub("2016", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2014", "_", str_sub("2015", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2013", "_", str_sub("2014", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
+               sheet = paste0("MP", " ", "2012", "_", str_sub("2013", 3, 4)),
+               col_types = "text", na = "n/a")))%>% 
+  select(`Nest ID`, `Chick manged?`, `Chick management type`) %>%
+  rename(nest_ID = `Nest ID_2`,
+    management_status = `Chick manged?`,
+    management_type = `Chick management type`)
+
 MP_chick_data <-
   suppressMessages(
     bind_rows(
@@ -9596,17 +9645,18 @@ MP_chick_data <-
            n_chicks_seen = `# chicks_updated`,
            habitat = Habitat,
            chick_age = `Chick description`,
-           management_type = Management,
+           #management_type = Management,
            lat = `Observation Latitude`,
            lon = `Observation Longitude`) %>% 
     mutate(season = str_sub(nest_ID, 1, 6)) %>% 
     dplyr::select(region, season, site, nest_ID, date, n_adults_seen, n_juvs_seen, 
                   n_chicks_seen, habitat, chick_age, lat, lon) %>%
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
-                select(nest_ID, hatch_date, chick_management_status, 
-                       chick_management_type), by = "nest_ID") %>% 
-  rename(management_type = chick_management_type,
-         management_status = chick_management_status)
+                select(nest_ID, hatch_date), by = "nest_ID") %>% 
+   left_join(., MP_nest_ID %>% 
+                select(nest_ID, `Chick manged?`,`Chick management type`), by = "nest_ID") %>% 
+rename(management_type = `Chick management type`,
+  management_status = `Chick manged?`)
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -9655,7 +9705,7 @@ MP_chick_data_clean_hatch_dates <-
 #### wrangle management data ----
 MP_chick_data_issues <- 
   MP_chick_data %>% 
-  filter(nest_ID %in% MP_chick_data_clean_hatch_dates$nest_ID) %>% 
+  filter(nest_ID %in% PI_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
   mutate(habitat = tolower(habitat)) %>%
   mutate(management_type = str_replace(management_type, "acess", "access")) %>%
@@ -9663,8 +9713,9 @@ MP_chick_data_issues <-
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
   mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "banners", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
+  mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
+  mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
   mutate(sign_access = ifelse(str_detect(management_type, "signaccess"), 1, 0)) %>%
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
@@ -9673,18 +9724,20 @@ MP_chick_data_issues <-
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
   mutate(other = ifelse(str_detect(management_type, "other"), 1, 0)) %>%
-  mutate(management_level = ifelse((sign_access == 1 | perm_fence == 1) & sign_nest == 1 & rope_fence == 1 & wardens == 1, 4,
-                                   ifelse(rope_fence == 1, 3,
-                                          ifelse(sign_nest == 1, 2,
-                                                 ifelse(sign_access == 1 | perm_fence == 1, 1,
-                                                        ifelse(none == 1, 0, NA)))))) %>%
-  mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
-  mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
-  mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
-  mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
-  mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
-  dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
-                -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
+  mutate(management_level = ifelse(temporary_exclusion_zone == 1, 6,
+                                   ifelse(wardens == 1, 5,
+                                          ifelse((rope_fence == 1 | perm_fence == 1), 4,
+                                                 ifelse(banners == 1, 3,
+                                                        ifelse(sign_nest == 1, 2,
+                                                               ifelse(sign_access == 1, 1,
+                                                        ifelse(none == 1, 0, NA)))))))) %>%
+ # mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
+ # mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
+ # mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
+ # mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
+ # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
+ # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
+              #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
@@ -9780,31 +9833,31 @@ MP_chick_data_clean <- MP_chick_data_clean %>%
 
 
 funday_summary_MP <- MP_chick_data_clean %>%
-  rowwise() %>%
-   mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "MP"
-        )
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE)
-    },
-   # Total fundays = weekends + holidays, capped at 35
+  rowwise() %>% 
+  mutate(
+    weekend_days = ifelse(
+      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+      0L,
+      sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
+    ),
+    holiday_days = ifelse(
+      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+      0L,
+      sum(sapply(
+        seq(hatch_date, last_checked, by = "day"),
+        function(d) {
+          is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+          is_holiday <- any(
+            !is.na(holidays$start_date) &
+            !is.na(holidays$end_date) &
+            d >= holidays$start_date &
+            d <= holidays$end_date &
+            holidays$region == "MP"
+          )
+          as.integer(is_holiday & !is_weekend)
+        }
+      ), na.rm = TRUE)
+    ),
     funday_total = pmin(weekend_days + holiday_days, 35L)
   ) %>%
   ungroup()
@@ -9894,6 +9947,54 @@ MP_chick_ch <-
 ```
 ###BC Import
 ```{r}
+#first get all nest IDs
+BC_nest_ID <-
+  suppressMessages(
+    bind_rows(
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+               sheet = paste0("BC", " ", "2024", "_", str_sub("2025", 3, 4)), 
+               col_types = "text", na = "n/a"),
+      read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"), 
+               sheet = paste0("BC", " ", "2023", "_", str_sub("2024", 3, 4)), 
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2022", "_", str_sub("2023", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2021", "_", str_sub("2022", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2020", "_", str_sub("2021", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2019", "_", str_sub("2020", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2018", "_", str_sub("2019", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2017", "_", str_sub("2018", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2016", "_", str_sub("2017", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2015", "_", str_sub("2016", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2014", "_", str_sub("2015", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2013", "_", str_sub("2014", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "Bass Coast_nesting summaries.xlsx"),
+               sheet = paste0("BC", " ", "2012", "_", str_sub("2013", 3, 4)),
+               col_types = "text", na = "n/a")))%>% 
+  select(`Nest ID_2`, `Chick manged?`, `Chick management type`) %>%
+  rename(nest_ID = `Nest ID_2`,
+    management_status = `Chick manged?`,
+    management_type = `Chick management type`)
+
 BC_chick_data <-
   suppressMessages(
     bind_rows(
@@ -9945,17 +10046,18 @@ BC_chick_data <-
            n_chicks_seen = `# chicks_updated`,
            habitat = Habitat,
            chick_age = `Chick description`,
-           management_type = Management,
+          # management_type = Management,
            lat = `Observation Latitude`,
            lon = `Observation Longitude`) %>% 
     mutate(season = str_sub(nest_ID, 1, 6)) %>% 
     dplyr::select(region, season, site, nest_ID, date, n_adults_seen, n_juvs_seen, 
                   n_chicks_seen, habitat, chick_age, lat, lon) %>%
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
-                select(nest_ID, hatch_date, chick_management_status, 
-                       chick_management_type), by = "nest_ID") %>% 
-  rename(management_type = chick_management_type,
-         management_status = chick_management_status)
+                select(nest_ID, hatch_date), by = "nest_ID") %>% 
+  left_join(., BC_nest_ID %>% 
+                select(nest_ID, `Chick manged?`,`Chick management type`), by = "nest_ID") %>% 
+rename(management_type = `Chick management type`,
+  management_status = `Chick manged?`)
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -10004,7 +10106,7 @@ BC_chick_data_clean_hatch_dates <-
 #### wrangle management data ----
 BC_chick_data_issues <- 
   BC_chick_data %>% 
-  filter(nest_ID %in% BC_chick_data_clean_hatch_dates$nest_ID) %>% 
+  filter(nest_ID %in% PI_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
   mutate(habitat = tolower(habitat)) %>%
   mutate(management_type = str_replace(management_type, "acess", "access")) %>%
@@ -10012,8 +10114,9 @@ BC_chick_data_issues <-
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
   mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "banners", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
+  mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
+  mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
   mutate(sign_access = ifelse(str_detect(management_type, "signaccess"), 1, 0)) %>%
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
@@ -10022,18 +10125,20 @@ BC_chick_data_issues <-
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
   mutate(other = ifelse(str_detect(management_type, "other"), 1, 0)) %>%
-  mutate(management_level = ifelse((sign_access == 1 | perm_fence == 1) & sign_nest == 1 & rope_fence == 1 & wardens == 1, 4,
-                                   ifelse(rope_fence == 1, 3,
-                                          ifelse(sign_nest == 1, 2,
-                                                 ifelse(sign_access == 1 | perm_fence == 1, 1,
-                                                        ifelse(none == 1, 0, NA)))))) %>%
-  mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
-  mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
-  mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
-  mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
-  mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
-  dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
-                -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
+  mutate(management_level = ifelse(temporary_exclusion_zone == 1, 6,
+                                   ifelse(wardens == 1, 5,
+                                          ifelse((rope_fence == 1 | perm_fence == 1), 4,
+                                                 ifelse(banners == 1, 3,
+                                                        ifelse(sign_nest == 1, 2,
+                                                               ifelse(sign_access == 1, 1,
+                                                        ifelse(none == 1, 0, NA)))))))) %>%
+ # mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
+ # mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
+ # mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
+ # mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
+ # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
+ # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
+              #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
@@ -10085,8 +10190,8 @@ BC_chick_data_issues %>% select(-c(date, management_status, management_level)) %
 
 ```{r}
 BC_chick_data_clean <-
-  BC_chick_data_issues %>% 
-  filter(issues == "usable") %>% 
+  BC_chick_data %>% 
+  #filter(issues == "usable") %>% 
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
   select(region, season, site, nest_ID, hatch_date, date, 
@@ -10126,31 +10231,31 @@ BC_chick_data_clean <- BC_chick_data_clean %>%
   ) 
 # Join threat and brood data to find out weekends and weekdays
 funday_summary_BC <- BC_chick_data_clean %>%
- rowwise() %>%
+  rowwise() %>%  
   mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "BC"
-        )
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE)
-    },
-   # Total fundays = weekends + holidays, capped at 35
+    weekend_days = ifelse(
+      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+      0L,
+      sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
+    ),
+    holiday_days = ifelse(
+      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+      0L,
+      sum(sapply(
+        seq(hatch_date, last_checked, by = "day"),
+        function(d) {
+          is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+          is_holiday <- any(
+            !is.na(holidays$start_date) &
+            !is.na(holidays$end_date) &
+            d >= holidays$start_date &
+            d <= holidays$end_date &
+            holidays$region == "MP"
+          )
+          as.integer(is_holiday & !is_weekend)
+        }
+      ), na.rm = TRUE)
+    ),
     funday_total = pmin(weekend_days + holiday_days, 35L)
   ) %>%
   ungroup()
@@ -10244,9 +10349,56 @@ BC_chick_ch <-
 ```
 ### BSC Import
 ```{r}
-BSC_chick_data <-
+#first get all nest IDs
+BSC_nest_ID <-
   suppressMessages(
     bind_rows(
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"), 
+               sheet = paste0("BSC", " ", "2024", "_", str_sub("2025", 3, 4)), 
+               col_types = "text", na = "n/a"),
+      read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"), 
+               sheet = paste0("BSC", " ", "2023", "_", str_sub("2024", 3, 4)), 
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2022", "_", str_sub("2023", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2021", "_", str_sub("2022", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2020", "_", str_sub("2021", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2019", "_", str_sub("2020", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2018", "_", str_sub("2019", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2017", "_", str_sub("2018", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2016", "_", str_sub("2017", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2015", "_", str_sub("2016", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2014", "_", str_sub("2015", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2013", "_", str_sub("2014", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "BSC Nesting Summaries_All years_17062025.xlsx"),
+               sheet = paste0("BSC", " ", "2012", "_", str_sub("2013", 3, 4)),
+               col_types = "text", na = "n/a")))%>% 
+  select(`Nest ID_2`, `Chick manged?`, `Chick management type`) %>%
+  rename(nest_ID = `Nest ID_2`,
+    management_status = `Chick manged?`,
+    management_type = `Chick management type`)
+
+BSC_chick_data <-
+     bind_rows(
      read_excel(paste0("data/", "BSC Chick data 13062025.xlsx"), 
                sheet = paste0("BSC", " ", "2024", "_", str_sub("2025", 3, 4)), 
                col_types = "text", na = "n/a"),
@@ -10285,7 +10437,7 @@ BSC_chick_data <-
                col_types = "text", na = "n/a"),
     read_excel(paste0("data/", "BSC Chick data 13062025.xlsx"),
                sheet = paste0("BSC", " ", "2012", "_", str_sub("2013", 3, 4)),
-               col_types = "text", na = "n/a"))) %>% 
+               col_types = "text", na = "n/a")) %>% 
     rename(region = Region, 
            site = Site,
            nest_ID = Nest_ID,
@@ -10302,10 +10454,9 @@ BSC_chick_data <-
     dplyr::select(region, season, site, nest_ID, date, n_adults_seen, n_juvs_seen, 
                   n_chicks_seen, habitat, chick_age, lat, lon) %>%
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
-                select(nest_ID, hatch_date, chick_management_status, 
-                       chick_management_type), by = "nest_ID") %>% 
-  rename(management_type = chick_management_type,
-         management_status = chick_management_status)
+                select(nest_ID, hatch_date), by = "nest_ID") %>% 
+  left_join(., BSC_nest_ID %>% 
+                select(nest_ID, management_type, management_status), by = "nest_ID", relationship = "many-to-many")
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -10318,7 +10469,7 @@ age_offsets <- c(
 )
 
 # calculate hatch dates from the chick data (first observation and developmental stage)
-hatch_dates_from_chick_data <- BSC_chick_data %>%
+hatch_dates_from_chick_data_BSC <- BSC_chick_data %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date
   group_by(nest_ID) %>%
   slice_min(order_by = date, n = 1, with_ties = FALSE) %>%
@@ -10352,7 +10503,7 @@ BSC_chick_data_clean_hatch_dates <-
            (is.na(hatch_date) & !is.na(hatch_date2)))
 
 #### wrangle management data ----
-BSC_chick_data_issues <- 
+  BSC_chick_data <-
   BSC_chick_data %>% 
   filter(nest_ID %in% BSC_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
@@ -10362,8 +10513,9 @@ BSC_chick_data_issues <-
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
   mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "banners", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
+  mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
+  mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
   mutate(sign_access = ifelse(str_detect(management_type, "signaccess"), 1, 0)) %>%
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
@@ -10372,22 +10524,24 @@ BSC_chick_data_issues <-
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
   mutate(other = ifelse(str_detect(management_type, "other"), 1, 0)) %>%
-  mutate(management_level = ifelse((sign_access == 1 | perm_fence == 1) & sign_nest == 1 & rope_fence == 1 & wardens == 1, 4,
-                                   ifelse(rope_fence == 1, 3,
-                                          ifelse(sign_nest == 1, 2,
-                                                 ifelse(sign_access == 1 | perm_fence == 1, 1,
-                                                        ifelse(none == 1, 0, NA)))))) %>%
-  mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
-  mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
-  mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
-  mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
-  mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
-  dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
-                -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
+  mutate(management_level = ifelse(temporary_exclusion_zone == 1, 6,
+                                   ifelse(wardens == 1, 5,
+                                          ifelse((rope_fence == 1 | perm_fence == 1), 4,
+                                                 ifelse(banners == 1, 3,
+                                                        ifelse(sign_nest == 1, 2,
+                                                               ifelse(sign_access == 1, 1,
+                                                        ifelse(none == 1, 0, NA)))))))) %>%
+ # mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
+ # mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
+ # mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
+ # mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
+ # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
+ # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
+              #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
-  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
+  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% 
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
@@ -10396,13 +10550,16 @@ BSC_chick_data_issues <-
                                     ifelse(str_detect(region, "Fleurieu"), "FP",
                                               ifelse(str_detect(region, "Phillip"), "PI",
                                                            ifelse(str_detect(region, "Bass"), "BC",
-                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA)))))) %>%
-  mutate(site = as.factor(site)) %>%
+                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA))))))%>%
+mutate(site = as.factor(site))
+
+ BSC_chick_data_issues <-
+ BSC_chick_data %>% 
   mutate(issue1 = ifelse(nchar(date) != 8, "observation date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(is.na(date), "observation date missing; ", NA)) %>% 
   mutate(issue3 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>%
   mutate(issue4 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>%
+  left_join(., hatch_dates_from_chick_data_BSC, by = "nest_ID") %>%
   mutate(hatch_date_diff = ifelse(is.na(hatch_date) & !is.na(hatch_date2), 0,
                                   hatch_date - hatch_date2)) %>% 
   mutate(issue5 = ifelse(hatch_date_diff != 0 , "Double check dates because hatch dates from chick data do not match hatch dates from nest data; ", NA)) %>%
@@ -10421,6 +10578,7 @@ BSC_chick_data_issues <-
   arrange(issues)
 
 # view issues interactively in RStudio Viewer
+BSC_chick_data_issues <-
 BSC_chick_data_issues %>% 
   filter(issues != "usable") %>% 
   dplyr::select(season, nest_ID, date, management_status, management_level, 
@@ -10435,8 +10593,8 @@ BSC_chick_data_issues %>% select(-c(date, management_status, management_level)) 
 
 ```{r}
 BSC_chick_data_clean <-
-  BSC_chick_data_issues %>% 
-  filter(issues == "usable") %>% 
+  BSC_chick_data %>% 
+  #filter(issues == "usable") %>% 
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
   select(region, season, site, nest_ID, hatch_date, date, 
@@ -10451,9 +10609,9 @@ BSC_chick_data_clean <-
   mutate(n_offspring_seen = as.numeric(n_juvs_seen) + as.numeric(n_chicks_seen)) %>% 
   mutate(offspring_seen = ifelse(n_offspring_seen > 0, 1, 0)) %>% 
   mutate(brood_age = (date - hatch_date) %>% as.numeric()) %>% 
-  group_by(nest_ID) %>% 
-  mutate(management_level_max = max(management_level),
-         management_status_max = max(as.character(management_status)) %>% as.factor())
+  group_by(nest_ID)# %>% 
+ mutate(management_level_max = max(management_level),
+        management_status_max = max(as.character(management_status)) %>% as.factor())
 ```
 
 ```{r}
@@ -10475,31 +10633,31 @@ BSC_chick_data_clean <- BSC_chick_data_clean %>%
 
 # Join threat and brood data to find out weekends and weekdays
 funday_summary_BSC <- BSC_chick_data_clean %>%
-  rowwise() %>%
+  rowwise() %>%  
   mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "BSC"
-        )
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE)
-    },
-    # Total fundays = weekends + holidays, capped at 35
+    weekend_days = ifelse(
+      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+      0L,
+      sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
+    ),
+    holiday_days = ifelse(
+      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+      0L,
+      sum(sapply(
+        seq(hatch_date, last_checked, by = "day"),
+        function(d) {
+          is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+          is_holiday <- any(
+            !is.na(holidays$start_date) &
+            !is.na(holidays$end_date) &
+            d >= holidays$start_date &
+            d <= holidays$end_date &
+            holidays$region == "MP"
+          )
+          as.integer(is_holiday & !is_weekend)
+        }
+      ), na.rm = TRUE)
+    ),
     funday_total = pmin(weekend_days + holiday_days, 35L)
   ) %>%
   ungroup()
@@ -10552,7 +10710,7 @@ BSC_chick_data_clean_wide <-
   BSC_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
+    id_cols = c(nest_ID, management_level, management_status, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -10569,7 +10727,7 @@ age_cols <- names(BSC_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_
 
 # Reorder the dataframe
 BSC_chick_data_clean_wide <- BSC_chick_data_clean_wide %>%
-  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total, all_of(age_cols))
+  select(nest_ID, management_level, management_status, season, region, hatch_date, funday_total, all_of(age_cols))
 
 BSC_chick_ch <-
   BSC_chick_data_clean_wide %>%
@@ -10582,11 +10740,11 @@ BSC_chick_ch <-
   filter(str_detect(ch, "1")) %>%
   mutate(ch = paste0("1", str_sub(ch, start = 2, end = nchar(ch)))) %>% 
   mutate(hatch_date_j = as.numeric(format(hatch_date + 180, "%j"))) %>% 
-  mutate(management_level_max = as.factor(management_level_max)) %>% 
+  mutate(management_level = as.factor(management_level)) %>% 
   mutate(region = as.factor(region)) %>% 
   ungroup() %>% 
-  rename(mgmt_l = management_level_max,
-         mgmt_s = management_status_max,
+  rename(mgmt_l = management_level,
+         mgmt_s = management_status,
          date_j = hatch_date_j,
          funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
@@ -10594,6 +10752,51 @@ BSC_chick_ch <-
 ```
 ### FP Import
 ```{r}
+#first get all nest IDs
+FP_nest_ID <-
+  suppressMessages(
+    bind_rows(
+          read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"), 
+               sheet = paste0("FP", " ", "2023", "_", str_sub("2024", 3, 4)), 
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2022", "_", str_sub("2023", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2021", "_", str_sub("2022", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2020", "_", str_sub("2021", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2019", "_", str_sub("2020", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2018", "_", str_sub("2019", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2017", "_", str_sub("2018", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2016", "_", str_sub("2017", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2015", "_", str_sub("2016", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2014", "_", str_sub("2015", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2013", "_", str_sub("2014", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "FP Nesting summary_All years_30062025.xlsx"),
+               sheet = paste0("FP", " ", "2012", "_", str_sub("2013", 3, 4)),
+               col_types = "text", na = "n/a")))%>% 
+  select(`Nest ID_2`, `Chick manged?`, `Chick management type`) %>%
+  rename(nest_ID = `Nest ID_2`,
+    management_status = `Chick manged?`,
+    management_type = `Chick management type`)
+
 FP_chick_data <-
   suppressMessages(
     bind_rows(
@@ -10642,17 +10845,18 @@ FP_chick_data <-
            n_chicks_seen = `# chicks_updated`,
            habitat = Habitat,
            chick_age = `Chick description`,
-           management_type = Management,
+           #management_type = Management,
            lat = `Observation Latitude`,
            lon = `Observation Longitude`) %>% 
     mutate(season = str_sub(nest_ID, 1, 6)) %>% 
     dplyr::select(region, season, site, nest_ID, date, n_adults_seen, n_juvs_seen, 
                   n_chicks_seen, habitat, chick_age, lat, lon) %>%
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
-                select(nest_ID, hatch_date, chick_management_status, 
-                       chick_management_type), by = "nest_ID") %>% 
-  rename(management_type = chick_management_type,
-         management_status = chick_management_status)
+                select(nest_ID, hatch_date), by = "nest_ID") %>% 
+ left_join(., FP_nest_ID %>% 
+                select(nest_ID, `Chick manged?`,`Chick management type`), by = "nest_ID") %>% 
+rename(management_type = `Chick management type`,
+  management_status = `Chick manged?`)
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -10701,7 +10905,7 @@ FP_chick_data_clean_hatch_dates <-
 #### wrangle management data ----
 FP_chick_data_issues <- 
   FP_chick_data %>% 
-  filter(nest_ID %in% FP_chick_data_clean_hatch_dates$nest_ID) %>% 
+  filter(nest_ID %in% PI_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
   mutate(habitat = tolower(habitat)) %>%
   mutate(management_type = str_replace(management_type, "acess", "access")) %>%
@@ -10709,8 +10913,9 @@ FP_chick_data_issues <-
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
   mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "banners", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
+  mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
+  mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
   mutate(sign_access = ifelse(str_detect(management_type, "signaccess"), 1, 0)) %>%
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
@@ -10719,18 +10924,20 @@ FP_chick_data_issues <-
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
   mutate(other = ifelse(str_detect(management_type, "other"), 1, 0)) %>%
-  mutate(management_level = ifelse((sign_access == 1 | perm_fence == 1) & sign_nest == 1 & rope_fence == 1 & wardens == 1, 4,
-                                   ifelse(rope_fence == 1, 3,
-                                          ifelse(sign_nest == 1, 2,
-                                                 ifelse(sign_access == 1 | perm_fence == 1, 1,
-                                                        ifelse(none == 1, 0, NA)))))) %>%
-  mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
-  mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
-  mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
-  mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
-  mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
-  dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
-                -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
+  mutate(management_level = ifelse(temporary_exclusion_zone == 1, 6,
+                                   ifelse(wardens == 1, 5,
+                                          ifelse((rope_fence == 1 | perm_fence == 1), 4,
+                                                 ifelse(banners == 1, 3,
+                                                        ifelse(sign_nest == 1, 2,
+                                                               ifelse(sign_access == 1, 1,
+                                                        ifelse(none == 1, 0, NA)))))))) %>%
+ # mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
+ # mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
+ # mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
+ # mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
+ # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
+ # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
+              #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
@@ -10819,30 +11026,31 @@ FP_chick_data_clean <- FP_chick_data_clean %>%
 
 # Join threat and brood data to find out weekends and weekdays
 funday_summary_FP <- FP_chick_data_clean %>%
-  rowwise() %>%
+  rowwise() %>%  # optional, can be removed in vectorized version
   mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "FP")
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE)},
-    
-# Total fundays = weekends + holidays, capped at 35
+    weekend_days = ifelse(
+      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+      0L,
+      sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
+    ),
+    holiday_days = ifelse(
+      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+      0L,
+      sum(sapply(
+        seq(hatch_date, last_checked, by = "day"),
+        function(d) {
+          is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+          is_holiday <- any(
+            !is.na(holidays$start_date) &
+            !is.na(holidays$end_date) &
+            d >= holidays$start_date &
+            d <= holidays$end_date &
+            holidays$region == "MP"
+          )
+          as.integer(is_holiday & !is_weekend)
+        }
+      ), na.rm = TRUE)
+    ),
     funday_total = pmin(weekend_days + holiday_days, 35L)
   ) %>%
   ungroup()
@@ -10935,6 +11143,54 @@ FP_chick_ch <-
 ```
 ###PI Import
 ```{r}
+#first get all nest IDs
+PI_nest_ID <-
+  suppressMessages(
+    bind_rows(
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"), 
+               sheet = paste0("PI", " ", "2024", "_", str_sub("2025", 3, 4)), 
+               col_types = "text", na = "n/a"),
+      read_excel(paste0("data/", "PI Nesting summaries.xlsx"), 
+               sheet = paste0("PI", " ", "2023", "_", str_sub("2024", 3, 4)), 
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2022", "_", str_sub("2023", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2021", "_", str_sub("2022", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2020", "_", str_sub("2021", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2019", "_", str_sub("2020", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2018", "_", str_sub("2019", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2017", "_", str_sub("2018", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2016", "_", str_sub("2017", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2015", "_", str_sub("2016", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2014", "_", str_sub("2015", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2013", "_", str_sub("2014", 3, 4)),
+               col_types = "text", na = "n/a"),
+    read_excel(paste0("data/", "PI Nesting summaries.xlsx"),
+               sheet = paste0("PI", " ", "2012", "_", str_sub("2013", 3, 4)),
+               col_types = "text", na = "n/a")))%>% 
+  select(`Nest ID_2`, `Chick manged?`, `Chick management type`) %>%
+  rename(nest_ID = `Nest ID_2`,
+    management_status = `Chick manged?`,
+    management_type = `Chick management type`)
+
 PI_chick_data <-
   suppressMessages(
     bind_rows(
@@ -10986,17 +11242,18 @@ PI_chick_data <-
            n_chicks_seen = `# chicks_updated`,
            habitat = Habitat,
            chick_age = `Chick description`,
-           management_type = Management,
+           #management_type = Management,
            lat = `Observation Latitude`,
            lon = `Observation Longitude`) %>% 
     mutate(season = str_sub(nest_ID, 1, 6)) %>% 
     dplyr::select(region, season, site, nest_ID, date, n_adults_seen, n_juvs_seen, 
                   n_chicks_seen, habitat, chick_age, lat, lon) %>%
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
-                select(nest_ID, hatch_date, chick_management_status, 
-                       chick_management_type), by = "nest_ID") %>% 
-  rename(management_type = chick_management_type,
-         management_status = chick_management_status)
+                select(nest_ID, hatch_date), by = "nest_ID") %>% 
+  left_join(., PI_nest_ID %>% 
+                select(nest_ID, `Chick manged?`,`Chick management type`), by = "nest_ID") %>% 
+rename(management_type = `Chick management type`,
+  management_status = `Chick manged?`)
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -11053,8 +11310,9 @@ PI_chick_data_issues <-
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
   mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "banners", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
+  mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
+  mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
   mutate(sign_access = ifelse(str_detect(management_type, "signaccess"), 1, 0)) %>%
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
@@ -11063,18 +11321,20 @@ PI_chick_data_issues <-
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
   mutate(other = ifelse(str_detect(management_type, "other"), 1, 0)) %>%
-  mutate(management_level = ifelse((sign_access == 1 | perm_fence == 1) & sign_nest == 1 & rope_fence == 1 & wardens == 1, 4,
-                                   ifelse(rope_fence == 1, 3,
-                                          ifelse(sign_nest == 1, 2,
-                                                 ifelse(sign_access == 1 | perm_fence == 1, 1,
-                                                        ifelse(none == 1, 0, NA)))))) %>%
-  mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
-  mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
-  mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
-  mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
-  mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
-  dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
-                -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
+  mutate(management_level = ifelse(temporary_exclusion_zone == 1, 6,
+                                   ifelse(wardens == 1, 5,
+                                          ifelse((rope_fence == 1 | perm_fence == 1), 4,
+                                                 ifelse(banners == 1, 3,
+                                                        ifelse(sign_nest == 1, 2,
+                                                               ifelse(sign_access == 1, 1,
+                                                        ifelse(none == 1, 0, NA)))))))) %>%
+ # mutate(sign_nest_no_sign_access = ifelse(sign_access == 0 & sign_nest == 1, 1, 0)) %>%
+ # mutate(fence_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & rope_fence == 1, 1, 0)) %>%
+ # mutate(wardens_no_sign = ifelse((sign_access == 0 & sign_nest == 0) & wardens == 1, 1, 0)) %>%
+ # mutate(wardens_no_fence = ifelse(rope_fence == 1 & wardens == 1, 1, 0)) %>%
+ # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
+ # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
+              #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
   mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
                                     ifelse(management_level > 0 & !is.na(management_level), "Y", 
                                            NA))) %>% 
@@ -11278,6 +11538,66 @@ PI_chick_ch <-
   filter(nest_ID != "junk") %>% 
   select(-hatch_date, -nest_ID)
 ```
+
+###Summary statistics
+```{r}
+#BC
+#Total number of broods
+nrow(BC_chick_ch)
+# Number of broods per management status
+BC_chick_ch %>%
+  count(mgmt_s)
+# Number of broods per management level
+BC_chick_ch %>%
+  count(mgmt_l) %>%
+  arrange(mgmt_l) 
+
+#BSC - completed, still to fix other regions
+#Total number of broods
+nrow(BSC_chick_ch)
+# Number of broods per management status
+BSC_chick_ch %>%
+  count(mgmt_s)
+# Number of broods per management level
+BSC_chick_ch %>%
+  count(mgmt_l) %>%
+  arrange(mgmt_l) 
+
+#FP
+#Total number of broods
+nrow(FP_chick_ch)
+# Number of broods per management status
+FP_chick_ch %>%
+  count(mgmt_s)
+# Number of broods per management level
+FP_chick_ch %>%
+  count(mgmt_l) %>%
+  arrange(mgmt_l) 
+
+#MP
+#Total number of broods
+nrow(MP_chick_ch)
+# Number of broods per management status
+MP_chick_ch %>%
+  count(mgmt_s)
+# Number of broods per management level
+MP_chick_ch %>%
+  count(mgmt_l) %>%
+  arrange(mgmt_l) 
+
+#PI
+#Total number of broods
+nrow(PI_chick_ch)
+# Number of broods per management status
+PI_chick_ch %>%
+  count(mgmt_s)
+# Number of broods per management level
+PI_chick_ch %>%
+  count(mgmt_l) %>%
+  arrange(mgmt_l) 
+```
+
+
 
 ##MP
 ### Mark-recapture modelling
@@ -11624,12 +11944,20 @@ saveRDS(MP_chicks_Phi_run, "output/MP_chicks_Phi_run.rds")
 
 MP_chicks_Phi_run <- readRDS(file = "output/MP_chicks_Phi_run.rds") 
 
-MP_chicks_Phi_run$model.table %>% 
+MP_chicks_Phi_run$model.table %>%
+  mutate(
+    model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+      "date_j" = "hatch date",
+      "Time" = "time",
+        "\\)" = ") "  ))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Mornington Peninsula</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
@@ -11638,6 +11966,37 @@ MP_chicks_Phi_run$model.table %>%
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
 
+
+#Create AIC model selection table with delta AIC < 2
+MP_chicks_Phi_run$model.table %>%
+  filter(DeltaAICc < 2 | row_number() == 13) %>%
+  # replace text in model names
+  mutate(
+    model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+       "date_j" = "hatch date",
+      "Time" = "time",
+        "\\)" = ") "  ))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Mornington Peninsula</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
 ```
 ### Extract results and visualize Phi
 ```{r}
@@ -12187,11 +12546,19 @@ saveRDS(BC_chicks_Phi_run, "output/BC_chicks_Phi_run.rds")
 BC_chicks_Phi_run <- readRDS(file = "output/BC_chicks_Phi_run.rds") 
 
 BC_chicks_Phi_run$model.table %>% 
-  dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
+    mutate(
+    model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+      "date_j" = "hatch date",
+      "Time" = "age",
+        "\\)" = ") "  ))) %>%
+   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Bass Coast</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
@@ -12199,6 +12566,36 @@ BC_chicks_Phi_run$model.table %>%
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+BC_chicks_Phi_run$model.table %>%
+  filter(DeltaAICc < 2) %>%
+  mutate(
+    model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+      "date_j" = "hatch date",
+      "Time" = "age",
+        "\\)" = ") "  ))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Bass Coast</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
 ```
 ### Extract results and visualize Phi
 ```{r}
@@ -12710,11 +13107,19 @@ saveRDS(BSC_chicks_Phi_run, "output/BSC_chicks_Phi_run.rds")
 BSC_chicks_Phi_run <- readRDS(file = "output/BSC_chicks_Phi_run.rds") 
 
 BSC_chicks_Phi_run$model.table %>% 
+   mutate(
+    model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+       "date_j" = "hatch date",
+      "Time" = "time",
+        "\\)" = ") "  ))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
-  cols_label(model = html("<i>Bellarine_Surf Coast</i>"), 
+  cols_label(model = html("<i>Bellarine-Surf Coast</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
@@ -12722,6 +13127,36 @@ BSC_chicks_Phi_run$model.table %>%
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+BSC_chicks_Phi_run$model.table %>%
+  filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+  mutate(
+    model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+       "date_j" = "hatch date",
+       "Time" = "time",
+        "\\)" = ") "  ))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Bellarine-Surf Coast</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
 
 ```
 ### Extract results and visualize Phi
@@ -13228,11 +13663,19 @@ saveRDS(FP_chicks_Phi_run, "output/FP_chicks_Phi_run.rds")
 FP_chicks_Phi_run <- readRDS(file = "output/FP_chicks_Phi_run.rds") 
 
 FP_chicks_Phi_run$model.table %>% 
+  mutate(
+    model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+       "date_j" = "hatch date",
+       "Time" = "time",
+        "\\)" = ") "  ))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Fleurieu Peninsula</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
@@ -13240,6 +13683,35 @@ FP_chicks_Phi_run$model.table %>%
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+FP_chicks_Phi_run$model.table %>%
+  filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+  mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+       "date_j" = "hatch date",
+       "Time" = "time",
+        "\\)" = ") "  ))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Bellarine-Surf Coast</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
 ```
 ### Extract results and visualize Phi
 ```{r}
@@ -13444,6 +13916,7 @@ PI_chicks.ddl$Phi <- merge_design.covariates(PI_chicks.ddl$Phi,
 PI_chicks.ddl$Phi <- merge_design.covariates(PI_chicks.ddl$Phi, 
                                              funday_cov, bygroup = FALSE, bytime = TRUE)
 ```
+
 ### Detection probability modelling
 ```{r}
 # First assess the best model structure of encounter probability (p) while
@@ -13766,11 +14239,18 @@ saveRDS(PI_chicks_Phi_run, "output/PI_chicks_Phi_run.rds")
 PI_chicks_Phi_run <- readRDS(file = "output/PI_chicks_Phi_run.rds") 
 
 PI_chicks_Phi_run$model.table %>% 
+  mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+       "date_j" = "hatch date",
+       "Time" = "time",
+        "\\)" = ") "  ))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Phillip Island</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
@@ -13778,6 +14258,35 @@ PI_chicks_Phi_run$model.table %>%
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+PI_chicks_Phi_run$model.table %>%
+  filter(DeltaAICc < 2 | model == "Phi(~1)p(~season * date_j)") %>%
+  mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+       "date_j" = "hatch date",
+       "Time" = "time",
+        "\\)" = ") "  ))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Phillip Island</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
 ```
 ### Extract results and visualize Phi
 ```{r}
