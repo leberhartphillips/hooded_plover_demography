@@ -9593,7 +9593,7 @@ MP_nest_ID <-
                sheet = paste0("MP", " ", "2012", "_", str_sub("2013", 3, 4)),
                col_types = "text", na = "n/a")))%>% 
   select(`Nest ID`, `Chick manged?`, `Chick management type`) %>%
-  rename(nest_ID = `Nest ID_2`,
+  rename(nest_ID = `Nest ID`,
     management_status = `Chick manged?`,
     management_type = `Chick management type`)
 
@@ -9636,7 +9636,7 @@ MP_chick_data <-
     read_excel(paste0("data/", "MP Chicks sightings 2006_07 to 2023_24.xlsx"),
                sheet = paste0("MP", " ", "2012", "_", str_sub("2013", 3, 4)),
                col_types = "text", na = "n/a"))) %>% 
-    rename(region = Region, 
+   rename(region = Region, 
            site = Site,
            nest_ID = Nest_ID,
            date = `Observation Date_code`,
@@ -9645,7 +9645,7 @@ MP_chick_data <-
            n_chicks_seen = `# chicks_updated`,
            habitat = Habitat,
            chick_age = `Chick description`,
-           #management_type = Management,
+           management_type = Management,
            lat = `Observation Latitude`,
            lon = `Observation Longitude`) %>% 
     mutate(season = str_sub(nest_ID, 1, 6)) %>% 
@@ -9653,10 +9653,9 @@ MP_chick_data <-
                   n_chicks_seen, habitat, chick_age, lat, lon) %>%
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
                 select(nest_ID, hatch_date), by = "nest_ID") %>% 
-   left_join(., MP_nest_ID %>% 
-                select(nest_ID, `Chick manged?`,`Chick management type`), by = "nest_ID") %>% 
-rename(management_type = `Chick management type`,
-  management_status = `Chick manged?`)
+  left_join(., MP_nest_ID %>% 
+                select(nest_ID, management_type, management_status), by = "nest_ID", relationship = "many-to-many")
+
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -9669,7 +9668,7 @@ age_offsets <- c(
 )
 
 # calculate hatch dates from the chick data (first observation and developmental stage)
-hatch_dates_from_chick_data <- MP_chick_data %>%
+hatch_dates_from_chick_data_MP <- MP_chick_data %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date
   group_by(nest_ID) %>%
   slice_min(order_by = date, n = 1, with_ties = FALSE) %>%
@@ -9680,7 +9679,7 @@ hatch_dates_from_chick_data <- MP_chick_data %>%
 # merge data
 MP_chick_data_clean_hatch_dates <- 
   MP_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_MP, by = "nest_ID") %>% 
   filter(hatch_date == hatch_date2 | 
            (is.na(hatch_date) & !is.na(hatch_date2)) | 
            (!is.na(hatch_date) & is.na(hatch_date2)))
@@ -9689,7 +9688,7 @@ MP_chick_data_clean_hatch_dates <-
 # check for nest_IDs with differences in the two hatch_dates, these need to be checked
 MP_chick_data_clean_hatch_dates <- 
   MP_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_MP, by = "nest_ID") %>% 
   select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
   distinct() %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date%>%
@@ -9703,16 +9702,16 @@ MP_chick_data_clean_hatch_dates <-
            (is.na(hatch_date) & !is.na(hatch_date2)))
 
 #### wrangle management data ----
-MP_chick_data_issues <- 
+MP_chick_data <-
   MP_chick_data %>% 
-  filter(nest_ID %in% PI_chick_data_clean_hatch_dates$nest_ID) %>% 
+  filter(nest_ID %in% MP_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
   mutate(habitat = tolower(habitat)) %>%
   mutate(management_type = str_replace(management_type, "acess", "access")) %>%
   mutate(management_type = str_replace(management_type, "and", ",")) %>%
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
+  #mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
   mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
   mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
@@ -9720,6 +9719,7 @@ MP_chick_data_issues <-
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
   mutate(perm_fence = ifelse(str_detect(management_type, "permanentfence"), 1, 0)) %>%
+  mutate(shelters = ifelse(str_detect(management_type, "shelters"), 1, 0)) %>%
   mutate(wardens = ifelse(str_detect(management_type, "wardens"), 1, 0)) %>% 
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
@@ -9738,25 +9738,30 @@ MP_chick_data_issues <-
  # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
  # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
               #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
-  mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
-                                    ifelse(management_level > 0 & !is.na(management_level), "Y", 
-                                           NA))) %>% 
-  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
+  mutate(management_status = case_when(
+    str_detect(management_type, regex("shelters", ignore_case = TRUE)) ~ "Y",  # shelters present
+    management_level > 1 ~ "Y",                                               # strong management
+    management_level %in% c(0, 1) ~ "N",                                      # minimal or none
+    TRUE ~ NA_character_                                                      # everything else
+  )) %>% 
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
          management_status = as.factor(management_status)) %>% 
-  mutate(region = ifelse(str_detect(region, "Mornington"), "MP",
+ mutate(region = ifelse(str_detect(region, "Mornington"), "MP",
                                     ifelse(str_detect(region, "Fleurieu"), "FP",
                                               ifelse(str_detect(region, "Phillip"), "PI",
                                                            ifelse(str_detect(region, "Bass"), "BC",
-                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA)))))) %>%
-  mutate(site = as.factor(site)) %>%
+                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA))))))%>%
+mutate(site = as.factor(site))
+
+ MP_chick_data_issues <-
+ MP_chick_data %>% 
   mutate(issue1 = ifelse(nchar(date) != 8, "observation date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(is.na(date), "observation date missing; ", NA)) %>% 
   mutate(issue3 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>%
   mutate(issue4 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>%
+  left_join(., hatch_dates_from_chick_data_MP, by = "nest_ID") %>%
   mutate(hatch_date_diff = ifelse(is.na(hatch_date) & !is.na(hatch_date2), 0,
                                   hatch_date - hatch_date2)) %>% 
   mutate(issue5 = ifelse(hatch_date_diff != 0 , "Double check dates because hatch dates from chick data do not match hatch dates from nest data; ", NA)) %>%
@@ -9789,8 +9794,8 @@ MP_chick_data_issues %>% select(-c(date, management_status, management_level)) %
 
 ```{r}
 MP_chick_data_clean <-
-  MP_chick_data_issues %>% 
-  filter(issues == "usable") %>% 
+  MP_chick_data %>% 
+  #filter(issues == "usable") %>% 
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
   select(region, season, site, nest_ID, hatch_date, date, 
@@ -9909,7 +9914,7 @@ MP_chick_data_clean_wide <-
   MP_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
+    id_cols = c(nest_ID, management_level, management_status, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -9935,11 +9940,11 @@ MP_chick_ch <-
   filter(str_detect(ch, "1")) %>%
   mutate(ch = paste0("1", str_sub(ch, start = 2, end = nchar(ch)))) %>% 
   mutate(hatch_date_j = as.numeric(format(hatch_date + 180, "%j"))) %>% 
-  mutate(management_level_max = as.factor(management_level_max)) %>% 
+  mutate(management_level = as.factor(management_level)) %>% 
   mutate(region = as.factor(region)) %>% 
   ungroup() %>% 
-  rename(mgmt_l = management_level_max,
-         mgmt_s = management_status_max,
+  rename(mgmt_l = management_level,
+         mgmt_s = management_status,
          date_j = hatch_date_j,
          funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
@@ -10046,7 +10051,7 @@ BC_chick_data <-
            n_chicks_seen = `# chicks_updated`,
            habitat = Habitat,
            chick_age = `Chick description`,
-          # management_type = Management,
+           management_type = Management,
            lat = `Observation Latitude`,
            lon = `Observation Longitude`) %>% 
     mutate(season = str_sub(nest_ID, 1, 6)) %>% 
@@ -10055,9 +10060,8 @@ BC_chick_data <-
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
                 select(nest_ID, hatch_date), by = "nest_ID") %>% 
   left_join(., BC_nest_ID %>% 
-                select(nest_ID, `Chick manged?`,`Chick management type`), by = "nest_ID") %>% 
-rename(management_type = `Chick management type`,
-  management_status = `Chick manged?`)
+                select(nest_ID, management_type, management_status), by = "nest_ID", relationship = "many-to-many")
+
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -10070,7 +10074,7 @@ age_offsets <- c(
 )
 
 # calculate hatch dates from the chick data (first observation and developmental stage)
-hatch_dates_from_chick_data <- BC_chick_data %>%
+hatch_dates_from_chick_data_BC <- BC_chick_data %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date
   group_by(nest_ID) %>%
   slice_min(order_by = date, n = 1, with_ties = FALSE) %>%
@@ -10081,7 +10085,7 @@ hatch_dates_from_chick_data <- BC_chick_data %>%
 # merge data
 BC_chick_data_clean_hatch_dates <- 
   BC_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_BC, by = "nest_ID") %>% 
   filter(hatch_date == hatch_date2 | 
            (is.na(hatch_date) & !is.na(hatch_date2)) | 
            (!is.na(hatch_date) & is.na(hatch_date2)))
@@ -10090,7 +10094,7 @@ BC_chick_data_clean_hatch_dates <-
 # check for nest_IDs with differences in the two hatch_dates, these need to be checked
 BC_chick_data_clean_hatch_dates <- 
   BC_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_BC, by = "nest_ID") %>% 
   select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
   distinct() %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date%>%
@@ -10104,16 +10108,16 @@ BC_chick_data_clean_hatch_dates <-
            (is.na(hatch_date) & !is.na(hatch_date2)))
 
 #### wrangle management data ----
-BC_chick_data_issues <- 
+BC_chick_data <-
   BC_chick_data %>% 
-  filter(nest_ID %in% PI_chick_data_clean_hatch_dates$nest_ID) %>% 
+  filter(nest_ID %in% BC_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
   mutate(habitat = tolower(habitat)) %>%
   mutate(management_type = str_replace(management_type, "acess", "access")) %>%
   mutate(management_type = str_replace(management_type, "and", ",")) %>%
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
+  #mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
   mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
   mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
@@ -10121,6 +10125,7 @@ BC_chick_data_issues <-
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
   mutate(perm_fence = ifelse(str_detect(management_type, "permanentfence"), 1, 0)) %>%
+  mutate(shelters = ifelse(str_detect(management_type, "shelters"), 1, 0)) %>%
   mutate(wardens = ifelse(str_detect(management_type, "wardens"), 1, 0)) %>% 
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
@@ -10139,25 +10144,30 @@ BC_chick_data_issues <-
  # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
  # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
               #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
-  mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
-                                    ifelse(management_level > 0 & !is.na(management_level), "Y", 
-                                           NA))) %>% 
-  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
+  mutate(management_status = case_when(
+    str_detect(management_type, regex("shelters", ignore_case = TRUE)) ~ "Y",  # shelters present
+    management_level > 1 ~ "Y",                                               # strong management
+    management_level %in% c(0, 1) ~ "N",                                      # minimal or none
+    TRUE ~ NA_character_                                                      # everything else
+  )) %>% 
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
          management_status = as.factor(management_status)) %>% 
-  mutate(region = ifelse(str_detect(region, "Mornington"), "MP",
+ mutate(region = ifelse(str_detect(region, "Mornington"), "MP",
                                     ifelse(str_detect(region, "Fleurieu"), "FP",
                                               ifelse(str_detect(region, "Phillip"), "PI",
                                                            ifelse(str_detect(region, "Bass"), "BC",
-                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA)))))) %>%
-  mutate(site = as.factor(site)) %>%
+                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA))))))%>%
+mutate(site = as.factor(site))
+
+ MP_chick_data_issues <-
+ MP_chick_data %>% 
   mutate(issue1 = ifelse(nchar(date) != 8, "observation date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(is.na(date), "observation date missing; ", NA)) %>% 
   mutate(issue3 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>%
   mutate(issue4 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>%
+  left_join(., hatch_dates_from_chick_data_MP, by = "nest_ID") %>%
   mutate(hatch_date_diff = ifelse(is.na(hatch_date) & !is.na(hatch_date2), 0,
                                   hatch_date - hatch_date2)) %>% 
   mutate(issue5 = ifelse(hatch_date_diff != 0 , "Double check dates because hatch dates from chick data do not match hatch dates from nest data; ", NA)) %>%
@@ -10250,7 +10260,7 @@ funday_summary_BC <- BC_chick_data_clean %>%
             !is.na(holidays$end_date) &
             d >= holidays$start_date &
             d <= holidays$end_date &
-            holidays$region == "MP"
+            holidays$region == "BC"
           )
           as.integer(is_holiday & !is_weekend)
         }
@@ -10307,7 +10317,7 @@ BC_chick_data_clean_wide <-
   BC_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
+    id_cols = c(nest_ID, management_level, management_status, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -10324,7 +10334,7 @@ age_cols <- names(BC_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_I
 
 # Reorder the dataframe
 BC_chick_data_clean_wide <- BC_chick_data_clean_wide %>%
-  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total, all_of(age_cols))
+  select(nest_ID, management_level, management_status, season, region, hatch_date, funday_total, all_of(age_cols))
 
 BC_chick_ch <-
   BC_chick_data_clean_wide %>%
@@ -10337,11 +10347,11 @@ BC_chick_ch <-
   filter(str_detect(ch, "1")) %>%
   mutate(ch = paste0("1", str_sub(ch, start = 2, end = nchar(ch)))) %>% 
   mutate(hatch_date_j = as.numeric(format(hatch_date + 180, "%j"))) %>% 
-  mutate(management_level_max = as.factor(management_level_max)) %>% 
+  mutate(management_level = as.factor(management_level)) %>% 
   mutate(region = as.factor(region)) %>% 
   ungroup() %>% 
-  rename(mgmt_l = management_level_max,
-         mgmt_s = management_status_max,
+  rename(mgmt_l = management_level,
+         mgmt_s = management_status,
          date_j = hatch_date_j,
          funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
@@ -10512,7 +10522,7 @@ BSC_chick_data_clean_hatch_dates <-
   mutate(management_type = str_replace(management_type, "and", ",")) %>%
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
+  #mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
   mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
   mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
@@ -10520,6 +10530,7 @@ BSC_chick_data_clean_hatch_dates <-
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
   mutate(perm_fence = ifelse(str_detect(management_type, "permanentfence"), 1, 0)) %>%
+  mutate(shelters = ifelse(str_detect(management_type, "shelters"), 1, 0)) %>%
   mutate(wardens = ifelse(str_detect(management_type, "wardens"), 1, 0)) %>% 
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
@@ -10538,10 +10549,12 @@ BSC_chick_data_clean_hatch_dates <-
  # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
  # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
               #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
-  mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
-                                    ifelse(management_level > 0 & !is.na(management_level), "Y", 
-                                           NA))) %>% 
-  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% 
+ mutate(management_status = case_when(
+    str_detect(management_type, regex("shelters", ignore_case = TRUE)) ~ "Y",  # shelters present
+    management_level > 1 ~ "Y",                                               # strong management
+    management_level %in% c(0, 1) ~ "N",                                      # minimal or none
+    TRUE ~ NA_character_                                                      # everything else
+  )) %>% 
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
@@ -10553,36 +10566,35 @@ BSC_chick_data_clean_hatch_dates <-
                                                              ifelse(str_detect(region, "Bellarine"), "BSC", NA))))))%>%
 mutate(site = as.factor(site))
 
- BSC_chick_data_issues <-
- BSC_chick_data %>% 
+BSC_chick_data_issues <- 
+  BSC_chick_data %>% 
   mutate(issue1 = ifelse(nchar(date) != 8, "observation date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(is.na(date), "observation date missing; ", NA)) %>% 
-  mutate(issue3 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>%
+  mutate(issue3 = ifelse(!management_status %in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>% 
   mutate(issue4 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
-  left_join(., hatch_dates_from_chick_data_BSC, by = "nest_ID") %>%
+  left_join(hatch_dates_from_chick_data_BSC, by = "nest_ID") %>%
   mutate(hatch_date_diff = ifelse(is.na(hatch_date) & !is.na(hatch_date2), 0,
                                   hatch_date - hatch_date2)) %>% 
   mutate(issue5 = ifelse(hatch_date_diff != 0 , "Double check dates because hatch dates from chick data do not match hatch dates from nest data; ", NA)) %>%
   mutate(obs_date_diff = ifelse(hatch_date_diff == 0, 0,
                                 ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date - dmy(date), NA))) %>% 
   mutate(issue6 = ifelse(obs_date_diff > 0, "Double check dates because hatch date from nest data is after first chick observation; ", NA)) %>%
-  mutate(issue7 = ifelse(is.na(hatch_date) & is.na(hatch_date2), "Hatch dates derived from chick data and nest data are missing ; ", NA)) %>% 
-  mutate(issues = ifelse(is.na(issue1) & is.na(issue2) & is.na(issue3) & 
-                           is.na(issue4) & is.na(issue5) & is.na(issue6) & is.na(issue7), NA, 
-                         paste0(issue1, issue2, issue3, 
-                                issue4, issue5, issue6, issue7))) %>% 
+  mutate(issue7 = ifelse(is.na(hatch_date) & is.na(hatch_date2), "Hatch dates derived from chick data and nest data are missing; ", NA)) %>% 
+  mutate(issues = ifelse(
+    is.na(issue1) & is.na(issue2) & is.na(issue3) & is.na(issue4) &
+      is.na(issue5) & is.na(issue6) & is.na(issue7),
+    "usable",
+    paste0(issue1, issue2, issue3, issue4, issue5, issue6, issue7)
+  )) %>% 
   mutate(issues = str_remove_all(issues, "NA")) %>% 
-  mutate(issues = ifelse(is.na(issues), "usable", issues)) %>% 
-  dplyr::select(-issue1, -issue2, -issue3, 
-                -issue4, -issue5, -issue6, -issue7) %>%
+  dplyr::select(-issue1, -issue2, -issue3, -issue4, -issue5, -issue6, -issue7) %>%
   arrange(issues)
 
 # view issues interactively in RStudio Viewer
-BSC_chick_data_issues <-
-BSC_chick_data_issues %>% 
+BSC_chick_data_issues %>%
   filter(issues != "usable") %>% 
   dplyr::select(season, nest_ID, date, management_status, management_level, 
-                hatch_date, hatch_date2, hatch_date_diff, issues)  %>%
+                hatch_date, hatch_date2, hatch_date_diff, issues) %>%
   datatable(class = 'cell-border stripe', rownames = FALSE, filter = 'top')
 
 BSC_chick_data_issues %>% select(-c(date, management_status, management_level)) %>% 
@@ -10610,8 +10622,8 @@ BSC_chick_data_clean <-
   mutate(offspring_seen = ifelse(n_offspring_seen > 0, 1, 0)) %>% 
   mutate(brood_age = (date - hatch_date) %>% as.numeric()) %>% 
   group_by(nest_ID)# %>% 
- mutate(management_level_max = max(management_level),
-        management_status_max = max(as.character(management_status)) %>% as.factor())
+ #mutate(management_level_max = max(management_level),
+        #management_status_max = max(as.character(management_status)) %>% as.factor())
 ```
 
 ```{r}
@@ -10652,7 +10664,7 @@ funday_summary_BSC <- BSC_chick_data_clean %>%
             !is.na(holidays$end_date) &
             d >= holidays$start_date &
             d <= holidays$end_date &
-            holidays$region == "MP"
+            holidays$region == "BSC"
           )
           as.integer(is_holiday & !is_weekend)
         }
@@ -10845,7 +10857,7 @@ FP_chick_data <-
            n_chicks_seen = `# chicks_updated`,
            habitat = Habitat,
            chick_age = `Chick description`,
-           #management_type = Management,
+           management_type = Management,
            lat = `Observation Latitude`,
            lon = `Observation Longitude`) %>% 
     mutate(season = str_sub(nest_ID, 1, 6)) %>% 
@@ -10853,10 +10865,9 @@ FP_chick_data <-
                   n_chicks_seen, habitat, chick_age, lat, lon) %>%
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
                 select(nest_ID, hatch_date), by = "nest_ID") %>% 
- left_join(., FP_nest_ID %>% 
-                select(nest_ID, `Chick manged?`,`Chick management type`), by = "nest_ID") %>% 
-rename(management_type = `Chick management type`,
-  management_status = `Chick manged?`)
+  left_join(., FP_nest_ID %>% 
+                select(nest_ID, management_type, management_status), by = "nest_ID", relationship = "many-to-many")
+
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -10869,7 +10880,7 @@ age_offsets <- c(
 )
 
 # calculate hatch dates from the chick data (first observation and developmental stage)
-hatch_dates_from_chick_data <- FP_chick_data %>%
+hatch_dates_from_chick_data_FP <- FP_chick_data %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date
   group_by(nest_ID) %>%
   slice_min(order_by = date, n = 1, with_ties = FALSE) %>%
@@ -10880,7 +10891,7 @@ hatch_dates_from_chick_data <- FP_chick_data %>%
 # merge data
 FP_chick_data_clean_hatch_dates <- 
   FP_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_FP, by = "nest_ID") %>% 
   filter(hatch_date == hatch_date2 | 
            (is.na(hatch_date) & !is.na(hatch_date2)) | 
            (!is.na(hatch_date) & is.na(hatch_date2)))
@@ -10889,7 +10900,7 @@ FP_chick_data_clean_hatch_dates <-
 # check for nest_IDs with differences in the two hatch_dates, these need to be checked
 FP_chick_data_clean_hatch_dates <- 
   FP_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_FP, by = "nest_ID") %>% 
   select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
   distinct() %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date%>%
@@ -10903,16 +10914,16 @@ FP_chick_data_clean_hatch_dates <-
            (is.na(hatch_date) & !is.na(hatch_date2)))
 
 #### wrangle management data ----
-FP_chick_data_issues <- 
+  FP_chick_data <-
   FP_chick_data %>% 
-  filter(nest_ID %in% PI_chick_data_clean_hatch_dates$nest_ID) %>% 
+  filter(nest_ID %in% FP_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
   mutate(habitat = tolower(habitat)) %>%
   mutate(management_type = str_replace(management_type, "acess", "access")) %>%
   mutate(management_type = str_replace(management_type, "and", ",")) %>%
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
+  #mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
   mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
   mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
@@ -10920,6 +10931,7 @@ FP_chick_data_issues <-
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
   mutate(perm_fence = ifelse(str_detect(management_type, "permanentfence"), 1, 0)) %>%
+  mutate(shelters = ifelse(str_detect(management_type, "shelters"), 1, 0)) %>%
   mutate(wardens = ifelse(str_detect(management_type, "wardens"), 1, 0)) %>% 
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
@@ -10938,25 +10950,30 @@ FP_chick_data_issues <-
  # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
  # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
               #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
-  mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
-                                    ifelse(management_level > 0 & !is.na(management_level), "Y", 
-                                           NA))) %>% 
-  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
+ mutate(management_status = case_when(
+    str_detect(management_type, regex("shelters", ignore_case = TRUE)) ~ "Y",  # shelters present
+    management_level > 1 ~ "Y",                                               # strong management
+    management_level %in% c(0, 1) ~ "N",                                      # minimal or none
+    TRUE ~ NA_character_                                                      # everything else
+  )) %>% 
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
          management_status = as.factor(management_status)) %>% 
-  mutate(region = ifelse(str_detect(region, "Mornington"), "MP",
+ mutate(region = ifelse(str_detect(region, "Mornington"), "MP",
                                     ifelse(str_detect(region, "Fleurieu"), "FP",
                                               ifelse(str_detect(region, "Phillip"), "PI",
                                                            ifelse(str_detect(region, "Bass"), "BC",
-                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA)))))) %>%
-  mutate(site = as.factor(site)) %>%
+                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA))))))%>%
+mutate(site = as.factor(site))
+
+ BSC_chick_data_issues <-
+ BSC_chick_data %>% 
   mutate(issue1 = ifelse(nchar(date) != 8, "observation date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(is.na(date), "observation date missing; ", NA)) %>% 
   mutate(issue3 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>%
   mutate(issue4 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>%
+  left_join(., hatch_dates_from_chick_data_BSC, by = "nest_ID") %>%
   mutate(hatch_date_diff = ifelse(is.na(hatch_date) & !is.na(hatch_date2), 0,
                                   hatch_date - hatch_date2)) %>% 
   mutate(issue5 = ifelse(hatch_date_diff != 0 , "Double check dates because hatch dates from chick data do not match hatch dates from nest data; ", NA)) %>%
@@ -10973,7 +10990,7 @@ FP_chick_data_issues <-
   dplyr::select(-issue1, -issue2, -issue3, 
                 -issue4, -issue5, -issue6, -issue7) %>%
   arrange(issues)
-
+ 
 # view issues interactively in RStudio Viewer
 FP_chick_data_issues %>% 
   filter(issues != "usable") %>% 
@@ -10989,8 +11006,8 @@ FP_chick_data_issues %>% select(-c(date, management_status, management_level)) %
 
 ```{r}
 FP_chick_data_clean <-
-  FP_chick_data_issues %>% 
-  filter(issues == "usable") %>% 
+  FP_chick_data %>% 
+  #filter(issues == "usable") %>% 
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
   select(region, season, site, nest_ID, hatch_date, date, 
@@ -11045,7 +11062,7 @@ funday_summary_FP <- FP_chick_data_clean %>%
             !is.na(holidays$end_date) &
             d >= holidays$start_date &
             d <= holidays$end_date &
-            holidays$region == "MP"
+            holidays$region == "FP"
           )
           as.integer(is_holiday & !is_weekend)
         }
@@ -11101,7 +11118,7 @@ FP_chick_data_clean_wide <-
   FP_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
+    id_cols = c(nest_ID, management_level, management_status, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -11118,7 +11135,7 @@ age_cols <- names(FP_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_I
 
 # Reorder the dataframe
 FP_chick_data_clean_wide <- FP_chick_data_clean_wide %>%
-  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total, all_of(age_cols))
+  select(nest_ID, management_level, management_status, season, region, hatch_date, funday_total, all_of(age_cols))
 
 FP_chick_ch <-
   FP_chick_data_clean_wide %>%
@@ -11131,11 +11148,11 @@ FP_chick_ch <-
   filter(str_detect(ch, "1")) %>%
   mutate(ch = paste0("1", str_sub(ch, start = 2, end = nchar(ch)))) %>% 
   mutate(hatch_date_j = as.numeric(format(hatch_date + 180, "%j"))) %>% 
-  mutate(management_level_max = as.factor(management_level_max)) %>% 
+  mutate(management_level = as.factor(management_level)) %>% 
   mutate(region = as.factor(region)) %>% 
   ungroup() %>% 
-  rename(mgmt_l = management_level_max,
-         mgmt_s = management_status_max,
+  rename(mgmt_l = management_level,
+         mgmt_s = management_status,
          date_j = hatch_date_j,
          funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
@@ -11242,7 +11259,7 @@ PI_chick_data <-
            n_chicks_seen = `# chicks_updated`,
            habitat = Habitat,
            chick_age = `Chick description`,
-           #management_type = Management,
+           management_type = Management,
            lat = `Observation Latitude`,
            lon = `Observation Longitude`) %>% 
     mutate(season = str_sub(nest_ID, 1, 6)) %>% 
@@ -11251,9 +11268,8 @@ PI_chick_data <-
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
                 select(nest_ID, hatch_date), by = "nest_ID") %>% 
   left_join(., PI_nest_ID %>% 
-                select(nest_ID, `Chick manged?`,`Chick management type`), by = "nest_ID") %>% 
-rename(management_type = `Chick management type`,
-  management_status = `Chick manged?`)
+                select(nest_ID, management_type, management_status), by = "nest_ID", relationship = "many-to-many")
+
 
 # age key for descriptions of chick developmental stage (email from Jas)
 age_offsets <- c(
@@ -11266,7 +11282,7 @@ age_offsets <- c(
 )
 
 # calculate hatch dates from the chick data (first observation and developmental stage)
-hatch_dates_from_chick_data <- PI_chick_data %>%
+hatch_dates_from_chick_data_PI <- PI_chick_data %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date
   group_by(nest_ID) %>%
   slice_min(order_by = date, n = 1, with_ties = FALSE) %>%
@@ -11277,7 +11293,7 @@ hatch_dates_from_chick_data <- PI_chick_data %>%
 # merge data
 PI_chick_data_clean_hatch_dates <- 
   PI_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_PI, by = "nest_ID") %>% 
   filter(hatch_date == hatch_date2 | 
            (is.na(hatch_date) & !is.na(hatch_date2)) | 
            (!is.na(hatch_date) & is.na(hatch_date2)))
@@ -11286,7 +11302,7 @@ PI_chick_data_clean_hatch_dates <-
 # check for nest_IDs with differences in the two hatch_dates, these need to be checked
 PI_chick_data_clean_hatch_dates <- 
   PI_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_PI, by = "nest_ID") %>% 
   select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
   distinct() %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date%>%
@@ -11300,7 +11316,7 @@ PI_chick_data_clean_hatch_dates <-
            (is.na(hatch_date) & !is.na(hatch_date2)))
 
 #### wrangle management data ----
-PI_chick_data_issues <- 
+ PI_chick_data <-
   PI_chick_data %>% 
   filter(nest_ID %in% PI_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
@@ -11309,7 +11325,7 @@ PI_chick_data_issues <-
   mutate(management_type = str_replace(management_type, "and", ",")) %>%
   mutate(management_type = str_replace(management_type, "temporary", "")) %>%
   mutate(management_type = str_replace_all(management_type, " ", "")) %>%
-  mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
+  #mutate(management_type = str_replace_all(management_type, "shelters", "")) %>%
   mutate(management_type = str_replace_all(management_type, ",,", ",")) %>%
   mutate(temporary_exclusion_zone = ifelse(str_detect(management_type, "temporaryexclusionzone"), 1, 0)) %>%
   mutate(banners = ifelse(str_detect(management_type, "banners"), 1, 0)) %>%
@@ -11317,6 +11333,7 @@ PI_chick_data_issues <-
   mutate(sign_nest = ifelse(str_detect(management_type, "signnest"), 1, 0)) %>%
   mutate(rope_fence = ifelse(str_detect(management_type, "ropefence"), 1, 0)) %>%
   mutate(perm_fence = ifelse(str_detect(management_type, "permanentfence"), 1, 0)) %>%
+  mutate(shelters = ifelse(str_detect(management_type, "shelters"), 1, 0)) %>%
   mutate(wardens = ifelse(str_detect(management_type, "wardens"), 1, 0)) %>% 
   mutate(none = ifelse(str_detect(management_type, "none"), 1, 
                        ifelse(is.na(management_type) | management_type == "", 1, 0))) %>%
@@ -11335,25 +11352,30 @@ PI_chick_data_issues <-
  # mutate(just_wardens = ifelse(rope_fence == 0 & sign_access == 0 & sign_nest == 0 & wardens == 1, 1, 0)) %>%
  # dplyr::select(-other, -sign_nest_no_sign_access, -fence_no_sign, 
               #  -wardens_no_sign, -wardens_no_fence, -just_wardens) %>%
-  mutate(management_status = ifelse(management_level == 0 & !is.na(management_level), "N", 
-                                    ifelse(management_level > 0 & !is.na(management_level), "Y", 
-                                           NA))) %>% 
-  mutate(management_status = ifelse(management_level == 1, "N", management_status)) %>% #changes level 1 management to management status N
+ mutate(management_status = case_when(
+    str_detect(management_type, regex("shelters", ignore_case = TRUE)) ~ "Y",  # shelters present
+    management_level > 1 ~ "Y",                                               # strong management
+    management_level %in% c(0, 1) ~ "N",                                      # minimal or none
+    TRUE ~ NA_character_                                                      # everything else
+  )) %>% 
   group_by(season) %>%
   mutate(season = as.factor(season),
          habitat = as.factor(habitat),
          management_status = as.factor(management_status)) %>% 
-  mutate(region = ifelse(str_detect(region, "Mornington"), "MP",
+ mutate(region = ifelse(str_detect(region, "Mornington"), "MP",
                                     ifelse(str_detect(region, "Fleurieu"), "FP",
                                               ifelse(str_detect(region, "Phillip"), "PI",
                                                            ifelse(str_detect(region, "Bass"), "BC",
-                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA)))))) %>%
-  mutate(site = as.factor(site)) %>%
+                                                             ifelse(str_detect(region, "Bellarine"), "BSC", NA))))))%>%
+mutate(site = as.factor(site))
+
+ BSC_chick_data_issues <-
+ BSC_chick_data %>% 
   mutate(issue1 = ifelse(nchar(date) != 8, "observation date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(is.na(date), "observation date missing; ", NA)) %>% 
   mutate(issue3 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>%
   mutate(issue4 = ifelse(is.na(management_level), "Management type is not sufficient for making levels; ", NA)) %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>%
+  left_join(., hatch_dates_from_chick_data_BSC, by = "nest_ID") %>%
   mutate(hatch_date_diff = ifelse(is.na(hatch_date) & !is.na(hatch_date2), 0,
                                   hatch_date - hatch_date2)) %>% 
   mutate(issue5 = ifelse(hatch_date_diff != 0 , "Double check dates because hatch dates from chick data do not match hatch dates from nest data; ", NA)) %>%
@@ -11386,8 +11408,9 @@ PI_chick_data_issues %>% select(-c(date, management_status, management_level)) %
 
 ```{r}
 PI_chick_data_clean <-
-  PI_chick_data_issues %>% 
-  filter(issues == "usable") %>% 
+  PI_chick_data %>% 
+  #filter(issues == "usable") %>% 
+  filter(!is.na(management_status)) %>%
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
   select(region, season, site, nest_ID, hatch_date, date, 
@@ -11498,7 +11521,7 @@ PI_chick_data_clean_wide <-
   PI_chick_data_clean_ %>%
   mutate(offspring_seen = as.character(offspring_seen)) %>% 
   pivot_wider(
-    id_cols = c(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total),
+    id_cols = c(nest_ID, management_level, management_status, season, region, hatch_date, funday_total),
     names_from = brood_age,
     values_from = offspring_seen,
     values_fn = list(offspring_seen = max), # in case of duplicates
@@ -11515,7 +11538,7 @@ age_cols <- names(PI_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_I
 
 # Reorder the dataframe
 PI_chick_data_clean_wide <- PI_chick_data_clean_wide %>%
-  select(nest_ID, management_level_max, management_status_max, season, region, hatch_date, funday_total, all_of(age_cols))
+  select(nest_ID, management_level, management_status, season, region, hatch_date, funday_total, all_of(age_cols))
 
 PI_chick_ch <-
   PI_chick_data_clean_wide %>%
@@ -11528,11 +11551,11 @@ PI_chick_ch <-
   filter(str_detect(ch, "1")) %>%
   mutate(ch = paste0("1", str_sub(ch, start = 2, end = nchar(ch)))) %>% 
   mutate(hatch_date_j = as.numeric(format(hatch_date + 180, "%j"))) %>% 
-  mutate(management_level_max = as.factor(management_level_max)) %>% 
+  mutate(management_level = as.factor(management_level)) %>% 
   mutate(region = as.factor(region)) %>% 
   ungroup() %>% 
-  rename(mgmt_l = management_level_max,
-         mgmt_s = management_status_max,
+  rename(mgmt_l = management_level,
+         mgmt_s = management_status,
          date_j = hatch_date_j,
          funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
@@ -11541,6 +11564,27 @@ PI_chick_ch <-
 
 ###Summary statistics
 ```{r}
+# Combine all chick_ch datasets
+all_chick_ch <- bind_rows(
+  BC_chick_ch,
+  BSC_chick_ch,
+  FP_chick_ch,
+  MP_chick_ch,
+  PI_chick_ch)
+
+# Total number of broods
+nrow(all_chick_ch)
+
+# Number of broods per management status
+all_chick_ch %>% count(mgmt_s)
+
+# Number of broods per management level
+all_chick_ch %>%
+  mutate(mgmt_l = as.numeric(as.character(mgmt_l))) %>%  # convert factor -> character -> numeric
+  count(mgmt_l) %>%
+  arrange(mgmt_l)
+
+
 #BC
 #Total number of broods
 nrow(BC_chick_ch)
@@ -11551,8 +11595,12 @@ BC_chick_ch %>%
 BC_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
+#to fix nests with management level NA
+BC_chick_data %>% 
+ filter(is.na(management_level)) %>% 
+ distinct(nest_ID)
 
-#BSC - completed, still to fix other regions
+#BSC
 #Total number of broods
 nrow(BSC_chick_ch)
 # Number of broods per management status
@@ -11562,6 +11610,10 @@ BSC_chick_ch %>%
 BSC_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
+#to fix nests with management level NA
+BSC_chick_data %>% 
+ filter(is.na(management_level)) %>% 
+ distinct(nest_ID)
 
 #FP
 #Total number of broods
@@ -11573,6 +11625,10 @@ FP_chick_ch %>%
 FP_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
+#to fix nests with management level NA
+FP_chick_data %>% 
+ filter(is.na(management_level)) %>% 
+ distinct(nest_ID)
 
 #MP
 #Total number of broods
@@ -11584,6 +11640,10 @@ MP_chick_ch %>%
 MP_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
+#to fix nests with management level NA
+MP_chick_data %>% 
+ filter(is.na(management_level)) %>% 
+ distinct(nest_ID)
 
 #PI
 #Total number of broods
@@ -11595,6 +11655,10 @@ PI_chick_ch %>%
 PI_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
+#to fix nests with management level NA
+PI_chick_data %>% 
+ filter(is.na(management_level)) %>% 
+ distinct(nest_ID)
 ```
 
 
@@ -11918,7 +11982,7 @@ MP_chicks_Phi <- function()
   
     # best structure of p determined from previous analysis
   p.year.x.quadage <- 
-    list(formula = ~season * Quadratic)
+    list(formula = ~season * date_j)
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
@@ -12014,6 +12078,7 @@ MP_Chick_mgmt_l_quadage_surv <- MP_chicks_Phi_run[[21]]$results$real
 MP_Chick_funday_mgmt_s_surv  <- MP_chicks_Phi_run[[15]]$results$real
 MP_Chick_funday_mgmt_l_surv  <- MP_chicks_Phi_run[[14]]$results$real
 MP_Chick_funday_surv            <- MP_chicks_Phi_run[[16]]$results$real
+MP_Chick_funday_x_mgmt_s_surv   <- MP_chicks_Phi_run[[18]]$results$real
 
 Groups <- data.frame(str_split_fixed(rownames(MP_Chick_dot_surv), " ", n = 5))
 MP_Chick_dot_surv <- cbind(Groups, MP_Chick_dot_surv)
@@ -12602,9 +12667,9 @@ BC_chicks_Phi_run$model.table %>%
 BC_chicks_Phi_run <- readRDS("output/BC_chicks_Phi_run.rds")
 
 # Extract estimates of survival from top models
-BC_Chick_dot_surv <- BC_chicks_Phi_run[[11]]$results$real
+BC_Chick_dot_surv <- BC_chicks_Phi_run[[13]]$results$real
 BC_Chick_hatch_date_x_mgmt_s_surv <- BC_chicks_Phi_run[[11]]$results$real
-BC_Chick_quadage_surv <- BC_chicks_Phi_run[[18]]$results$real
+BC_Chick_quadage_surv <- BC_chicks_Phi_run[[23]]$results$real
 BC_Chick_hatch_date_surv <- BC_chicks_Phi_run[[8]]$results$real
 BC_Chick_mgmt_s_surv <- BC_chicks_Phi_run[[15]]$results$real
 BC_Chick_mgmt_l_surv <- BC_chicks_Phi_run[[14]]$results$real
@@ -13171,7 +13236,8 @@ BSC_chicks_Phi_run <- readRDS("output/BSC_chicks_Phi_run.rds")
 #BSC_Chick_mgmt_l_surv <- BSC_chicks_Phi_run[[22]]$results$real
 #BSC_Chick_mgmt_s_x_quadage_surv <- BSC_chicks_Phi_run[[20]]$results$real
 #BSC_Chick_mgmt_s_quadage_surv <- BSC_chicks_Phi_run[[18]]$results$real
-BSC_Chick_mgmt_l_quadage_surv <- BSC_chicks_Phi_run[[22]]$results$real # Top model - there seems to be a bunch of nest with DNS = 1 for certain groups. Doesn't seem right
+BSC_Chick_mgmt_l_quadage_surv <- BSC_chicks_Phi_run[[22]]$results$real # Top model
+
 
 Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_dot_surv), " ", n = 5))
 BSC_Chick_dot_surv <- cbind(Groups, BSC_Chick_dot_surv)
