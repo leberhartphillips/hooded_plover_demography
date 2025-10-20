@@ -7605,7 +7605,7 @@ pred.fundays <-
   theme(legend.position = "none",
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("Number of weekend days and holidays exposed to") + 
+  xlab("Number of fundays (weekend days and holidays) exposed to") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
@@ -7734,7 +7734,7 @@ ggplot(pred.fundays_status,
         legend.title = element_blank(),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
-  xlab("Number of weekend days and holidays exposed to") + 
+  xlab("Number of fundays (weekend days and holidays) exposed to") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
   facet_grid(. ~ region, labeller = as_labeller(region_names))
@@ -11766,18 +11766,60 @@ saveRDS(MP_chicks_p_run, "output/MP_chicks_p_run.rds")
 MP_chicks_p_run <- readRDS(file = "output/MP_chicks_p_run.rds") 
 
 MP_chicks_p_run$model.table %>% 
+  mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+      "Time" = "time",
+      "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Mornington Peninsula</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+  tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(
+    locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+MP_chicks_p_run$model.table %>%
+   filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+   mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Mornington Peninsula</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
+
 ```
 ### Extract results and visualize p
 ```{r}
@@ -12009,20 +12051,25 @@ saveRDS(MP_chicks_Phi_run, "output/MP_chicks_Phi_run.rds")
 MP_chicks_Phi_run <- readRDS(file = "output/MP_chicks_Phi_run.rds") 
 
 MP_chicks_Phi_run$model.table %>%
-  mutate(
-    model = str_replace_all(model, c(
+   mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
       "mgmt_l" = "management level",
       "mgmt_s" = "management status",
-      "date_j" = "hatch date",
-      "Time" = "time",
-        "\\)" = ") "  ))) %>%
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Mornington Peninsula</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+   tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
@@ -12033,16 +12080,14 @@ MP_chicks_Phi_run$model.table %>%
 
 #Create AIC model selection table with delta AIC < 2
 MP_chicks_Phi_run$model.table %>%
-  filter(DeltaAICc < 2 | row_number() == 13) %>%
-  # replace text in model names
-  mutate(
-    model = str_replace_all(model, c(
+  filter(DeltaAICc < 2 | model == "Phi(~1)p(~season * date_j)") %>%
+   mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
       "mgmt_l" = "management level",
       "mgmt_s" = "management status",
        "date_j" = "hatch date",
-      "Time" = "time",
-        "\\)" = ") "  ))) %>%
+       "Time" = "time",
+      "season" = "year"))) %>%
   select(model, npar, DeltaAICc, weight) %>%
   gt() %>%
   cols_label(model = html("<i>Mornington Peninsula</i>"),
@@ -12052,6 +12097,8 @@ MP_chicks_Phi_run$model.table %>%
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
   cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
@@ -12367,18 +12414,60 @@ saveRDS(BC_chicks_p_run, "output/BC_chicks_p_run.rds")
 BC_chicks_p_run <- readRDS(file = "output/BC_chicks_p_run.rds") 
 
 BC_chicks_p_run$model.table %>% 
+  mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+      "Time" = "time",
+      "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Bass Coast</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+  tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(
+    locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+BC_chicks_p_run$model.table %>%
+   filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+   mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Bass Coast</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
+
 ```
 
 ### Extract results and visualize p
@@ -12611,20 +12700,25 @@ saveRDS(BC_chicks_Phi_run, "output/BC_chicks_Phi_run.rds")
 BC_chicks_Phi_run <- readRDS(file = "output/BC_chicks_Phi_run.rds") 
 
 BC_chicks_Phi_run$model.table %>% 
-    mutate(
-    model = str_replace_all(model, c(
+    mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
       "mgmt_l" = "management level",
       "mgmt_s" = "management status",
-      "date_j" = "hatch date",
-      "Time" = "age",
-        "\\)" = ") "  ))) %>%
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
    dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Bass Coast</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+   tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
@@ -12634,15 +12728,14 @@ BC_chicks_Phi_run$model.table %>%
 
 #Create AIC model selection table with delta AIC < 2
 BC_chicks_Phi_run$model.table %>%
-  filter(DeltaAICc < 2) %>%
-  mutate(
-    model = str_replace_all(model, c(
+   filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+  mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
       "mgmt_l" = "management level",
       "mgmt_s" = "management status",
-      "date_j" = "hatch date",
-      "Time" = "age",
-        "\\)" = ") "  ))) %>%
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
   select(model, npar, DeltaAICc, weight) %>%
   gt() %>%
   cols_label(model = html("<i>Bass Coast</i>"),
@@ -12652,6 +12745,8 @@ BC_chicks_Phi_run$model.table %>%
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
   cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
@@ -12925,21 +13020,62 @@ saveRDS(BSC_chicks_p_run, "output/BSC_chicks_p_run.rds")
 
 #Create AIC model selection table
 
-BSC_chicks_Phi_run <- readRDS(file = "output/BSC_chicks_p_run.rds") 
+BSC_chicks_p_run <- readRDS(file = "output/BSC_chicks_p_run.rds") 
 
-BSC_chicks_Phi_run$model.table %>% 
+BSC_chicks_p_run$model.table %>% 
+  mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+      "Time" = "time",
+      "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Bellarine-Surf Coast</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+  tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(
+    locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+BSC_chicks_p_run$model.table %>%
+   filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+   mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Bellarine-Surf Coast</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
 
 ```
 ### Extract results and visualize p
@@ -13172,20 +13308,25 @@ saveRDS(BSC_chicks_Phi_run, "output/BSC_chicks_Phi_run.rds")
 BSC_chicks_Phi_run <- readRDS(file = "output/BSC_chicks_Phi_run.rds") 
 
 BSC_chicks_Phi_run$model.table %>% 
-   mutate(
-    model = str_replace_all(model, c(
+ mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
       "mgmt_l" = "management level",
       "mgmt_s" = "management status",
        "date_j" = "hatch date",
-      "Time" = "time",
-        "\\)" = ") "  ))) %>%
+       "Time" = "time",
+      "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Bellarine-Surf Coast</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+   tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
@@ -13196,14 +13337,13 @@ BSC_chicks_Phi_run$model.table %>%
 #Create AIC model selection table with delta AIC < 2
 BSC_chicks_Phi_run$model.table %>%
   filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
-  mutate(
-    model = str_replace_all(model, c(
+   mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
       "mgmt_l" = "management level",
       "mgmt_s" = "management status",
        "date_j" = "hatch date",
        "Time" = "time",
-        "\\)" = ") "  ))) %>%
+      "season" = "year"))) %>%
   select(model, npar, DeltaAICc, weight) %>%
   gt() %>%
   cols_label(model = html("<i>Bellarine-Surf Coast</i>"),
@@ -13213,6 +13353,8 @@ BSC_chicks_Phi_run$model.table %>%
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
   cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
@@ -13488,18 +13630,59 @@ saveRDS(FP_chicks_p_run, "output/FP_chicks_p_run.rds")
 FP_chicks_p_run <- readRDS(file = "output/FP_chicks_p_run.rds") 
 
 FP_chicks_p_run$model.table %>% 
+  mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+      "Time" = "time",
+      "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Fleurieu Peninsula</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+  tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(
+    locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+FP_chicks_p_run$model.table %>%
+   filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+   mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Fleurieu Peninsula</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
 
 ```
 ### Extract results and visualize p
@@ -13729,20 +13912,25 @@ saveRDS(FP_chicks_Phi_run, "output/FP_chicks_Phi_run.rds")
 FP_chicks_Phi_run <- readRDS(file = "output/FP_chicks_Phi_run.rds") 
 
 FP_chicks_Phi_run$model.table %>% 
-  mutate(
-    model = str_replace_all(model, c(
+   mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
       "mgmt_l" = "management level",
       "mgmt_s" = "management status",
        "date_j" = "hatch date",
        "Time" = "time",
-        "\\)" = ") "  ))) %>%
+      "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Fleurieu Peninsula</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+  tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
@@ -13759,7 +13947,7 @@ FP_chicks_Phi_run$model.table %>%
       "mgmt_s" = "management status",
        "date_j" = "hatch date",
        "Time" = "time",
-        "\\)" = ") "  ))) %>%
+      "season" = "year"))) %>%
   select(model, npar, DeltaAICc, weight) %>%
   gt() %>%
   cols_label(model = html("<i>Bellarine-Surf Coast</i>"),
@@ -13769,6 +13957,8 @@ FP_chicks_Phi_run$model.table %>%
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
   cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
@@ -14062,18 +14252,60 @@ saveRDS(PI_chicks_p_run, "output/PI_chicks_p_run.rds")
 PI_chicks_p_run <- readRDS(file = "output/PI_chicks_p_run.rds") 
 
 PI_chicks_p_run$model.table %>% 
+ mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+      "Time" = "time",
+      "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Phillip Island</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc, rows = 1:10, decimals = 2, use_seps = FALSE) %>% 
-  fmt_number(columns = weight, rows = 1:10, decimals = 3, use_seps = FALSE) %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+  tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(
+    locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
               table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+PI_chicks_p_run$model.table %>%
+   filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+   mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
+  select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Phillip Island</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
+
 ```
 ### Extract results and visualize p
 ```{r}
@@ -14305,19 +14537,25 @@ saveRDS(PI_chicks_Phi_run, "output/PI_chicks_Phi_run.rds")
 PI_chicks_Phi_run <- readRDS(file = "output/PI_chicks_Phi_run.rds") 
 
 PI_chicks_Phi_run$model.table %>% 
-  mutate(model = str_replace_all(model, c(
+ mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
       "mgmt_l" = "management level",
       "mgmt_s" = "management status",
        "date_j" = "hatch date",
        "Time" = "time",
-        "\\)" = ") "  ))) %>%
+      "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
   cols_label(model = html("<i>Phillip Island</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
   cols_align(align = "left", columns = vars(model)) %>% 
+   tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
               row_group.background.color = brewer.pal(9,"Greys")[3], 
               table.font.size = 12, data_row.padding = 3, 
@@ -14334,7 +14572,7 @@ PI_chicks_Phi_run$model.table %>%
       "mgmt_s" = "management status",
        "date_j" = "hatch date",
        "Time" = "time",
-        "\\)" = ") "  ))) %>%
+      "season" = "year"))) %>%
   select(model, npar, DeltaAICc, weight) %>%
   gt() %>%
   cols_label(model = html("<i>Phillip Island</i>"),
@@ -14344,6 +14582,8 @@ PI_chicks_Phi_run$model.table %>%
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
   cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
