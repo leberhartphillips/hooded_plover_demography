@@ -1609,7 +1609,7 @@ nest_data_FP <-
   filter(nest_ID %!in% FP_nests_with_issues$nest_ID)
 ```
 
-### Bellarine / Surf Coast
+### Bellarine-Surf Coast
 
 #### Flag potential issues in data
 As above, first we import the data and run a few checks to assess if there are any rows with the issues listed above
@@ -6470,7 +6470,7 @@ nest_data_with_threat_data <-
             nest_data_BSC_with_threat_data,
             nest_data_PI_with_threat_data,
             nest_data_BC_with_threat_data) %>%
-  filter(n_surveys > 0) %>% 
+  #filter(n_surveys > 0) %>% 
   # mutate(dof_b = ifelse(dof_b == 1, "Y", "N")) %>%
   # dplyr::select(-fox_p) %>%
   mutate_at(vars(hum_b, veh_b, dog_b, don_b, dof_b, pbd_b, gul_b, hof_b),
