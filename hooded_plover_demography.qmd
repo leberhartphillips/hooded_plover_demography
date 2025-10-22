@@ -12126,6 +12126,7 @@ MP_Chick_funday_mgmt_s_surv  <- MP_chicks_Phi_run[[15]]$results$real
 MP_Chick_funday_mgmt_l_surv  <- MP_chicks_Phi_run[[14]]$results$real
 MP_Chick_funday_surv            <- MP_chicks_Phi_run[[16]]$results$real
 MP_Chick_funday_x_mgmt_s_surv   <- MP_chicks_Phi_run[[18]]$results$real
+MP_Chick_funday_x_mgmt_l_surv   <- MP_chicks_Phi_run[[17]]$results$real
 
 Groups <- data.frame(str_split_fixed(rownames(MP_Chick_dot_surv), " ", n = 5))
 MP_Chick_dot_surv <- cbind(Groups, MP_Chick_dot_surv)
@@ -12191,15 +12192,15 @@ Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_mgmt_s_surv), " ",
 MP_Chick_funday_mgmt_s_surv <- cbind(Groups, MP_Chick_funday_mgmt_s_surv)
 MP_Chick_funday_mgmt_s_surv$season <- unlist(substr(MP_Chick_funday_mgmt_s_surv$X2, 2, 7))
 MP_Chick_funday_mgmt_s_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_mgmt_s_surv$X4))
-MP_Chick_funday_mgmt_s_surv$mgmt_l <- unlist(substr(MP_Chick_funday_mgmt_s_surv$X2, 10, 10))
+MP_Chick_funday_mgmt_s_surv$mgmt_s <- unlist(substr(MP_Chick_funday_mgmt_s_surv$X2, 11, 11))
 
 Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_surv), " ", n = 5))
 MP_Chick_funday_surv <- cbind(Groups, MP_Chick_funday_surv)
 MP_Chick_funday_surv$season <- unlist(substr(MP_Chick_funday_surv$X2, 2, 7))
 MP_Chick_funday_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_surv$X4))
-MP_Chick_funday_surv$mgmt_l <- unlist(substr(MP_Chick_funday_surv$X2, 10, 10))
+MP_Chick_funday_surv$mgmt_s <- unlist(substr(MP_Chick_funday_surv$X2, 11, 11))
 
-# plotting top model MP_Chick_funday_surv
+# plotting MP_Chick_funday_surv
 MP_chicks.ddl$Phi$ID <- seq_len(nrow(MP_chicks.ddl$Phi))
 MP_Chick_funday_surv$ID <- seq_len(nrow(MP_Chick_funday_surv))
 
@@ -12211,9 +12212,34 @@ ggplot(MP_Chick_funday_surv, aes(x = funday, y = estimate)) +
   geom_smooth(method = "loess", se = TRUE, color = "#0072B2", fill = "#0072B2", alpha = 0.2) +
   labs(
     x = "Number of fundays a brood is exposed to",
-    y = "Daily brood survival (95% CI)"
+    y = "Daily brood survival (± 95% CI)"
   ) +
   theme_minimal()
+
+# plotting MP_Chick_funday_mgmt_s_surv
+MP_chicks.ddl$Phi$ID <- seq_len(nrow(MP_chicks.ddl$Phi))
+MP_Chick_funday_mgmt_s_surv$ID <- seq_len(nrow(MP_Chick_funday_mgmt_s_surv))
+
+funday_map <- MP_chicks.ddl$Phi[, c("ID", "funday")]
+
+
+MP_Chick_funday_mgmt_s_surv <- merge(MP_Chick_funday_mgmt_s_surv, funday_map, by = "ID")
+ggplot() +
+  geom_smooth(
+    data = filter(MP_Chick_funday_mgmt_s_surv, X1 == "Phi"),
+    aes(x = funday, y = estimate, color = mgmt_s, fill = mgmt_s),
+    method = "loess",    # smooths with local regression
+    se = TRUE,           # adds the confidence interval
+    alpha = 0.2
+  ) +
+  labs(
+    x = "Number of fundays a brood is exposed to",
+    y = "Daily brood survival (± 95% CI)",
+    color = "Management status",
+    fill = "Management status"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right")
 
 # constant survival
 ggplot() +
@@ -12229,7 +12255,7 @@ ggplot() +
     high = "red",
     name = "season"
   ) +
-  ylab("Daily brood survival (95% CI)") +
+  ylab("Daily brood survival (± 95% CI)") +
   xlab("Brood age (days)")
 
 # quadratic age-dependent survival
@@ -12238,7 +12264,7 @@ ggplot() +
             aes(x = age, y = estimate)) +
   geom_ribbon(data = filter(MP_Chick_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
-  ylab("Daily brood survival (95% CI)") +
+  ylab("Daily brood survival (± 95% CI)") +
   xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
@@ -12247,7 +12273,7 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_s)) +
   geom_ribbon(data = filter(MP_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("Daily brood survival (95% CI)") +
+  ylab("Daily brood survival (± 95% CI)") +
   xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management level
@@ -12256,7 +12282,7 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_l)) +
   geom_ribbon(data = filter(MP_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
-  ylab("Daily brood survival (95% CI)") +
+  ylab("Daily brood survival (± 95% CI)") +
   xlab("Brood age (days)")
 
 # quadratic age-dependent survival and management status
@@ -12265,7 +12291,7 @@ ggplot() +
             aes(x = age, y = estimate, color = mgmt_s)) +
   geom_ribbon(data = filter(MP_Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
               aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("Daily brood survival (95% CI)") +
+  ylab("Daily brood survival (± 95% CI)") +
   xlab("Brood age (days)")
 
 # management status-dependent survival
@@ -12274,7 +12300,7 @@ ggplot() +
             aes(x = mgmt_s, y = estimate, color = mgmt_s)) +
   geom_errorbar(data = filter(MP_Chick_mgmt_s_surv, X1 == "Phi"), 
               aes(x = mgmt_s, ymin = lcl, ymax = ucl, color = mgmt_s)) +
-  ylab("Daily brood survival (95% CI)") +
+  ylab("Daily brood survival (± 95% CI)") +
   xlab("Managed?") +
   scale_y_continuous(limits = c(0, 1))
 
@@ -12284,7 +12310,7 @@ ggplot() +
             aes(x = mgmt_l, y = estimate, color = mgmt_l)) +
   geom_errorbar(data = filter(MP_Chick_mgmt_l_surv, X1 == "Phi"), 
               aes(x = mgmt_l, ymin = lcl, ymax = ucl, color = mgmt_l)) +
-  ylab("Daily brood survival (95% CI)") +
+  ylab("Daily brood survival (± 95% CI)") +
   xlab("Managed?") +
   scale_y_continuous(limits = c(0, 1))
 
@@ -13473,6 +13499,37 @@ ggplot() +
   ylab("Daily brood survival (± 95% CI)") +
   xlab("Brood age (days)")
 
+
+# Get the colors that ggplot would assign automatically to the present levels
+present_levels <- levels(factor(BSC_Chick_mgmt_l_quadage_surv$mgmt_l))
+color_mapping <- scales::hue_pal()(length(present_levels))
+names(color_mapping) <- present_levels
+color_mapping
+
+ggplot() +
+  geom_line(
+    data = filter(BSC_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+    aes(x = age, y = estimate, color = mgmt_l)) +
+  geom_ribbon(
+    data = filter(BSC_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+    aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l),
+    alpha = 0.2) +
+  scale_color_manual(
+    name = "Management level",
+    values = full_colors,
+    drop = FALSE) +
+  scale_fill_manual(
+    name = "Management level",
+    values = full_colors,
+    drop = FALSE) +
+  ylab("Daily brood survival (± 95% CI)") +
+  xlab("Brood age (days)") +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    legend.text = element_text(size = 10))
+
+
 # quadratic age-dependent survival and management status
 ggplot() +
   geom_line(data = filter(BSC_Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
@@ -13950,7 +14007,7 @@ FP_chicks_Phi_run$model.table %>%
       "season" = "year"))) %>%
   select(model, npar, DeltaAICc, weight) %>%
   gt() %>%
-  cols_label(model = html("<i>Bellarine-Surf Coast</i>"),
+  cols_label(model = html("<i>Fleurieu Peninsula</i>"),
     npar = "K",
     DeltaAICc = "DeltaAICc",
     weight = "weight") %>%
