@@ -9543,9 +9543,6 @@ hatch_dates_BSC_MP_FP_BC_PI %>%
   filter(!is.na(clutch_comp)) %>%        # keep nests with clutch_comp
   group_by(management_level) %>%       # group by management level
   summarise(n_obs = n())        # count nests per level
-
-
-
 ```
 
 
@@ -9901,7 +9898,8 @@ MP_chick_data_clean_ <-
   MP_chick_data_clean %>% 
   filter(brood_age >= 0) %>%
   bind_rows(., data.frame(nest_ID = "junk", brood_age = c(1:35), offspring_seen = 1)) %>% 
-  filter(brood_age <= 35)
+  filter(brood_age <= 35) %>% 
+  distinct()
 
 MP_chick_data_clean_ %>% 
   select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
@@ -10161,8 +10159,8 @@ BC_chick_data <-
                                                              ifelse(str_detect(region, "Bellarine"), "BSC", NA))))))%>%
 mutate(site = as.factor(site))
 
- MP_chick_data_issues <-
- MP_chick_data %>% 
+ BC_chick_data_issues <-
+ BC_chick_data %>% 
   mutate(issue1 = ifelse(nchar(date) != 8, "observation date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(is.na(date), "observation date missing; ", NA)) %>% 
   mutate(issue3 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>%
@@ -10192,6 +10190,12 @@ BC_chick_data_issues %>%
                 hatch_date, hatch_date2, hatch_date_diff, issues)  %>%
   datatable(class = 'cell-border stripe', rownames = FALSE, filter = 'top')
 
+BC_chick_data_issues %>% 
+  filter(issues == "usable") %>% 
+  dplyr::select(season, nest_ID, date, management_status, management_level, 
+                hatch_date, hatch_date2, hatch_date_diff, issues)  %>%
+  datatable(class = 'cell-border stripe', rownames = FALSE, filter = 'top')
+
 BC_chick_data_issues %>% select(-c(date, management_status, management_level)) %>% 
   distinct() %>% 
   pull(issues) %>% 
@@ -10200,8 +10204,8 @@ BC_chick_data_issues %>% select(-c(date, management_status, management_level)) %
 
 ```{r}
 BC_chick_data_clean <-
-  BC_chick_data %>% 
-  #filter(issues == "usable") %>% 
+  BC_chick_data_issues %>% 
+  filter(issues == "usable") %>%
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
   select(region, season, site, nest_ID, hatch_date, date, 
@@ -10304,7 +10308,8 @@ BC_chick_data_clean_ <-
   BC_chick_data_clean %>% 
   filter(brood_age >= 0) %>%
   bind_rows(., data.frame(nest_ID = "junk", brood_age = c(1:35), offspring_seen = 1)) %>% 
-  filter(brood_age <= 35)
+  filter(brood_age <= 35) %>% 
+  distinct()
 
 BC_chick_data_clean_ %>% 
   select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
@@ -10490,7 +10495,7 @@ hatch_dates_from_chick_data_BSC <- BSC_chick_data %>%
 # merge data
 BSC_chick_data_clean_hatch_dates <- 
   BSC_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_BSC, by = "nest_ID") %>% 
   filter(hatch_date == hatch_date2 | 
            (is.na(hatch_date) & !is.na(hatch_date2)) | 
            (!is.na(hatch_date) & is.na(hatch_date2)))
@@ -10499,7 +10504,7 @@ BSC_chick_data_clean_hatch_dates <-
 # check for nest_IDs with differences in the two hatch_dates, these need to be checked
 BSC_chick_data_clean_hatch_dates <- 
   BSC_chick_data %>%
-  left_join(., hatch_dates_from_chick_data, by = "nest_ID") %>% 
+  left_join(., hatch_dates_from_chick_data_BSC, by = "nest_ID") %>% 
   select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
   distinct() %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date%>%
@@ -10605,8 +10610,8 @@ BSC_chick_data_issues %>% select(-c(date, management_status, management_level)) 
 
 ```{r}
 BSC_chick_data_clean <-
-  BSC_chick_data %>% 
-  #filter(issues == "usable") %>% 
+  BSC_chick_data_issues %>% 
+  filter(issues == "usable") %>%
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
   select(region, season, site, nest_ID, hatch_date, date, 
@@ -10617,7 +10622,7 @@ BSC_chick_data_clean <-
   ungroup() %>% 
   mutate(n_adults_seen = ifelse(is.na(n_adults_seen), 0, n_adults_seen),
          n_juvs_seen = ifelse(is.na(n_juvs_seen), 0, n_juvs_seen),
-         n_chicks_seen = ifelse(is.na(n_chicks_seen), 0, n_chicks_seen)) %>% 
+         n_chicks_seen = ifelse(is.na(as.numeric(n_chicks_seen)), 0, n_chicks_seen)) %>% 
   mutate(n_offspring_seen = as.numeric(n_juvs_seen) + as.numeric(n_chicks_seen)) %>% 
   mutate(offspring_seen = ifelse(n_offspring_seen > 0, 1, 0)) %>% 
   mutate(brood_age = (date - hatch_date) %>% as.numeric()) %>% 
@@ -10709,7 +10714,8 @@ BSC_chick_data_clean_ <-
   BSC_chick_data_clean %>% 
   filter(brood_age >= 0) %>%
   bind_rows(., data.frame(nest_ID = "junk", brood_age = c(1:35), offspring_seen = 1)) %>% 
-  filter(brood_age <= 35)
+  filter(brood_age <= 35) %>% 
+  distinct()
 
 BSC_chick_data_clean_ %>% 
   select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
@@ -10762,6 +10768,7 @@ BSC_chick_ch <-
   filter(nest_ID != "junk") %>% 
   select(-hatch_date, -nest_ID)
 ```
+
 ### FP Import
 ```{r}
 #first get all nest IDs
@@ -10914,7 +10921,7 @@ FP_chick_data_clean_hatch_dates <-
            (is.na(hatch_date) & !is.na(hatch_date2)))
 
 #### wrangle management data ----
-  FP_chick_data <-
+FP_chick_data <-
   FP_chick_data %>% 
   filter(nest_ID %in% FP_chick_data_clean_hatch_dates$nest_ID) %>% 
   mutate(management_type = tolower(management_type)) %>%
@@ -10967,8 +10974,8 @@ FP_chick_data_clean_hatch_dates <-
                                                              ifelse(str_detect(region, "Bellarine"), "BSC", NA))))))%>%
 mutate(site = as.factor(site))
 
- BSC_chick_data_issues <-
- BSC_chick_data %>% 
+ FP_chick_data_issues <-
+ FP_chick_data %>% 
   mutate(issue1 = ifelse(nchar(date) != 8, "observation date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(is.na(date), "observation date missing; ", NA)) %>% 
   mutate(issue3 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>%
@@ -11006,8 +11013,8 @@ FP_chick_data_issues %>% select(-c(date, management_status, management_level)) %
 
 ```{r}
 FP_chick_data_clean <-
-  FP_chick_data %>% 
-  #filter(issues == "usable") %>% 
+  FP_chick_data_issues %>% 
+  filter(issues == "usable") %>%
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
   select(region, season, site, nest_ID, hatch_date, date, 
@@ -11105,7 +11112,8 @@ FP_chick_data_clean_ <-
   FP_chick_data_clean %>% 
   filter(brood_age >= 0) %>%
   bind_rows(., data.frame(nest_ID = "junk", brood_age = c(1:35), offspring_seen = 1)) %>% 
-  filter(brood_age <= 35)
+  filter(brood_age <= 35) %>% 
+  distinct()
 
 FP_chick_data_clean_ %>% 
   select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
@@ -11369,8 +11377,8 @@ PI_chick_data_clean_hatch_dates <-
                                                              ifelse(str_detect(region, "Bellarine"), "BSC", NA))))))%>%
 mutate(site = as.factor(site))
 
- BSC_chick_data_issues <-
- BSC_chick_data %>% 
+ PI_chick_data_issues <-
+ PI_chick_data %>% 
   mutate(issue1 = ifelse(nchar(date) != 8, "observation date is not 8 characters; ", NA)) %>% 
   mutate(issue2 = ifelse(is.na(date), "observation date missing; ", NA)) %>% 
   mutate(issue3 = ifelse(management_status %!in% c("Y", "N"), "Nest managed? is not Y or N; ", NA)) %>%
@@ -11408,8 +11416,8 @@ PI_chick_data_issues %>% select(-c(date, management_status, management_level)) %
 
 ```{r}
 PI_chick_data_clean <-
-  PI_chick_data %>% 
-  #filter(issues == "usable") %>% 
+  PI_chick_data_issues %>% 
+  filter(issues == "usable") %>%
   filter(!is.na(management_status)) %>%
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
@@ -11508,7 +11516,8 @@ PI_chick_data_clean_ <-
   PI_chick_data_clean %>% 
   filter(brood_age >= 0) %>%
   bind_rows(., data.frame(nest_ID = "junk", brood_age = c(1:35), offspring_seen = 1)) %>% 
-  filter(brood_age <= 35)
+  filter(brood_age <= 35) %>% 
+  distinct()
 
 PI_chick_data_clean_ %>% 
   select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
@@ -11595,10 +11604,6 @@ BC_chick_ch %>%
 BC_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
-#to fix nests with management level NA
-BC_chick_data %>% 
- filter(is.na(management_level)) %>% 
- distinct(nest_ID)
 
 #BSC
 #Total number of broods
@@ -11610,10 +11615,7 @@ BSC_chick_ch %>%
 BSC_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
-#to fix nests with management level NA
-BSC_chick_data %>% 
- filter(is.na(management_level)) %>% 
- distinct(nest_ID)
+
 
 #FP
 #Total number of broods
@@ -11625,10 +11627,6 @@ FP_chick_ch %>%
 FP_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
-#to fix nests with management level NA
-FP_chick_data %>% 
- filter(is.na(management_level)) %>% 
- distinct(nest_ID)
 
 #MP
 #Total number of broods
@@ -11640,10 +11638,7 @@ MP_chick_ch %>%
 MP_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
-#to fix nests with management level NA
-MP_chick_data %>% 
- filter(is.na(management_level)) %>% 
- distinct(nest_ID)
+
 
 #PI
 #Total number of broods
@@ -11655,10 +11650,7 @@ PI_chick_ch %>%
 PI_chick_ch %>%
   count(mgmt_l) %>%
   arrange(mgmt_l) 
-#to fix nests with management level NA
-PI_chick_data %>% 
- filter(is.na(management_level)) %>% 
- distinct(nest_ID)
+
 ```
 
 
@@ -11818,7 +11810,11 @@ MP_chicks_p_run$model.table %>%
     summary_row.padding = 2,
     column_labels.font.size = 14,
     row_group.font.size = 12,
-    table.width = pct(80))
+    table.width = pct(80)) %>% 
+   tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)"))
 
 ```
 ### Extract results and visualize p
@@ -11826,7 +11822,7 @@ MP_chicks_p_run$model.table %>%
 MP_chicks_p_run <- readRDS("output/MP_chicks_p_run.rds")
 
 # Extract estimates of survival from top model
-Chick_p_reals_MP <- MP_chicks_p_run[[11]]$results$real
+Chick_p_reals_MP <- MP_chicks_p_run[[4]]$results$real
 
 # wrangle dataframe to get annual estimates (grouped by "Year")
 Groups <- data.frame(str_split_fixed(rownames(Chick_p_reals_MP), " ", n = 5))
@@ -11834,28 +11830,12 @@ Chick_p_reals_MP <- cbind(Groups, Chick_p_reals_MP)
 Chick_p_reals_MP$season <- unlist(substr(Chick_p_reals_MP$X2, 2, 7))
 Chick_p_reals_MP$age <- as.numeric(sub("^a", "", Chick_p_reals_MP$X4))
 
+# plot of the quadratic age dependent relationship with detection probability
 ggplot() +
-  geom_line(data = Chick_p_reals_MP, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = Chick_p_reals_MP, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
-  scale_color_gradient(
-    low = "black",
-    high = "red",
-    name = "season"
-  ) +
-  scale_fill_gradient(
-    low = "black",
-    high = "red",
-    name = "season"
-  ) +
+  geom_line(data = Chick_p_reals_MP %>% filter(X1 == "p"), aes(x = age, y = estimate)) +
+  geom_ribbon(data = Chick_p_reals_MP %>% filter(X1 == "p"), aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
   ylab("daily detection probability of a brood") +
   xlab("brood age (days)")
-
-Chick_p_reals_MP <- Chick_p_reals_MP[which(Chick_p_reals_MP$X1 == "p"),]
-
-# clean dataframe
-Chick_p_reals_MP <- Chick_p_reals_MP[,-c(1:11)]
-Chick_p_reals_MP$Age <- "Chick"
-row.names(Chick_p_reals_MP) <- NULL
 ```
 ### Survival modelling (Phi)
 ```{r}
@@ -12019,12 +11999,8 @@ MP_chicks_Phi <- function()
   #   list(formula = ~season + date_j + mgmt_s)
   # 
   # # best structure of p determined from previous analysis
-  # p.year.x.quadage <- 
-  #   list(formula = ~season * Quadratic)
-  
-    # best structure of p determined from previous analysis
-  p.year.x.quadage <- 
-    list(formula = ~season * date_j)
+  p.quadage <-
+    list(formula = ~Quadratic)
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
@@ -12067,7 +12043,7 @@ MP_chicks_Phi_run$model.table %>%
    tab_style(style = cell_text(weight = "bold"),
     locations = cells_body(
       columns = vars(model),
-      rows = model == "Phi(~1)p(~1)")) %>% 
+      rows = model == "Phi(~1)p(~quadratic age)")) %>% 
    text_transform(locations = cells_body(columns = vars(model)),
     fn = function(x) gsub("\\)", ") ", x) ) %>%
   tab_options(row_group.font.weight = "bold", 
@@ -12080,7 +12056,7 @@ MP_chicks_Phi_run$model.table %>%
 
 #Create AIC model selection table with delta AIC < 2
 MP_chicks_Phi_run$model.table %>%
-  filter(DeltaAICc < 2 | model == "Phi(~1)p(~season * date_j)") %>%
+  filter(DeltaAICc < 2 | model == "Phi(~1)p(~Quadratic)") %>%
    mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
       "mgmt_l" = "management level",
@@ -12107,7 +12083,11 @@ MP_chicks_Phi_run$model.table %>%
     summary_row.padding = 2,
     column_labels.font.size = 14,
     row_group.font.size = 12,
-    table.width = pct(80))
+    table.width = pct(80)) %>% 
+   tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~quadratic age)"))
 ```
 ### Extract results and visualize Phi
 ```{r}
@@ -12123,7 +12103,7 @@ MP_Chick_mgmt_s_x_quadage_surv <- MP_chicks_Phi_run[[25]]$results$real
 MP_Chick_mgmt_s_quadage_surv <- MP_chicks_Phi_run[[22]]$results$real
 MP_Chick_mgmt_l_quadage_surv <- MP_chicks_Phi_run[[21]]$results$real
 MP_Chick_funday_mgmt_s_surv  <- MP_chicks_Phi_run[[15]]$results$real
-MP_Chick_funday_mgmt_l_surv  <- MP_chicks_Phi_run[[14]]$results$real
+MP_Chick_funday_mgmt_l_surv  <- MP_chicks_Phi_run[[14]]$results$real # TOP MODEL (and most convincing)
 MP_Chick_funday_surv            <- MP_chicks_Phi_run[[16]]$results$real
 MP_Chick_funday_x_mgmt_s_surv   <- MP_chicks_Phi_run[[18]]$results$real
 MP_Chick_funday_x_mgmt_l_surv   <- MP_chicks_Phi_run[[17]]$results$real
@@ -12200,7 +12180,7 @@ MP_Chick_funday_surv$season <- unlist(substr(MP_Chick_funday_surv$X2, 2, 7))
 MP_Chick_funday_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_surv$X4))
 MP_Chick_funday_surv$mgmt_s <- unlist(substr(MP_Chick_funday_surv$X2, 11, 11))
 
-# plotting MP_Chick_funday_surv
+# plotting MP_Chick_funday_surv (NEED TO FIX THIS)
 MP_chicks.ddl$Phi$ID <- seq_len(nrow(MP_chicks.ddl$Phi))
 MP_Chick_funday_surv$ID <- seq_len(nrow(MP_Chick_funday_surv))
 
