@@ -9589,7 +9589,7 @@ MP_nest_ID <-
     read_excel(paste0("data/", "MP Nesting Summary All Years_19062025.xlsx"),
                sheet = paste0("MP", " ", "2012", "_", str_sub("2013", 3, 4)),
                col_types = "text", na = "n/a")))%>% 
-  select(`Nest ID`, `Chick manged?`, `Chick management type`) %>%
+  dplyr::select(`Nest ID`, `Chick manged?`, `Chick management type`) %>%
   rename(nest_ID = `Nest ID`,
     management_status = `Chick manged?`,
     management_type = `Chick management type`)
@@ -9649,9 +9649,9 @@ MP_chick_data <-
     dplyr::select(region, season, site, nest_ID, date, n_adults_seen, n_juvs_seen, 
                   n_chicks_seen, habitat, chick_age, lat, lon) %>%
     left_join(., hatch_dates_BSC_MP_FP_BC_PI %>% 
-                select(nest_ID, hatch_date), by = "nest_ID") %>% 
+                dplyr::select(nest_ID, hatch_date), by = "nest_ID") %>% 
   left_join(., MP_nest_ID %>% 
-                select(nest_ID, management_type, management_status), by = "nest_ID", relationship = "many-to-many")
+                dplyr::select(nest_ID, management_type, management_status), by = "nest_ID", relationship = "many-to-many")
 
 
 # age key for descriptions of chick developmental stage (email from Jas)
@@ -9670,7 +9670,7 @@ hatch_dates_from_chick_data_MP <- MP_chick_data %>%
   group_by(nest_ID) %>%
   slice_min(order_by = date, n = 1, with_ties = FALSE) %>%
   mutate(hatch_date2 = date + age_offsets[chick_age]) %>%
-  select(nest_ID, hatch_date2) %>%
+  dplyr::select(nest_ID, hatch_date2) %>%
   ungroup()
 
 # merge data
@@ -9686,7 +9686,7 @@ MP_chick_data_clean_hatch_dates <-
 MP_chick_data_clean_hatch_dates <- 
   MP_chick_data %>%
   left_join(., hatch_dates_from_chick_data_MP, by = "nest_ID") %>% 
-  select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
+  dplyr::select(nest_ID, hatch_date, hatch_date2, chick_age, date) %>% 
   distinct() %>%
   mutate(date = dmy(date)) %>%    # convert from "DDMMYYYY" to Date%>%
   group_by(nest_ID) %>%
@@ -9783,7 +9783,7 @@ MP_chick_data_issues %>%
                 hatch_date, hatch_date2, hatch_date_diff, issues)  %>%
   datatable(class = 'cell-border stripe', rownames = FALSE, filter = 'top')
 
-MP_chick_data_issues %>% select(-c(date, management_status, management_level)) %>% 
+MP_chick_data_issues %>% dplyr::select(-c(date, management_status, management_level)) %>% 
   distinct() %>% 
   pull(issues) %>% 
   table()
@@ -9791,11 +9791,11 @@ MP_chick_data_issues %>% select(-c(date, management_status, management_level)) %
 
 ```{r}
 MP_chick_data_clean <-
-  MP_chick_data %>% 
-  #filter(issues == "usable") %>% 
+  MP_chick_data_issues %>% 
+  filter(issues == "usable") %>%
   # mutate(hatch_date = ifelse(!is.na(hatch_date) & is.na(hatch_date2), hatch_date, hatch_date2) %>% as.Date()) %>% 
   mutate(date = dmy(date)) %>% 
-  select(region, season, site, nest_ID, hatch_date, date, 
+  dplyr::select(region, season, site, nest_ID, hatch_date, date, 
          n_adults_seen, n_juvs_seen, n_chicks_seen, lat, lon, 
          management_level, management_status) %>% 
   group_by(nest_ID) %>% 
@@ -9867,7 +9867,7 @@ funday_summary_MP <- MP_chick_data_clean %>%
 # Step 3: Join funday count back to every row
 MP_chick_data_clean <- MP_chick_data_clean %>%
   left_join(
-    funday_summary_MP %>% select(nest_ID, funday_total),
+    funday_summary_MP %>% dplyr::select(nest_ID, funday_total),
     by = "nest_ID",
     relationship = "many-to-many")
 
@@ -9902,7 +9902,7 @@ MP_chick_data_clean_ <-
   distinct()
 
 MP_chick_data_clean_ %>% 
-  select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
+  dplyr::select(nest_ID, brood_age, offspring_seen, funday_total) %>% 
   as.data.frame() %>% 
   arrange(nest_ID, brood_age)
 
@@ -9946,8 +9946,9 @@ MP_chick_ch <-
          date_j = hatch_date_j,
          funday = funday_total) %>% 
   filter(nest_ID != "junk") %>% 
-  select(-hatch_date, -nest_ID)
+  dplyr::select(-hatch_date, -nest_ID)
 ```
+
 ###BC Import
 ```{r}
 #first get all nest IDs
@@ -12064,7 +12065,7 @@ MP_chicks_Phi_run$model.table %>%
        "date_j" = "hatch date",
        "Time" = "time",
       "season" = "year"))) %>%
-  select(model, npar, DeltaAICc, weight) %>%
+  dplyr::select(model, npar, DeltaAICc, weight) %>%
   gt() %>%
   cols_label(model = html("<i>Mornington Peninsula</i>"),
     npar = "K",
@@ -12102,8 +12103,8 @@ MP_Chick_mgmt_l_surv <- MP_chicks_Phi_run[[19]]$results$real
 MP_Chick_mgmt_s_x_quadage_surv <- MP_chicks_Phi_run[[25]]$results$real
 MP_Chick_mgmt_s_quadage_surv <- MP_chicks_Phi_run[[22]]$results$real
 MP_Chick_mgmt_l_quadage_surv <- MP_chicks_Phi_run[[21]]$results$real
-MP_Chick_funday_mgmt_s_surv  <- MP_chicks_Phi_run[[15]]$results$real
-MP_Chick_funday_mgmt_l_surv  <- MP_chicks_Phi_run[[14]]$results$real # TOP MODEL (and most convincing)
+MP_Chick_funday_mgmt_s_surv  <- MP_chicks_Phi_run[[15]]$results$real # second most convincing based on a priori hypothesis and more parsimonious)
+MP_Chick_funday_mgmt_l_surv  <- MP_chicks_Phi_run[[14]]$results$real # TOP MODEL (and most convincing based on a priori hypothesis)
 MP_Chick_funday_surv            <- MP_chicks_Phi_run[[16]]$results$real
 MP_Chick_funday_x_mgmt_s_surv   <- MP_chicks_Phi_run[[18]]$results$real
 MP_Chick_funday_x_mgmt_l_surv   <- MP_chicks_Phi_run[[17]]$results$real
@@ -12179,13 +12180,117 @@ MP_Chick_funday_surv <- cbind(Groups, MP_Chick_funday_surv)
 MP_Chick_funday_surv$season <- unlist(substr(MP_Chick_funday_surv$X2, 2, 7))
 MP_Chick_funday_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_surv$X4))
 MP_Chick_funday_surv$mgmt_s <- unlist(substr(MP_Chick_funday_surv$X2, 11, 11))
+```
 
+### Plot the effect of funday exposure under different managment levels
+Our model shows that the probability of daily survival decreases with increasing exposure to fundays, with this effect being dampened by increasing management level. It’s important to note that chicks with high numbers of fundays have survived multiple days already. For example, a chick that has experienced 30 fundays has clearly survived the pressures that earlier chicks did not. In other words, high cumulative fundays do not imply that these chicks are unaffected by human activity; rather, only the chicks that have already survived many days accumulate high funday counts. The negative effect of fundays on daily survival tells us that each additional funday reduces survival probability, even for chicks that have survived a long time.
+#### Key technical points to interpretation:
+ - The covariate is time-varying and cumulative, so there is a form of conditioning on prior survival.
+
+ - Each beta represents the effect of an additional funday on the hazard of dying (or on daily survival probability), holding the current state of the chick.
+
+ - While high-funday chicks have survived longer, the model is estimating the incremental risk per funday, not the overall survival probability from day 0.
+ 
+```{r}
+### plot the survival trend of the Phi(~funday + mgmt_l)p(~Quadratic) model ----
+# extract the beta and vcv estimates
+funday_mgmt_l_vcv <- 
+  MP_chicks_Phi_run[[14]]$results$beta.vcv
+
+funday_mgmt_l_betas <- 
+  MP_chicks_Phi_run[[14]]$results$beta
+
+# Assign the correct names to the vcv matrix
+rownames(funday_mgmt_l_vcv) <- rownames(funday_mgmt_l_betas)
+colnames(funday_mgmt_l_vcv) <- rownames(funday_mgmt_l_betas)
+
+# Define funday gradient
+funday_vals <- 
+  seq(min(MP_chicks.ddl$Phi$funday), max(MP_chicks.ddl$Phi$funday), length.out = 50)
+
+# mgmt_l levels (assuming 0-5 coded, adjust if different)
+mgmt_levels <- paste0("mgmt_l", 0:5)  # adjust 0 if intercept represents mgmt_l0
+
+# Number of simulations
+n_sims <- 10000
+
+# --- Function to build design matrix for a given mgmt_l ---
+build_design <- function(funday_vals, mgmt_l_level) {
+  n <- length(funday_vals)
+  
+  # Create an empty matrix with same columns as betas
+  mat <- matrix(0, nrow = n, ncol = length(funday_mgmt_l_betas$estimate))
+  colnames(mat) <- rownames(funday_mgmt_l_betas)
+  
+  # Fill intercept
+  mat[, "Phi:(Intercept)"] <- 1
+  
+  # Fill funday covariate
+  mat[, "Phi:funday"] <- funday_vals
+  
+  # Fill the mgmt_l dummy
+  if (mgmt_l_level != 0) {   # baseline is 0, others add their beta
+    mat[, paste0("Phi:mgmt_l", mgmt_l_level)] <- 1
+  }
+  
+  return(mat)
+}
+library(MASS)
+# --- Simulate beta draws ---
+set.seed(123)
+beta_sims <- mvrnorm(n = n_sims, mu = funday_mgmt_l_betas$estimate, Sigma = funday_mgmt_l_vcv)
+
+# --- Compute predicted survival and 95% CIs ---
+pred_list <- list()
+
+for (i in 0:5) {  # mgmt_l levels
+  design_mat <- build_design(funday_vals, i)
+  
+  # Linear predictor
+  eta <- design_mat %*% t(beta_sims)
+  
+  # Transform via inverse logit
+  Phi_pred <- plogis(eta)
+  
+  # Compute pointwise summary: mean and 95% CI
+  Phi_mean <- apply(Phi_pred, 1, mean)
+  Phi_lcl  <- apply(Phi_pred, 1, quantile, probs = 0.025)
+  Phi_ucl  <- apply(Phi_pred, 1, quantile, probs = 0.975)
+  
+  pred_list[[paste0("mgmt_l", i)]] <- data.frame(
+    funday = funday_vals,
+    mean   = Phi_mean,
+    lcl    = Phi_lcl,
+    ucl    = Phi_ucl,
+    mgmt_l = i
+  )
+}
+
+# Combine into single dataframe
+pred_df <- bind_rows(pred_list)
+
+# --- Plot ---
+library(ggplot2)
+
+MP_chick_ch %>% pull(mgmt_l) %>% table()
+# note that I removed the prediction of the management level 2 because it failed to properly estimate this likely due to low sample size (only 4 broods experienced this treatment)
+ggplot(pred_df %>% 
+         filter(mgmt_l != 2), 
+       aes(x = funday, y = mean, color = factor(mgmt_l), fill = factor(mgmt_l))) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "number of weekend days and holidays exposed to", 
+       y = "apparent daily brood survival (± 95% CI)", color = "mgmt_l", fill = "mgmt_l") +
+  theme_minimal() +
+  facet_grid(. ~ mgmt_l)
+```
+
+```{r}
 # plotting MP_Chick_funday_surv (NEED TO FIX THIS)
 MP_chicks.ddl$Phi$ID <- seq_len(nrow(MP_chicks.ddl$Phi))
 MP_Chick_funday_surv$ID <- seq_len(nrow(MP_Chick_funday_surv))
 
 funday_map <- MP_chicks.ddl$Phi[, c("ID", "funday")]
-
 
 MP_Chick_funday_surv <- merge(MP_Chick_funday_surv, funday_map, by = "ID")
 ggplot(MP_Chick_funday_surv, aes(x = funday, y = estimate)) +
