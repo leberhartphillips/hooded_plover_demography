@@ -137,7 +137,7 @@ luke_theme <-
 region_names <- c(
   'FP' = "Fleurieu Peninsula",
   'MP' = "Mornington Peninsula",
-  'BSC' = "Bellarine / Surf Coast",
+  'BSC' = "Bellarine-Surf Coast",
   'PI' = "Phillip Island",
   'BC' = "Bass Coast" )
 
@@ -6470,7 +6470,7 @@ nest_data_with_threat_data <-
             nest_data_BSC_with_threat_data,
             nest_data_PI_with_threat_data,
             nest_data_BC_with_threat_data) %>%
-  #filter(n_surveys > 0) %>% 
+  filter(n_surveys > 0) %>% 
   # mutate(dof_b = ifelse(dof_b == 1, "Y", "N")) %>%
   # dplyr::select(-fox_p) %>%
   mutate_at(vars(hum_b, veh_b, dog_b, don_b, dof_b, pbd_b, gul_b, hof_b),
@@ -6706,8 +6706,9 @@ Number of nests at each region in each management level
 ```{r}
 nest_data_with_threat_data_7d_ %>% 
   group_by(region, level) %>% 
-  summarise(n_obs = n()) %>% 
+  summarise(n_obs = n())%>% 
   pivot_wider(names_from = region, values_from = n_obs) 
+
 ```
 
 Number of nests at each region in each management status
@@ -6717,6 +6718,52 @@ nest_data_with_threat_data_7d_ %>%
   summarise(n_obs = n()) %>% 
   pivot_wider(names_from = region, values_from = n_obs) 
 ```
+
+
+```{r}
+#Summary Table
+nests_per_year <- nest_data_with_threat_data_7d_ %>%
+  group_by(season, region) %>%
+  summarise(n_nests = n(), .groups = "drop") %>%
+  mutate(season = gsub("(^\\d{4})(\\d{2}$)", "\\1–\\2", season),
+    season_order = as.numeric(substr(season, 1, 4))) %>%
+  arrange(season_order) %>%
+  select(-season_order) %>%
+  pivot_wider(
+    names_from = region,
+    values_from = n_nests,
+    values_fill = 0) %>%
+  rename_with(~ ifelse(.x %in% names(region_names), region_names[.x], .x))
+
+numeric_cols <- names(nests_per_year)[names(nests_per_year) != "season"]
+
+total_row <- nests_per_year %>%
+  summarise(across(all_of(numeric_cols), sum)) %>%
+  mutate(season = "Total") %>%
+  select(names(nests_per_year)) # ensure column order matches
+
+nests_per_year <- bind_rows(nests_per_year, total_row)
+
+nests_per_year <- nests_per_year %>%
+  mutate(across(all_of(numeric_cols), ~ ifelse(. == 0, "-", as.character(.))))
+
+nests_per_year %>%
+  gt() %>%
+  cols_label(season = html("<i>Season</i>")) %>%
+  cols_align(align = "left", columns = "season") %>%
+  text_transform(
+    locations = cells_body(columns = "season"),
+    fn = function(x) {
+      paste0('<span style="white-space: nowrap;">', x, '</span>')
+    }) %>%
+  tab_options(table.font.size = 12,
+    data_row.padding = 3,
+    column_labels.font.size = 14,
+    table.width = pct(80))
+
+```
+
+
 
 ## Nest survival modeling
 ### Prepare data for RMark
@@ -7881,14 +7928,14 @@ ggplot() +
   ylim(c(0.4, 1)) +
   scale_colour_brewer(palette = "Dark2", 
                       name = "Region", 
-labels = c("BSC" = "Bellarine/Surf Coast", 
+labels = c("BSC" = "Bellarine-Surf Coast", 
                                  "FP" = "Fleurieu Peninsula",
                                  "MP" = "Mornington Peninsula",
                                  "BC" = "Bass Coast",
                                  "PI" = "Phillip Island")) +
   scale_fill_brewer(palette = "Dark2", 
                       name = "Region", 
-labels = c("BSC" = "Bellarine/Surf Coast", 
+labels = c("BSC" = "Bellarine-Surf Coast", 
                                  "FP" = "Fleurieu Peninsula",
                                  "MP" = "Mornington Peninsula",
                                  "BC" = "Bass Coast",
@@ -8103,24 +8150,24 @@ ggplot() +
              shape = 21, size = 4, position = position_dodge(width = 0.5)) +
   # scale_colour_brewer(palette = "Set1") +
   luke_theme +
-  theme(legend.position = c(0.8, 0.2),
+  theme(legend.position = c(0.9, 0.2),
         legend.justification = c(1, 0),
         strip.background = element_blank(),
         axis.title.x = element_blank(),
         axis.text.x = element_text(size = 10)) +
   xlab("Management level") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
-  ylim(c(0.4, 1)) +
+  ylim(c(0.7, 1)) +
   scale_colour_brewer(palette = "Dark2", 
                       name = "Region", 
-                      labels = c("BSC" = "Bellarine/Surf Coast", 
+                      labels = c("BSC" = "Bellarine-Surf Coast", 
                                  "FP" = "Fleurieu Peninsula",
                                  "MP" = "Mornington Peninsula",
                                  "BC" = "Bass Coast",
                                  "PI" = "Phillip Island")) +
   scale_fill_brewer(palette = "Dark2", 
                       name = "Region", 
-                      labels = c("BSC" = "Bellarine/Surf Coast", 
+                      labels = c("BSC" = "Bellarine-Surf Coast", 
                                  "FP" = "Fleurieu Peninsula",
                                  "MP" = "Mornington Peninsula",
                                  "BC" = "Bass Coast",
@@ -9051,30 +9098,56 @@ nest_survival_reals_year <-
             nest_survival_reals_BSC_year, 
             nest_survival_reals_PI_year)
 
+region_labels <- nest_survival_reals_year %>%
+  group_by(region) %>%
+  summarise(
+    y_top = max(ucl, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    x = min(nest_survival_reals_year$season),  # left-aligned at panel start
+    y = y_top + 0.04,                           # fixed offset above panel top
+    label = region_names[as.character(region)]
+  )
+
+# 2️⃣ Clip error bars to panel limits
+nest_survival_reals_year <- nest_survival_reals_year %>%
+  mutate(
+    lcl_clip = pmax(lcl, 0.7),
+    ucl_clip = pmin(ucl, 1)
+  )
+
 ggplot() +
   geom_line(data = nest_survival_reals_year, 
             aes(x = season, y = estimate, color = region, group = region),
             position = position_dodge(width = 0.5), alpha = 0.2) +
   geom_errorbar(data = nest_survival_reals_year, 
-                aes(ymin = lcl, ymax = ucl, 
-                    x = season, 
-                    y = estimate, group = region), position = position_dodge(width = 0.5),
+                aes(ymin = pmax(lcl,0.7), ymax = pmin(ucl,1), x = season, y = estimate, group = region),
+                position = position_dodge(width = 0.5),
                 alpha = 0.5, color = "black", width = 0.3, lwd = 0.5) +
   geom_point(data = nest_survival_reals_year, 
              aes(x = season, y = estimate, fill = region),
              shape = 21, size = 4, position = position_dodge(width = 0.5)) +
-  scale_colour_brewer(palette = "Set1") +
+  geom_text(data = region_labels,
+            aes(x = 0, y = y, label = label),
+            inherit.aes = FALSE,
+            hjust = 0, vjust = 0, size = 3.5, color = "black") +
   luke_theme +
   theme(legend.position = "none",
-        legend.justification = c(1, 0),
-        strip.background = element_blank(),
-        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+    strip.text.y.left = element_blank(),
+    strip.text.y = element_blank(),
+    strip.background = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    panel.spacing = grid::unit(1, "lines"),
+    plot.margin = margin(50, 10, 20, 10)) +
   xlab("Season") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
-  ylim(c(0.7, 1)) +
+  coord_cartesian(ylim = c(0.7, 1), clip = "off") +   
+  facet_grid(region ~ ., labeller = as_labeller(region_names),
+             scales = "free_y", space = "free_y") +
   scale_colour_brewer(palette = "Dark2") +
-  scale_fill_brewer(palette = "Dark2") +
-  facet_grid(region ~ ., labeller = as_labeller(region_names))
+  scale_fill_brewer(palette = "Dark2")
+
 ```
 
 ## Variation within years
