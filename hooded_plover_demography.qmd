@@ -15130,7 +15130,8 @@ tbl_regression(humans_fun_day_BSC_, intercept = TRUE,
 
 Bass Coast
 ```{r}
-tbl_regression(humans_fun_day_BC_, intercept = TRUE, 
+tbl_reg
+ression(humans_fun_day_BC_, intercept = TRUE, 
                label = list(obs_date2 ~ "Date", funday ~ "Weekends & Holidays"))
 ```
 
@@ -15181,34 +15182,31 @@ humans_fun_day__fits_table <- humans_fun_day__fits %>%
   mutate(region = dplyr::recode(region, !!!region_names))
 
 humans_fun_day__fits_table %>%
-  mutate(funday = str_to_title(funday)) %>%
+  mutate(
+    funday = str_to_title(funday),
+    `Estimate (95% CI)` = sprintf("%.3f (<i>%.3f, %.3f</i>)", fit, lower, upper)) %>%
+  select(region, funday, `Estimate (95% CI)`, se) %>%  # keep only desired columns in order
   arrange(region, funday) %>%
   gt(groupname_col = "region") %>%
+  tab_header(
+    title = md("**Fundays and people**")) %>%
   cols_label(
-    funday = "Funday",
-    fit = "Humans",
-    se = "SE",
-    lower = "Lower 95% CI",
-    upper = "Upper 95% CI"
-  ) %>%
-  fmt_number(
-    columns = c(fit, se, lower, upper),
+     funday = "Funday",
+    `Estimate (95% CI)` = "Estimate (95% CI)",
+    se = "Standard Error") %>%
+  fmt_number(columns = vars(se),
     decimals = 3,
-    use_seps = FALSE
-  ) %>%
-   cols_align(
-    align = "left",
-    columns = vars(funday)
-  ) %>%
-  cols_align(
-    align = "center",
-    columns = vars(fit, se, lower, upper)
-  ) %>%
-  cols_width(
-    everything() ~ pct(20) 
-  ) %>%
-  tab_options(
-    row_group.font.weight = "bold",
+    use_seps = FALSE) %>%
+  fmt_markdown(columns = vars(`Estimate (95% CI)`)) %>%
+  cols_align(align = "left",
+    columns = vars(funday)) %>%
+  cols_align(align = "center",
+    columns = vars(`Estimate (95% CI)`, se)) %>%
+  cols_width(everything() ~ pct(25)) %>%
+    tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(everything())) %>%
+  tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
     data_row.padding = px(4),
@@ -15216,8 +15214,7 @@ humans_fun_day__fits_table %>%
     summary_row.padding = px(2),
     column_labels.font.size = 14,
     row_group.font.size = 12,
-    table.width = pct(80)
-  )
+    table.width = pct(80))
 
 ggplot() +
   geom_line(data = humans_fun_day__fits, 
@@ -15366,34 +15363,31 @@ dogs_fun_day__fits_table <- dogs_fun_day__fits %>%
   mutate(region = dplyr::recode(region, !!!region_names))
 
 dogs_fun_day__fits_table %>%
-  mutate(funday = str_to_title(funday)) %>%
+   mutate(
+    funday = str_to_title(funday),
+    `Estimate (95% CI)` = sprintf("%.3f (<i>%.3f, %.3f</i>)", fit, lower, upper)) %>%
+  select(region, funday, `Estimate (95% CI)`, se) %>%  # keep only desired columns in order
   arrange(region, funday) %>%
   gt(groupname_col = "region") %>%
+  tab_header(
+    title = md("**Fundays and dogs**")) %>%
   cols_label(
-    funday = "Funday",
-    fit = "Dogs",
-    se = "SE",
-    lower = "Lower 95% CI",
-    upper = "Upper 95% CI"
-  ) %>%
-  fmt_number(
-    columns = c(fit, se, lower, upper),
+     funday = "Funday",
+    `Estimate (95% CI)` = "Estimate (95% CI)",
+    se = "Standard Error") %>%
+  fmt_number(columns = vars(se),
     decimals = 3,
-    use_seps = FALSE
-  ) %>%
-   cols_align(
-    align = "left",
-    columns = vars(funday)
-  ) %>%
-  cols_align(
-    align = "center",
-    columns = vars(fit, se, lower, upper)
-  ) %>%
-  cols_width(
-    everything() ~ pct(20) 
-  ) %>%
-  tab_options(
-    row_group.font.weight = "bold",
+    use_seps = FALSE) %>%
+  fmt_markdown(columns = vars(`Estimate (95% CI)`)) %>%
+  cols_align(align = "left",
+    columns = vars(funday)) %>%
+  cols_align(align = "center",
+    columns = vars(`Estimate (95% CI)`, se)) %>%
+  cols_width(everything() ~ pct(25)) %>%
+    tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(everything())) %>%
+  tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
     data_row.padding = px(4),
@@ -15401,8 +15395,7 @@ dogs_fun_day__fits_table %>%
     summary_row.padding = px(2),
     column_labels.font.size = 14,
     row_group.font.size = 12,
-    table.width = pct(80)
-  )
+    table.width = pct(80))
 
 ggplot() +
   geom_line(data = dogs_fun_day__fits, 
@@ -15550,34 +15543,31 @@ dogs_off_fun_day__fits_table <- dogs_off_fun_day__fits %>%
   mutate(region = dplyr::recode(region, !!!region_names))
 
 dogs_off_fun_day__fits_table %>%
-  mutate(funday = str_to_title(funday)) %>%
+  mutate(
+    funday = str_to_title(funday),
+    `Estimate (95% CI)` = sprintf("%.3f (<i>%.3f, %.3f</i>)", fit, lower, upper)) %>%
+  select(region, funday, `Estimate (95% CI)`, se) %>%  # keep only desired columns in order
   arrange(region, funday) %>%
   gt(groupname_col = "region") %>%
+  tab_header(
+    title = md("**Fundays and off-leash dogs**")) %>%
   cols_label(
-    funday = "Funday",
-    fit = "Dogs off leash",
-    se = "SE",
-    lower = "Lower 95% CI",
-    upper = "Upper 95% CI"
-  ) %>%
-  fmt_number(
-    columns = c(fit, se, lower, upper),
+     funday = "Funday",
+    `Estimate (95% CI)` = "Estimate (95% CI)",
+    se = "Standard Error") %>%
+  fmt_number(columns = vars(se),
     decimals = 3,
-    use_seps = FALSE
-  ) %>%
-   cols_align(
-    align = "left",
-    columns = vars(funday)
-  ) %>%
-  cols_align(
-    align = "center",
-    columns = vars(fit, se, lower, upper)
-  ) %>%
-  cols_width(
-    everything() ~ pct(20) 
-  ) %>%
-  tab_options(
-    row_group.font.weight = "bold",
+    use_seps = FALSE) %>%
+  fmt_markdown(columns = vars(`Estimate (95% CI)`)) %>%
+  cols_align(align = "left",
+    columns = vars(funday)) %>%
+  cols_align(align = "center",
+    columns = vars(`Estimate (95% CI)`, se)) %>%
+  cols_width(everything() ~ pct(25)) %>%
+    tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(everything())) %>%
+  tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
     data_row.padding = px(4),
@@ -15585,8 +15575,7 @@ dogs_off_fun_day__fits_table %>%
     summary_row.padding = px(2),
     column_labels.font.size = 14,
     row_group.font.size = 12,
-    table.width = pct(80)
-  )
+    table.width = pct(80))
 
 ggplot() +
   geom_line(data = dogs_off_fun_day__fits, 
@@ -15737,34 +15726,31 @@ pred_birds_fun_day__fits_table <- pred_birds_fun_day__fits %>%
   mutate(region = dplyr::recode(region, !!!region_names))
 
 pred_birds_fun_day__fits_table %>%
-  mutate(funday = str_to_title(funday)) %>%
+  mutate(
+    funday = str_to_title(funday),
+    `Estimate (95% CI)` = sprintf("%.3f (<i>%.3f, %.3f</i>)", fit, lower, upper)) %>%
+  select(region, funday, `Estimate (95% CI)`, se) %>%  # keep only desired columns in order
   arrange(region, funday) %>%
   gt(groupname_col = "region") %>%
+  tab_header(
+    title = md("**Fundays and predatory birds**")) %>%
   cols_label(
-    funday = "Funday",
-    fit = "Predatory birds",
-    se = "SE",
-    lower = "Lower 95% CI",
-    upper = "Upper 95% CI"
-  ) %>%
-  fmt_number(
-    columns = c(fit, se, lower, upper),
+     funday = "Funday",
+    `Estimate (95% CI)` = "Estimate (95% CI)",
+    se = "Standard Error") %>%
+  fmt_number(columns = vars(se),
     decimals = 3,
-    use_seps = FALSE
-  ) %>%
-   cols_align(
-    align = "left",
-    columns = vars(funday)
-  ) %>%
-  cols_align(
-    align = "center",
-    columns = vars(fit, se, lower, upper)
-  ) %>%
-  cols_width(
-    everything() ~ pct(20) 
-  ) %>%
-  tab_options(
-    row_group.font.weight = "bold",
+    use_seps = FALSE) %>%
+  fmt_markdown(columns = vars(`Estimate (95% CI)`)) %>%
+  cols_align(align = "left",
+    columns = vars(funday)) %>%
+  cols_align(align = "center",
+    columns = vars(`Estimate (95% CI)`, se)) %>%
+  cols_width(everything() ~ pct(25)) %>%
+    tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(everything())) %>%
+  tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
     data_row.padding = px(4),
@@ -15772,8 +15758,7 @@ pred_birds_fun_day__fits_table %>%
     summary_row.padding = px(2),
     column_labels.font.size = 14,
     row_group.font.size = 12,
-    table.width = pct(80)
-  )
+    table.width = pct(80))
 
 ggplot() +
   geom_line(data = pred_birds_fun_day__fits, 
@@ -15924,34 +15909,31 @@ gulls_fun_day__fits_table <- gulls_fun_day__fits %>%
   mutate(region = dplyr::recode(region, !!!region_names))
 
 gulls_fun_day__fits_table %>%
-  mutate(funday = str_to_title(funday)) %>%
+ mutate(
+    funday = str_to_title(funday),
+    `Estimate (95% CI)` = sprintf("%.3f (<i>%.3f, %.3f</i>)", fit, lower, upper)) %>%
+  select(region, funday, `Estimate (95% CI)`, se) %>%  # keep only desired columns in order
   arrange(region, funday) %>%
   gt(groupname_col = "region") %>%
+  tab_header(
+    title = md("**Fundays and gulls**")) %>%
   cols_label(
-    funday = "Funday",
-    fit = "Gulls",
-    se = "SE",
-    lower = "Lower 95% CI",
-    upper = "Upper 95% CI"
-  ) %>%
-  fmt_number(
-    columns = c(fit, se, lower, upper),
+     funday = "Funday",
+    `Estimate (95% CI)` = "Estimate (95% CI)",
+    se = "Standard Error") %>%
+  fmt_number(columns = vars(se),
     decimals = 3,
-    use_seps = FALSE
-  ) %>%
-   cols_align(
-    align = "left",
-    columns = vars(funday)
-  ) %>%
-  cols_align(
-    align = "center",
-    columns = vars(fit, se, lower, upper)
-  ) %>%
-  cols_width(
-    everything() ~ pct(20) 
-  ) %>%
-  tab_options(
-    row_group.font.weight = "bold",
+    use_seps = FALSE) %>%
+  fmt_markdown(columns = vars(`Estimate (95% CI)`)) %>%
+  cols_align(align = "left",
+    columns = vars(funday)) %>%
+  cols_align(align = "center",
+    columns = vars(`Estimate (95% CI)`, se)) %>%
+  cols_width(everything() ~ pct(25)) %>%
+    tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels(everything())) %>%
+  tab_options(row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
     table.font.size = 12,
     data_row.padding = px(4),
@@ -15959,8 +15941,7 @@ gulls_fun_day__fits_table %>%
     summary_row.padding = px(2),
     column_labels.font.size = 14,
     row_group.font.size = 12,
-    table.width = pct(80)
-  )
+    table.width = pct(80))
 
 ggplot() +
   geom_line(data = gulls_fun_day__fits, 
