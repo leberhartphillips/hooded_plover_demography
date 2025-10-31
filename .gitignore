@@ -12,6 +12,8 @@
 !data/**
 !output/
 !output/**
+!results/**
+!results/**
 
 # Still ignore RStudio-specific and temporary files
 .Rproj.user/
