@@ -128,13 +128,20 @@ luke_theme <-
     strip.text = element_text(size = 10),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    axis.ticks = element_line(size = 0.5, colour = "grey40"),
+    axis.ticks = element_line(size = 0.2, colour = "grey40"),
     axis.ticks.length = unit(0.2, "cm"),
     panel.border = element_rect(linetype = "solid", colour = "grey"),
     legend.position = c(0.1, 0.9)
   )
 
-region_names <- c(
+region_names_break <- c(
+  'FP' = "Fleurieu\nPeninsula",
+  'MP' = "Mornington\nPeninsula",
+  'BSC' = "Bellarine-\nSurf Coast",
+  'PI' = "Phillip\nIsland",
+  'BC' = "Bass\nCoast" )
+
+region_names_no_break <- c(
   'FP' = "Fleurieu Peninsula",
   'MP' = "Mornington Peninsula",
   'BSC' = "Bellarine-Surf Coast",
@@ -2679,6 +2686,7 @@ nest_data_BC_check <-
   mutate(first_found2_trans = as.Date(paste("2020", first_found2_md, sep = "-"), format = "%Y-%m-%d") - 179,
          last_alive2_trans = as.Date(paste("2020", last_alive2_md, sep = "-"), format = "%Y-%m-%d") - 179,
          last_checked2_trans = as.Date(paste("2020", last_checked2_md, sep = "-"), format = "%Y-%m-%d") - 179) %>% 
+  mutate(season = ifelse(as.character(season) == "201820", "201819", as.character(season)) %>% as.factor()) %>% 
   mutate(season_label = paste0("season ", str_sub(season, 1, 4), " to ", str_sub(season, 5, 6)))
 ```
 
@@ -4418,24 +4426,15 @@ mod_hum_predicts <-
          upper = fit + 1.96 * se.fit) %>% 
   left_join(., threat_data__ %>% dplyr::select(weekdayN, weekday) %>% distinct(), by = "weekdayN")
 
-threat_data__ %>%
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = log(humans_ + 1)),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1, color = "grey70"
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = log(humans_ + 1)),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA, color = "grey70"
-    ) +
-  # geom_smooth(aes(x = as.numeric(weekday), y = humans_), 
-  #             method = lm, 
-  #             formula = y ~ splines::bs(x, 5)) +
+ggplot() +
+  geom_jitter(data = threat_data__, 
+              aes(x = weekday, y = log(humans_ + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_ribbon(data = mod_hum_predicts,
               aes(x = as.numeric(weekday), ymin = log(lower + 1), ymax = log(upper + 1))) +
   geom_line(data = mod_hum_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
@@ -4462,21 +4461,15 @@ mod_dogs_predicts <-
          upper = fit + 1.96 * se.fit) %>% 
   left_join(., threat_data__ %>% dplyr::select(weekdayN, weekday) %>% distinct(), by = "weekdayN")
 
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = log(dogs_ + 1)),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = log(dogs_ + 1)),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot() +
+  geom_jitter(data = threat_data__, 
+              aes(x = weekday, y = log(dogs_ + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_ribbon(data = mod_dogs_predicts,
               aes(x = as.numeric(weekday), ymin = log(lower + 1), ymax = log(upper + 1))) +
   geom_line(data = mod_dogs_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
@@ -4504,21 +4497,15 @@ mod_dogs_on_predicts <-
          upper = fit + 1.96 * se.fit) %>% 
   left_join(., threat_data__ %>% dplyr::select(weekdayN, weekday) %>% distinct(), by = "weekdayN")
 
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = log(dogs_on_ + 1)),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = log(dogs_on_ + 1)),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot() +
+  geom_jitter(data = threat_data__, 
+              aes(x = weekday, y = log(dogs_on_ + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_ribbon(data = mod_dogs_on_predicts,
               aes(x = as.numeric(weekday), ymin = log(lower + 1), ymax = log(upper + 1))) +
   geom_line(data = mod_dogs_on_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
@@ -4546,21 +4533,15 @@ mod_dogs_off_predicts <-
          upper = fit + 1.96 * se.fit) %>% 
   left_join(., threat_data__ %>% dplyr::select(weekdayN, weekday) %>% distinct(), by = "weekdayN")
 
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = log(dogs_off_ + 1)),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = log(dogs_off_ + 1)),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot() +
+  geom_jitter(data = threat_data__, 
+              aes(x = weekday, y = log(dogs_off_ + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_ribbon(data = mod_dogs_off_predicts,
               aes(x = as.numeric(weekday), ymin = log(lower + 1), ymax = log(upper + 1))) +
   geom_line(data = mod_dogs_off_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
@@ -4588,21 +4569,15 @@ mod_pred_birds_predicts <-
          upper = fit + 1.96 * se.fit) %>% 
   left_join(., threat_data__ %>% dplyr::select(weekdayN, weekday) %>% distinct(), by = "weekdayN")
 
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = log(pred_birds_ + 1)),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = log(pred_birds_ + 1)),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot() +
+  geom_jitter(data = threat_data__, 
+              aes(x = weekday, y = log(pred_birds_ + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_ribbon(data = mod_pred_birds_predicts,
               aes(x = as.numeric(weekday), ymin = log(lower + 1), ymax = log(upper + 1))) +
   geom_line(data = mod_pred_birds_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
@@ -4630,21 +4605,15 @@ mod_gulls_predicts <-
          upper = fit + 1.96 * se.fit) %>% 
   left_join(., threat_data__ %>% dplyr::select(weekdayN, weekday) %>% distinct(), by = "weekdayN")
 
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = log(gulls_ + 1)),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = log(gulls_ + 1)),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot() +
+  geom_jitter(data = threat_data__, 
+              aes(x = weekday, y = log(gulls_ + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_ribbon(data = mod_gulls_predicts,
               aes(x = as.numeric(weekday), ymin = log(lower + 1), ymax = log(upper + 1))) +
   geom_line(data = mod_gulls_predicts, aes(x = as.numeric(weekday), y = log(fit + 1)), color = "white") +
@@ -4672,21 +4641,15 @@ mod_vehicles_predicts <-
          upper = fit + 1.96 * se.fit) %>% 
   left_join(., threat_data__ %>% dplyr::select(weekdayN, weekday) %>% distinct(), by = "weekdayN")
 
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = vehicles_),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = vehicles_),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot() +
+  geom_jitter(data = threat_data__, 
+              aes(x = weekday, y = log(vehicles_ + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_ribbon(data = mod_vehicles_predicts,
               aes(x = as.numeric(weekday), ymin = lower, ymax = upper)) +
   geom_line(data = mod_vehicles_predicts, aes(x = as.numeric(weekday), y = fit), color = "white") +
@@ -4699,21 +4662,14 @@ threat_data__ %>%
 Inspect the weekly variation in human prints
 ```{r}
 # plot the weekly variation in the human print detections
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = hum_pri),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = hum_pri),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot(data = threat_data__) +
+  geom_jitter(aes(x = weekday, y = log(hum_pri + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_smooth(aes(x = as.numeric(weekday), y = hum_pri), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
   xlab("Day of the week") +
@@ -4723,21 +4679,14 @@ threat_data__ %>%
 Inspect the weekly variation in dog prints
 ```{r}
 # plot the weekly variation in the dog print detections
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = dog_pri),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = dog_pri),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot(data = threat_data__) +
+  geom_jitter(aes(x = weekday, y = log(dog_pri + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_smooth(aes(x = as.numeric(weekday), y = dog_pri), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
   xlab("Day of the week") +
@@ -4747,21 +4696,14 @@ threat_data__ %>%
 Inspect the weekly variation in vehicle prints
 ```{r}
 # plot the weekly variation in the vehicle print detections
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = vehicle_pri),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = vehicle_pri),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot(data = threat_data__) +
+  geom_jitter(aes(x = weekday, y = log(vehicle_pri + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_smooth(aes(x = as.numeric(weekday), y = vehicle_pri), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
   xlab("Day of the week") +
@@ -4771,21 +4713,14 @@ threat_data__ %>%
 Inspect the weekly variation in fox prints
 ```{r}
 # plot the weekly variation in the fox print detections
-threat_data__ %>% 
-  ggplot() +
-  gghalves::geom_half_point(aes(x = weekday, y = fox_pri),
-      size = 1,
-      width = 0.5,
-      side = "l", 
-      range_scale = .4, 
-      alpha = 0.1
-    ) + 
-    gghalves::geom_half_boxplot(aes(x = weekday, y = fox_pri),
-      size = 0.5,
-      width = 0.5,
-      side = "r",
-      alpha = 0.1, outlier.color = NA
-    ) +
+ggplot(data = threat_data__) +
+  geom_jitter(aes(x = weekday, y = log(fox_pri + 1)),
+    width = 0.1,
+    height = 0,
+    color = "grey70",
+    alpha = 0.15,
+    size = 1
+  ) +
   geom_smooth(aes(x = as.numeric(weekday), y = fox_pri), method = lm, formula = y ~ splines::bs(x, 5)) +
   luke_theme +
   xlab("Day of the week") +
@@ -6462,9 +6397,13 @@ saveRDS(nest_data_PI_with_threat_data, file = "output/nest_data_PI_with_threat_d
 nest_data_PI_with_threat_data <- readRDS(file = "output/nest_data_PI_with_threat_data.rds")
 ```
 
-
 remove outlier data and those with very infrequent threat surveys (cut off: visited at least once per week)
 ```{r}
+# NOTE: for future analysis of threats, need to consider restricting dataset 
+# to nests that have an appropriate number threat surveys (i.e., at least one 
+# during the nest's life or at least visited once per week). Currently, these
+# restrictions are ignored because of Jasmin's focus on the "fundays" effect, 
+# which is not reliant on threat surveys.
 ##### remove outlier data and those with very infrequent threat surveys
 nest_data_with_threat_data <-
   bind_rows(nest_data_FP_with_threat_data,
@@ -6472,7 +6411,7 @@ nest_data_with_threat_data <-
             nest_data_BSC_with_threat_data,
             nest_data_PI_with_threat_data,
             nest_data_BC_with_threat_data) %>%
-  #filter(n_surveys > 0) %>% 
+  # filter(n_surveys > 0) %>% 
   # mutate(dof_b = ifelse(dof_b == 1, "Y", "N")) %>%
   # dplyr::select(-fox_p) %>%
   mutate_at(vars(hum_b, veh_b, dog_b, don_b, dof_b, pbd_b, gul_b, hof_b),
@@ -6677,7 +6616,7 @@ nest_data_with_threat_data_7d_ <-
 ```
 
 ```{r}
-write.csv(nest_data_with_threat_data_7d_, "data/nest_data_with_threat_data_7d_01102025.csv")
+write.csv(nest_data_with_threat_data_7d_, "data/nest_data_with_threat_data_7d_31102025.csv")
 ```
 
 ### Sample size summary
@@ -6735,7 +6674,7 @@ nests_per_year <- nest_data_with_threat_data_7d_ %>%
     names_from = region,
     values_from = n_nests,
     values_fill = 0) %>%
-  rename_with(~ ifelse(.x %in% names(region_names), region_names[.x], .x))
+  rename_with(~ ifelse(.x %in% names(region_names_no_break), region_names_no_break[.x], .x))
 
 numeric_cols <- names(nests_per_year)[names(nests_per_year) != "season"]
 
@@ -6765,13 +6704,11 @@ nests_per_year %>%
 
 ```
 
-
-
 ## Nest survival modeling
 ### Prepare data for RMark
 ```{r}
 nest_data_with_threat_data_7d_ <- 
-  read.csv("data/nest_data_with_threat_data_7d_01102025.csv") %>% 
+  read.csv("data/nest_data_with_threat_data_7d_31102025.csv") %>% 
   mutate(season = as.factor(season),
          nest_hab = as.factor(nest_hab),
          status = as.factor(status),
@@ -6995,28 +6932,28 @@ nest_survival_FP <- function()
   
   #### interaction of max threat counts and management status 
   # max humans detected
-  S.hum_m_x_status <-
-    list(formula = ~hum_m * status)
+  S.hum_m_status <-
+    list(formula = ~hum_m + status)
   
   # max vehicles detected and management status
-  S.veh_m_x_status <-
-    list(formula = ~veh_m * status)
+  S.veh_m_status <-
+    list(formula = ~veh_m + status)
   
   # max dogs detected and management status
-  S.dog_m_x_status <-
-    list(formula = ~dog_m * status)
+  S.dog_m_status <-
+    list(formula = ~dog_m + status)
   
   # max dogs off leash detected and management status
-  S.dof_m_x_status <-
-    list(formula = ~dof_m * status)
+  S.dof_m_status <-
+    list(formula = ~dof_m + status)
   
   # max corvids detected and management status
-  S.pbd_m_x_status <-
-    list(formula = ~pbd_m * status)
+  S.pbd_m_status <-
+    list(formula = ~pbd_m + status)
   
   # max gulls detected and management status
-  S.gul_m_x_status <-
-    list(formula = ~gul_m * status)
+  S.gul_m_status <-
+    list(formula = ~gul_m + status)
   
   # specify to run as a nest survival model in program MARK
   cml <- RMark::create.model.list("Nest")
@@ -7037,7 +6974,7 @@ nest_survival_run_FP
 nest_survival_FP <- 
   list(RMark_data = RMark_data_FP, 
        model_selection = nest_survival_run_FP)
-saveRDS(nest_survival_FP, file = "output/nest_survival_FP_threats&status_011025.rds")
+saveRDS(nest_survival_FP, file = "output/nest_survival_FP_threats&status_31102025.rds")
 ```
 
 ### Mornington Peninsula model selection
@@ -7081,28 +7018,28 @@ nest_survival_MP <- function()
   
   #### interaction of max threat counts and management status 
   # max humans detected
-  S.hum_m_x_status <-
-    list(formula = ~hum_m * status)
+  S.hum_m_status <-
+    list(formula = ~hum_m + status)
   
   # max vehicles detected and management status
-  # S.veh_m_x_status <-
-  #   list(formula = ~veh_m * status)
+  # S.veh_m_status <-
+  #   list(formula = ~veh_m + status)
   
   # max dogs detected and management status
-  S.dog_m_x_status <-
-    list(formula = ~dog_m * status)
+  S.dog_m_status <-
+    list(formula = ~dog_m + status)
   
   # max dogs off leash detected and management status
-  S.dof_m_x_status <-
-    list(formula = ~dof_m * status)
+  S.dof_m_status <-
+    list(formula = ~dof_m + status)
   
   # max corvids detected and management status
-  S.pbd_m_x_status <-
-    list(formula = ~pbd_m * status)
+  S.pbd_m_status <-
+    list(formula = ~pbd_m + status)
   
   # max gulls detected and management status
-  S.gul_m_x_status <-
-    list(formula = ~gul_m * status)
+  S.gul_m_status <-
+    list(formula = ~gul_m + status)
   
   # specify to run as a nest survival model in program MARK
   cml <- RMark::create.model.list("Nest")
@@ -7124,7 +7061,7 @@ nest_survival_run_MP
 nest_survival_MP <- 
   list(RMark_data = RMark_data_MP, 
        model_selection = nest_survival_run_MP)
-saveRDS(nest_survival_MP, file = "output/nest_survival_MP_threats&status_011025.rds")
+saveRDS(nest_survival_MP, file = "output/nest_survival_MP_threats&status_31102025.rds")
 ```
 
 ### Bellarine / Surf Coast model selection
@@ -7168,28 +7105,28 @@ nest_survival_BSC <- function()
   
   #### interaction of max threat counts and management status 
   # max humans detected
-  S.hum_m_x_status <-
-    list(formula = ~hum_m * status)
+  S.hum_m_status <-
+    list(formula = ~hum_m + status)
   
   # max vehicles detected and management status
-  # S.veh_m_x_status <-
-  #   list(formula = ~veh_m * status)
+  # S.veh_m_status <-
+  #   list(formula = ~veh_m + status)
   
   # max dogs detected and management status
-  S.dog_m_x_status <-
-    list(formula = ~dog_m * status)
+  S.dog_m_status <-
+    list(formula = ~dog_m + status)
   
   # max dogs off leash detected and management status
-  S.dof_m_x_status <-
-    list(formula = ~dof_m * status)
+  S.dof_m_status <-
+    list(formula = ~dof_m + status)
   
   # max corvids detected and management status
-  S.pbd_m_x_status <-
-    list(formula = ~pbd_m * status)
+  S.pbd_m_status <-
+    list(formula = ~pbd_m + status)
   
   # max gulls detected and management status
-  S.gul_m_x_status <-
-    list(formula = ~gul_m * status)
+  S.gul_m_status <-
+    list(formula = ~gul_m + status)
   
   # specify to run as a nest survival model in program MARK
   cml <- RMark::create.model.list("Nest")
@@ -7211,7 +7148,7 @@ nest_survival_run_BSC
 nest_survival_BSC <- 
   list(RMark_data = RMark_data_BSC, 
        model_selection = nest_survival_run_BSC)
-saveRDS(nest_survival_BSC, file = "output/nest_survival_BSC_threats&status_011025.rds")
+saveRDS(nest_survival_BSC, file = "output/nest_survival_BSC_threats&status_31102025.rds")
 ```
 
 ### Bass Coast model selection
@@ -7255,28 +7192,28 @@ nest_survival_BC <- function()
   
   #### interaction of max threat counts and management status 
   # max humans detected
-  S.hum_m_x_status <-
-    list(formula = ~hum_m * status)
+  S.hum_m_status <-
+    list(formula = ~hum_m + status)
   
   # max vehicles detected and management status
-  # S.veh_m_x_status <-
-  #   list(formula = ~veh_m * status)
+  # S.veh_m_status <-
+  #   list(formula = ~veh_m + status)
   
   # max dogs detected and management status
-  S.dog_m_x_status <-
-    list(formula = ~dog_m * status)
+  S.dog_m_status <-
+    list(formula = ~dog_m + status)
   
   # max dogs off leash detected and management status
-  S.dof_m_x_status <-
-    list(formula = ~dof_m * status)
+  S.dof_m_status <-
+    list(formula = ~dof_m + status)
   
   # max corvids detected and management status
-  S.pbd_m_x_status <-
-    list(formula = ~pbd_m * status)
+  S.pbd_m_status <-
+    list(formula = ~pbd_m + status)
   
   # max gulls detected and management status
-  S.gul_m_x_status <-
-    list(formula = ~gul_m * status)
+  S.gul_m_status <-
+    list(formula = ~gul_m + status)
   
   # specify to run as a nest survival model in program MARK
   cml <- RMark::create.model.list("Nest")
@@ -7298,7 +7235,7 @@ nest_survival_run_BC
 nest_survival_BC <- 
   list(RMark_data = RMark_data_BC, 
        model_selection = nest_survival_run_BC)
-saveRDS(nest_survival_BC, file = "output/nest_survival_BC_threats&status_011025.rds")
+saveRDS(nest_survival_BC, file = "output/nest_survival_BC_threats&status_31102025.rds")
 ```
 
 ### Phillip Island model selection
@@ -7342,28 +7279,28 @@ nest_survival_PI <- function()
   
   #### interaction of max threat counts and management status 
   # max humans detected
-  S.hum_m_x_status <-
-    list(formula = ~hum_m * status)
+  S.hum_m_status <-
+    list(formula = ~hum_m + status)
   
   # max vehicles detected and management status
-  # S.veh_m_x_status <-
-  #   list(formula = ~veh_m * status)
+  # S.veh_m_status <-
+  #   list(formula = ~veh_m + status)
   
   # max dogs detected and management status
-  S.dog_m_x_status <-
-    list(formula = ~dog_m * status)
+  S.dog_m_status <-
+    list(formula = ~dog_m + status)
   
   # max dogs off leash detected and management status
-  S.dof_m_x_status <-
-    list(formula = ~dof_m * status)
+  S.dof_m_status <-
+    list(formula = ~dof_m + status)
   
   # max corvids detected and management status
-  S.pbd_m_x_status <-
-    list(formula = ~pbd_m * status)
+  S.pbd_m_status <-
+    list(formula = ~pbd_m + status)
   
   # max gulls detected and management status
-  S.gul_m_x_status <-
-    list(formula = ~gul_m * status)
+  S.gul_m_status <-
+    list(formula = ~gul_m + status)
   
   # specify to run as a nest survival model in program MARK
   cml <- RMark::create.model.list("Nest")
@@ -7385,29 +7322,41 @@ nest_survival_run_PI
 nest_survival_PI <- 
   list(RMark_data = RMark_data_PI, 
        model_selection = nest_survival_run_PI)
-saveRDS(nest_survival_PI, file = "output/nest_survival_PI_threats&status_011025.rds")
+saveRDS(nest_survival_PI, file = "output/nest_survival_PI_threats&status_31102025.rds")
 ```
 
 # Results
-model selection results
+### model selection results of threats
+Note that Fundays is not included in these tables because it is inherently a different type of variable that the variables quantified through the threat surveys. But focusing on the actual threats we can pinpoint which specific threat is relevant for nest survival in a given population. Fundays by far explains the most variation nest survival for all populations, yet we can't interpret the role of, for example, gulls on nest survival when looking at fundays alone.
 ```{r}
-nest_survival_FP <- readRDS(file = "output/nest_survival_FP_threats&status_011025.rds")
+nest_survival_FP <- readRDS(file = "output/nest_survival_FP_threats&status_31102025.rds")
 nest_survival_run_FP <- nest_survival_FP$model_selection
 
+FP_threats_AIC_nest_survival_table <- 
 nest_survival_run_FP$model.table %>% 
-  dplyr::select(model, npar, DeltaAICc, weight) %>% 
+  dplyr::select(model, npar, DeltaAICc, weight) %>%
+  mutate(
+    model = model %>%
+      str_remove_all("^S\\(~|\\)$") %>%    # remove S(~ at start and ) at end
+      str_replace_all("pbd_m", "(max. no. pred. birds)") %>%
+      str_replace_all("dof_m", "(max. no. unleashed dogs)") %>%
+      str_replace_all("dog_m", "(max. no. dogs)") %>%
+      str_replace_all("gul_m", "(max. no. gulls)") %>%
+      str_replace_all("hum_m", "(max. no. humans)") %>%
+      str_replace_all("veh_m", "(max. no. vehicles)") %>%
+      str_replace_all("status", "(mgmt Y/N)") %>%
+      str_replace_all("1", "intercept only")
+  ) %>% 
   gt() %>% 
   cols_label(model = html("<i>Fleurieu Peninsula</i>"),
              npar = "K",
              DeltaAICc = "DeltaAICc",
              weight = "weight") %>% 
   fmt_number(columns = DeltaAICc,
-             rows = 1:10,
              decimals = 2,
              use_seps = FALSE) %>% 
   fmt_number(columns = weight,
-             rows = 1:10,
-             decimals = 3,
+             decimals = 2,
              use_seps = FALSE) %>% 
   cols_align(align = "left",
              columns = vars(model)) %>% 
@@ -7419,25 +7368,43 @@ nest_survival_run_FP$model.table %>%
               summary_row.padding = 2,
               column_labels.font.size = 14,
               row_group.font.size = 12,
-              table.width = pct(80))
+              table.width = pct(50)) %>%
+  tab_header(
+    title = "Hooded Plover daily nest survival",
+    subtitle = "Relative importance of specific threats and management action"
+  )
 
-nest_survival_MP <- readRDS(file = "output/nest_survival_MP_threats&status_011025.rds")
+gtsave(data = FP_threats_AIC_nest_survival_table, 
+       filename = "FP_threats_AIC_nest_survival_table.png", path = "results/")
+
+nest_survival_MP <- readRDS(file = "output/nest_survival_MP_threats&status_31102025.rds")
 nest_survival_run_MP <- nest_survival_MP$model_selection
 
-nest_survival_run_MP$model.table %>% 
-  dplyr::select(model, npar, DeltaAICc, weight) %>% 
+MP_threats_AIC_nest_survival_table <- 
+  nest_survival_run_MP$model.table %>% 
+  dplyr::select(model, npar, DeltaAICc, weight) %>%
+  mutate(
+    model = model %>%
+      str_remove_all("^S\\(~|\\)$") %>%    # remove S(~ at start and ) at end
+      str_replace_all("pbd_m", "(max. no. pred. birds)") %>%
+      str_replace_all("dof_m", "(max. no. unleashed dogs)") %>%
+      str_replace_all("dog_m", "(max. no. dogs)") %>%
+      str_replace_all("gul_m", "(max. no. gulls)") %>%
+      str_replace_all("hum_m", "(max. no. humans)") %>%
+      str_replace_all("veh_m", "(max. no. vehicles)") %>%
+      str_replace_all("status", "(mgmt Y/N)") %>%
+      str_replace_all("1", "intercept only")
+  ) %>% 
   gt() %>% 
   cols_label(model = html("<i>Mornington Peninsula</i>"),
              npar = "K",
              DeltaAICc = "DeltaAICc",
              weight = "weight") %>% 
   fmt_number(columns = DeltaAICc,
-             rows = 1:10,
              decimals = 2,
              use_seps = FALSE) %>% 
   fmt_number(columns = weight,
-             rows = 1:10,
-             decimals = 3,
+             decimals = 2,
              use_seps = FALSE) %>% 
   cols_align(align = "left",
              columns = vars(model)) %>% 
@@ -7449,25 +7416,87 @@ nest_survival_run_MP$model.table %>%
               summary_row.padding = 2,
               column_labels.font.size = 14,
               row_group.font.size = 12,
-              table.width = pct(80))
+              table.width = pct(50)) %>%
+  tab_header(
+    title = "Hooded Plover daily nest survival",
+    subtitle = "Relative importance of specific threats and management action"
+  )
 
-nest_survival_BSC <- readRDS(file = "output/nest_survival_BSC_threats&status_011025.rds")
+gtsave(data = MP_threats_AIC_nest_survival_table, 
+       filename = "MP_threats_AIC_nest_survival_table.png", path = "results/")
+
+nest_survival_BSC <- readRDS(file = "output/nest_survival_BSC_threats&status_31102025.rds")
 nest_survival_run_BSC <- nest_survival_BSC$model_selection
 
-nest_survival_run_BSC$model.table %>% 
+BSC_threats_AIC_nest_survival_table <- 
+  nest_survival_run_BSC$model.table %>% 
   dplyr::select(model, npar, DeltaAICc, weight) %>% 
+  mutate(
+    model = model %>%
+      str_remove_all("^S\\(~|\\)$") %>%    # remove S(~ at start and ) at end
+      str_replace_all("pbd_m", "(max. no. pred. birds)") %>%
+      str_replace_all("dof_m", "(max. no. unleashed dogs)") %>%
+      str_replace_all("dog_m", "(max. no. dogs)") %>%
+      str_replace_all("gul_m", "(max. no. gulls)") %>%
+      str_replace_all("hum_m", "(max. no. humans)") %>%
+      str_replace_all("veh_m", "(max. no. vehicles)") %>%
+      str_replace_all("status", "(mgmt Y/N)") %>%
+      str_replace_all("1", "intercept only")
+  ) %>% 
   gt() %>% 
+  fmt_number(columns = DeltaAICc,
+             decimals = 2,
+             use_seps = FALSE) %>% 
+  fmt_number(columns = weight,
+             decimals = 2,
+             use_seps = FALSE) %>% 
+  cols_align(align = "left",
+             columns = vars(model)) %>% 
+  tab_options(row_group.font.weight = "bold",
+              row_group.background.color = brewer.pal(9,"Greys")[3],
+              table.font.size = 12,
+              data_row.padding = 3,
+              row_group.padding = 4,
+              summary_row.padding = 2,
+              column_labels.font.size = 14,
+              row_group.font.size = 12,
+              table.width = pct(50)) %>%
+  tab_header(
+    title = "Hooded Plover daily nest survival",
+    subtitle = "Relative importance of specific threats and management action"
+  ) %>% 
   cols_label(model = html("<i>Bellarine / Surf Coast</i>"),
              npar = "K",
              DeltaAICc = "DeltaAICc",
-             weight = "weight") %>% 
+             weight = "weight")
+
+gtsave(data = BSC_threats_AIC_nest_survival_table, 
+       filename = "BSC_threats_AIC_nest_survival_table.png", path = "results/")
+
+nest_survival_BC <- readRDS(file = "output/nest_survival_BC_threats&status_31102025.rds")
+nest_survival_run_BC <- nest_survival_BC$model_selection
+
+BC_threats_AIC_nest_survival_table <- 
+  nest_survival_run_BC$model.table %>% 
+  dplyr::select(model, npar, DeltaAICc, weight) %>% 
+  mutate(
+    model = model %>%
+      str_remove_all("^S\\(~|\\)$") %>%    # remove S(~ at start and ) at end
+      str_replace_all("pbd_m", "(max. no. pred. birds)") %>%
+      str_replace_all("dof_m", "(max. no. unleashed dogs)") %>%
+      str_replace_all("dog_m", "(max. no. dogs)") %>%
+      str_replace_all("gul_m", "(max. no. gulls)") %>%
+      str_replace_all("hum_m", "(max. no. humans)") %>%
+      str_replace_all("veh_m", "(max. no. vehicles)") %>%
+      str_replace_all("status", "(mgmt Y/N)") %>%
+      str_replace_all("1", "intercept only")
+  ) %>% 
+  gt() %>% 
   fmt_number(columns = DeltaAICc,
-             rows = 1:10,
              decimals = 2,
              use_seps = FALSE) %>% 
   fmt_number(columns = weight,
-             rows = 1:10,
-             decimals = 3,
+             decimals = 2,
              use_seps = FALSE) %>% 
   cols_align(align = "left",
              columns = vars(model)) %>% 
@@ -7479,25 +7508,43 @@ nest_survival_run_BSC$model.table %>%
               summary_row.padding = 2,
               column_labels.font.size = 14,
               row_group.font.size = 12,
-              table.width = pct(80))
-
-nest_survival_BC <- readRDS(file = "output/nest_survival_BC_threats&status_011025.rds")
-nest_survival_run_BC <- nest_survival_BC$model_selection
-
-nest_survival_run_BC$model.table %>% 
-  dplyr::select(model, npar, DeltaAICc, weight) %>% 
-  gt() %>% 
+              table.width = pct(50)) %>%
+  tab_header(
+    title = "Hooded Plover daily nest survival",
+    subtitle = "Relative importance of specific threats and management action"
+  ) %>% 
   cols_label(model = html("<i>Bass Coast</i>"),
              npar = "K",
              DeltaAICc = "DeltaAICc",
-             weight = "weight") %>% 
+             weight = "weight")
+
+gtsave(data = BC_threats_AIC_nest_survival_table, 
+       filename = "BC_threats_AIC_nest_survival_table.png", path = "results/")
+
+nest_survival_PI <- readRDS(file = "output/nest_survival_PI_threats&status_31102025.rds")
+nest_survival_run_PI <- nest_survival_PI$model_selection
+
+PI_threats_AIC_nest_survival_table <- 
+  nest_survival_run_PI$model.table %>% 
+  dplyr::select(model, npar, DeltaAICc, weight) %>% 
+  mutate(
+    model = model %>%
+      str_remove_all("^S\\(~|\\)$") %>%    # remove S(~ at start and ) at end
+      str_replace_all("pbd_m", "(max. no. pred. birds)") %>%
+      str_replace_all("dof_m", "(max. no. unleashed dogs)") %>%
+      str_replace_all("dog_m", "(max. no. dogs)") %>%
+      str_replace_all("gul_m", "(max. no. gulls)") %>%
+      str_replace_all("hum_m", "(max. no. humans)") %>%
+      str_replace_all("veh_m", "(max. no. vehicles)") %>%
+      str_replace_all("status", "(mgmt Y/N)") %>%
+      str_replace_all("1", "intercept only")
+  ) %>% 
+  gt() %>% 
   fmt_number(columns = DeltaAICc,
-             rows = 1:10,
              decimals = 2,
              use_seps = FALSE) %>% 
   fmt_number(columns = weight,
-             rows = 1:10,
-             decimals = 3,
+             decimals = 2,
              use_seps = FALSE) %>% 
   cols_align(align = "left",
              columns = vars(model)) %>% 
@@ -7509,40 +7556,22 @@ nest_survival_run_BC$model.table %>%
               summary_row.padding = 2,
               column_labels.font.size = 14,
               row_group.font.size = 12,
-              table.width = pct(80))
-
-nest_survival_PI <- readRDS(file = "output/nest_survival_PI_threats&status_011025.rds")
-nest_survival_run_PI <- nest_survival_PI$model_selection
-
-nest_survival_run_PI$model.table %>% 
-  dplyr::select(model, npar, DeltaAICc, weight) %>% 
-  gt() %>% 
+              table.width = pct(50)) %>%
+  tab_header(
+    title = "Hooded Plover daily nest survival",
+    subtitle = "Relative importance of specific threats and management action"
+  ) %>% 
   cols_label(model = html("<i>Phillip Island</i>"),
              npar = "K",
              DeltaAICc = "DeltaAICc",
-             weight = "weight") %>% 
-  fmt_number(columns = DeltaAICc,
-             rows = 1:10,
-             decimals = 2,
-             use_seps = FALSE) %>% 
-  fmt_number(columns = weight,
-             rows = 1:10,
-             decimals = 3,
-             use_seps = FALSE) %>% 
-  cols_align(align = "left",
-             columns = vars(model)) %>% 
-  tab_options(row_group.font.weight = "bold",
-              row_group.background.color = brewer.pal(9,"Greys")[3],
-              table.font.size = 12,
-              data_row.padding = 3,
-              row_group.padding = 4,
-              summary_row.padding = 2,
-              column_labels.font.size = 14,
-              row_group.font.size = 12,
-              table.width = pct(80))
+             weight = "weight")
+
+gtsave(data = PI_threats_AIC_nest_survival_table, 
+       filename = "PI_threats_AIC_nest_survival_table.png", path = "results/")
 ```
 
 ## Effect of weekends and holidays on nest survival
+another way to assess the impact of humans is to consider the number of "Fundays" a nest is exposed to (i.e., the number of intensive-human-use days, such as weekends and holidays). 
 ```{r}
 S.fundays <- 
   mark(data = RMark_data_FP$nest_data.processed, 
@@ -7659,15 +7688,15 @@ pred.fundays <-
   bind_rows(pred.fundays_FP, pred.fundays_MP, 
             pred.fundays_BC, pred.fundays_BSC, pred.fundays_PI)
 
-
- ggplot(pred.fundays, 
-       aes(x = covdata, y = estimate, color = region, fill = region)) +
-  geom_line(size = 1.5) +
-  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2) +
-  scale_colour_brewer(palette = "Dark2") +
-  scale_fill_brewer(palette = "Dark2") +
+fundays_DSR_plot <- 
+  ggplot(pred.fundays, 
+        aes(x = covdata, y = estimate)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.5) +
+  # scale_colour_brewer(palette = "Dark2") +
+  # scale_fill_brewer(palette = "Dark2") +
   scale_x_continuous(
-    breaks = c(0, 5, 10, 15, 20, 25),  # keep your markers
+    breaks = c(0, 5, 10, 15, 20),  # keep your markers
     limits = c(0, 25),                 # full x-axis range
     expand = c(0, 0)) +
   luke_theme +
@@ -7678,11 +7707,17 @@ pred.fundays <-
   xlab("Number of fundays (weekend days and holidays) exposed to") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
-  facet_grid(. ~ region, labeller = as_labeller(region_names))
+  facet_grid(. ~ region, labeller = as_labeller(region_names_break))
 
+fundays_DSR_plot
+
+ggsave(plot = fundays_DSR_plot, 
+       filename = "fundays_DSR_plot.png", 
+       path = "results/", height = 4, width = 8)
 ```
 
 ## Effect of management on mitigating the impact of weekends and holidays on nest survival
+Here we evaluate how effective management action (i.e., binary: managed or not) is on dampening the impact of fundays on daily nest survival.
 ```{r}
 S.fundays_status <- 
   mark(data = RMark_data_FP$nest_data.processed, 
@@ -7804,28 +7839,36 @@ BC_Beta_summary_status
 pred.fundays_status <- 
   bind_rows(pred.fundays_status_FP, pred.fundays_status_MP, pred.fundays_status_BC, pred.fundays_status_BSC, pred.fundays_status_PI)
 
-ggplot(pred.fundays_status, 
-       aes(x = covdata, y = estimate, color = status, fill = status)) +
-  geom_line(size = 1.5) +
-  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2) +
-  scale_colour_brewer(palette = "Dark2", 
+fundays_mgmt_status_DSR_plot <- 
+  ggplot(pred.fundays_status, 
+       aes(x = covdata, y = estimate)) +
+  geom_line(size = 1, aes(color = status)) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = status), alpha = 0.5) +
+  scale_colour_brewer(palette = "Dark2", direction = -1,
                       labels = c("No management", "Management")) +
-  scale_fill_brewer(palette = "Dark2", 
+  scale_fill_brewer(palette = "Dark2", direction = -1,
                       labels = c("No management", "Management")) +
   scale_x_continuous(
-    breaks = c(0, 5, 10, 15, 20, 25),  # keep your markers
+    breaks = c(0, 5, 10, 15, 20),  # keep your markers
     limits = c(0, 25),                 # full x-axis range
     expand = c(0, 0)) +
   luke_theme +
-  theme(legend.position = c(0.25, 0.1),
+  theme(legend.position = c(0.19, 0.1),
         legend.title = element_blank(),
         legend.justification = c(1, 0),
         strip.background = element_blank(),
-         panel.spacing.x = unit(3, "mm")) +
+         panel.spacing.x = unit(3, "mm"), 
+        legend.background = element_rect(fill = "transparent")) +
   xlab("Number of fundays (weekend days and holidays) exposed to") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
-  facet_grid(. ~ region, labeller = as_labeller(region_names))
+  facet_grid(. ~ region, labeller = as_labeller(region_names_break))
+
+fundays_mgmt_status_DSR_plot
+
+ggsave(plot = fundays_mgmt_status_DSR_plot, 
+       filename = "fundays_mgmt_status_DSR_plot.png", 
+       path = "results/", height = 4, width = 8)
 ```
 
 ## Effect of management Levels on nest survival
@@ -7947,10 +7990,11 @@ nest_survival_reals_levels <-
             nest_survival_reals_BSC_levels,
             nest_survival_reals_PI_levels)
 
-ggplot() +
+mgmt_level_plot <- 
+  ggplot() +
   geom_line(data = nest_survival_reals_levels, 
             aes(x = management_level, y = estimate, color = region, group = region),
-            position = position_dodge(width = 0.5), alpha = 0.2, size = 2) +
+            position = position_dodge(width = 0.5), alpha = 0.5, size = 1) +
   geom_errorbar(data = nest_survival_reals_levels, 
                 aes(ymin = lcl, ymax = ucl, 
                     x = management_level, 
@@ -7961,7 +8005,7 @@ ggplot() +
              shape = 21, size = 4, position = position_dodge(width = 0.5)) +
   scale_colour_brewer(palette = "Set1") +
   luke_theme +
-  theme(legend.position = c(0.8, 0.2),
+  theme(legend.position = c(0.55, 0.05),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
   xlab("Management level") + 
@@ -7981,6 +8025,12 @@ labels = c("BSC" = "Bellarine-Surf Coast",
                                  "MP" = "Mornington Peninsula",
                                  "BC" = "Bass Coast",
                                  "PI" = "Phillip Island"))
+
+mgmt_level_plot
+
+ggsave(plot = mgmt_level_plot, 
+       filename = "mgmt_level_plot.png", 
+       path = "results/", height = 4, width = 4)
 ```
 
 ## Effect of management status on nest survival
@@ -8106,36 +8156,37 @@ nest_survival_reals_status <-
 ## results table
 nest_survival_reals_status_table <- nest_survival_reals_status %>%
   mutate(
-    region = dplyr::recode(region, !!!region_names),
+    region = dplyr::recode(region, !!!region_names_no_break),
     status = dplyr::recode(status, "N" = "Unmanaged", "Y" = "Managed"),
-     Hatching_rate = (estimate ^ 28) * 100,
-    lcl_hatch_rate = (lcl ^ 28) * 100,
-    ucl_hatch_rate = (ucl ^ 28) * 100)
+     Hatching_rate = (estimate ^ 28),
+    lcl_hatch_rate = (lcl ^ 28),
+    ucl_hatch_rate = (ucl ^ 28)) %>% 
+  mutate(HR_cl = paste0(round(Hatching_rate, 2), " [", round(lcl_hatch_rate, 2), " - ", round(ucl_hatch_rate, 2), "]"),
+         DSR_cl = paste0(round(estimate, 2), " [", round(lcl, 2), " - ", round(ucl, 2), "]"))
 
-nest_survival_reals_status_table %>%
+mgmt_status_summary_table <- 
+  nest_survival_reals_status_table %>%
+  select(region, status, DSR_cl, HR_cl) %>% 
   arrange(region, status) %>%
   gt(groupname_col = "region") %>%
   cols_label(
-    status = "Management status",
-    estimate = "Daily nest survival",
-    se = "Standard error",
-    lcl = "Lower 95% CI",
-    ucl = "Upper 95% CI",
-    Hatching_rate = "Hatching rate (%)") %>%
+    status = "",
+    DSR_cl = "Daily nest survival [95% CI]",
+    HR_cl = "Hatching success [95% CI]") %>%
   fmt_number(
-    columns = c(estimate, se, lcl, ucl),
-    decimals = 3,
+    columns = c(DSR_cl, HR_cl),
+    decimals = 2,
     use_seps = FALSE) %>%
-  fmt_number(
-    columns = vars(Hatching_rate),
-    decimals = 2,   # <-- two decimal places
-    use_seps = FALSE ) %>%
+  # fmt_number(
+  #   columns = vars(Hatching_rate),
+  #   decimals = 2,   # <-- two decimal places
+  #   use_seps = FALSE ) %>%
   cols_align(
     align = "left",
     columns = vars(status)  ) %>%
   cols_align(
     align = "center",
-    columns = vars(estimate, se, lcl, ucl, Hatching_rate) ) %>%
+    columns = vars(DSR_cl, HR_cl) ) %>%
   tab_options(
     row_group.font.weight = "bold",
     row_group.background.color = brewer.pal(9, "Greys")[3],
@@ -8145,42 +8196,45 @@ nest_survival_reals_status_table %>%
     summary_row.padding = px(2),
     column_labels.font.size = 14,
     row_group.font.size = 12,
-    table.width = pct(80))
+    table.width = pct(60))
 
-#hatch rate graph
-unique_regions <- unique(nest_hatch_rate$region)
-region_cols <- setNames(brewer.pal(length(unique_regions), "Dark2"), unique_regions)
+gtsave(data = mgmt_status_summary_table, 
+       filename = "mgmt_status_summary_table.png", path = "results/")
 
-nest_survival_reals_status_table <- nest_survival_reals_status_table %>%
-  mutate(fill_col = ifelse(
-    status == "Managed",
-    alpha(region_cols[region], 0.5),  # lighter Managed
-    region_cols[region]                # solid Unmanaged
-  ))
-# hatching rate bar chart
-ggplot(nest_survival_reals_status_table,
-       aes(x = region, y = Hatching_rate, fill = region, alpha = status)) +
-  geom_col(position = position_dodge(width = 0.8), color = NA, width = 0.7) +
-  geom_errorbar(aes(ymin = lcl_hatch_rate, ymax = ucl_hatch_rate),
-                width = 0.2, position = position_dodge(width = 0.8)) +
-  scale_fill_manual(values = region_cols, guide = FALSE) +
-  scale_alpha_manual(name = NULL,
-    values = c("Unmanaged" = 1, "Managed" = 0.5),
-    labels = c("Unmanaged (darker)", "Managed (lighter)")) +
-  guides(alpha = guide_legend(override.aes = list(fill = "grey50", color = NA))) + 
-  coord_cartesian(ylim = c(0, 50)) +
-  labs(x = "Region", y = "Hatching rate (%)") +
-  theme_minimal(base_size = 13) +
-  theme(axis.text.x = element_text(angle = 25, hjust = 1),
-    panel.grid.minor = element_blank(),
-    legend.position = "top",
-    legend.key = element_rect(color = NA))
+# #hatch rate graph
+# unique_regions <- unique(nest_hatch_rate$region)
+# region_cols <- setNames(brewer.pal(length(unique_regions), "Dark2"), unique_regions)
+# 
+# nest_survival_reals_status_table <- nest_survival_reals_status_table %>%
+#   mutate(fill_col = ifelse(
+#     status == "Managed",
+#     alpha(region_cols[region], 0.5),  # lighter Managed
+#     region_cols[region]                # solid Unmanaged
+#   ))
+# # hatching rate bar chart
+# ggplot(nest_survival_reals_status_table,
+#        aes(x = region, y = Hatching_rate, fill = region, alpha = status)) +
+#   geom_col(position = position_dodge(width = 0.8), color = NA, width = 0.7) +
+#   geom_errorbar(aes(ymin = lcl_hatch_rate, ymax = ucl_hatch_rate),
+#                 width = 0.2, position = position_dodge(width = 0.8)) +
+#   scale_fill_manual(values = region_cols, guide = FALSE) +
+#   scale_alpha_manual(name = NULL,
+#     values = c("Unmanaged" = 1, "Managed" = 0.5),
+#     labels = c("Unmanaged (darker)", "Managed (lighter)")) +
+#   guides(alpha = guide_legend(override.aes = list(fill = "grey50", color = NA))) + 
+#   coord_cartesian(ylim = c(0, 50)) +
+#   labs(x = "Region", y = "Hatching rate (%)") +
+#   theme_minimal(base_size = 13) +
+#   theme(axis.text.x = element_text(angle = 25, hjust = 1),
+#     panel.grid.minor = element_blank(),
+#     legend.position = "top",
+#     legend.key = element_rect(color = NA))
 
-# graph
-ggplot() +
+daily_nest_survival_mgmt_status_plot <- 
+  ggplot() +
   geom_line(data = nest_survival_reals_status, 
             aes(x = status, y = estimate, color = region, group = region),
-            position = position_dodge(width = 0.5), alpha = 0.2, size = 2) +
+            position = position_dodge(width = 0.5), alpha = 0.5, size = 1) +
   geom_errorbar(data = nest_survival_reals_status, 
                 aes(ymin = lcl, ymax = ucl, 
                     x = status, 
@@ -8191,12 +8245,11 @@ ggplot() +
              shape = 21, size = 4, position = position_dodge(width = 0.5)) +
   # scale_colour_brewer(palette = "Set1") +
   luke_theme +
-  theme(legend.position = c(0.9, 0.2),
+  theme(legend.position = "none",
         legend.justification = c(1, 0),
         strip.background = element_blank(),
         axis.title.x = element_blank(),
         axis.text.x = element_text(size = 10)) +
-  xlab("Management level") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0.7, 1)) +
   scale_colour_brewer(palette = "Dark2", 
@@ -8214,6 +8267,54 @@ ggplot() +
                                  "BC" = "Bass Coast",
                                  "PI" = "Phillip Island")) +
   scale_x_discrete(labels = c("No management", "Management"))
+
+hatching_success_mgmt_status_plot <- 
+  ggplot() +
+  geom_line(data = nest_survival_reals_status_table, 
+            aes(x = status, y = Hatching_rate, color = region, group = region),
+            position = position_dodge(width = 0.5), alpha = 0.5, size = 1) +
+  geom_errorbar(data = nest_survival_reals_status_table, 
+                aes(ymin = lcl_hatch_rate, ymax = ucl_hatch_rate, 
+                    x = status, 
+                    y = estimate, group = region), position = position_dodge(width = 0.5),
+                alpha = 0.5, color = "black", width = 0.3, lwd = 0.5) +
+  geom_point(data = nest_survival_reals_status_table, 
+             aes(x = status, y = Hatching_rate, fill = region),
+             shape = 21, size = 4, position = position_dodge(width = 0.5)) +
+  # scale_colour_brewer(palette = "Set1") +
+  luke_theme +
+  theme(legend.position = c(0.55, 0.5),
+        legend.justification = c(1, 0),
+        strip.background = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(), 
+        legend.background = element_rect(fill = "transparent")) +
+  ylab("Estimated hatching success (± 95% CI)") +
+  ylim(c(0, 0.5)) +
+  scale_colour_brewer(palette = "Dark2", 
+                      name = "Region", 
+                      labels = c("BSC" = "Bellarine-Surf Coast", 
+                                 "FP" = "Fleurieu Peninsula",
+                                 "MP" = "Mornington Peninsula",
+                                 "BC" = "Bass Coast",
+                                 "PI" = "Phillip Island")) +
+  scale_fill_brewer(palette = "Dark2", 
+                      name = "Region", 
+                      labels = c("BSC" = "Bellarine-Surf Coast", 
+                                 "FP" = "Fleurieu Peninsula",
+                                 "MP" = "Mornington Peninsula",
+                                 "BC" = "Bass Coast",
+                                 "PI" = "Phillip Island")) +
+  scale_x_discrete(labels = c("No management", "Management"))
+
+combo_mgmt_status_nest_surv_plot <- 
+  hatching_success_mgmt_status_plot / daily_nest_survival_mgmt_status_plot
+
+combo_mgmt_status_nest_surv_plot
+
+ggsave(plot = combo_mgmt_status_nest_surv_plot, 
+       filename = "combo_mgmt_status_nest_surv_plot.png", 
+       path = "results/", height = 8, width = 4)
 ```
 
 ## Effect of Habitat on nest survival
@@ -8320,7 +8421,8 @@ nest_survival_reals_habitat <-
             nest_survival_reals_BC_habitat,
             nest_survival_reals_PI_habitat)
 
-ggplot() +
+habitat_nest_surv_plot <- 
+  ggplot() +
   geom_errorbar(data = nest_survival_reals_habitat, 
                 aes(ymin = lcl, ymax = ucl, 
                     x = habitat, 
@@ -8331,7 +8433,7 @@ ggplot() +
              shape = 21, size = 4, position = position_dodge(width = 0.5)) +
   # scale_colour_brewer(palette = "Set1") +
   luke_theme +
-  theme(legend.position = c(0.5, 0.2),
+  theme(legend.position = c(0.55, 0.1),
         legend.justification = c(1, 0),
         strip.background = element_blank()) +
   xlab("Habitat") + 
@@ -8351,6 +8453,10 @@ labels = c("BSC" = "Bellarine-Surf Coast",
                                  "MP" = "Mornington Peninsula",
                                  "BC" = "Bass Coast",
                                  "PI" = "Phillip Island"))
+
+ggsave(plot = habitat_nest_surv_plot, 
+       filename = "habitat_nest_surv_plot.png", 
+       path = "results/", height = 4, width = 4)
 ```
 
 ## Effect of dogs on nest survival (max counted)
@@ -8432,24 +8538,33 @@ pred.dog_m <-
             pred.dog_m_status_BSC,
             pred.dog_m_status_PI)
 
-ggplot(pred.dog_m, 
-       aes(x = covdata, y = estimate, color = status, fill = status)) +
-  geom_line(size = 1.5) +
-  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2) +
-  scale_colour_brewer(palette = "Dark2", 
+dogs_DSR_plot <- 
+  ggplot(pred.dog_m, 
+       aes(x = covdata, y = estimate)) +
+  geom_line(size = 1, aes(color = status)) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = status), alpha = 0.5) +
+  scale_colour_brewer(palette = "Dark2", direction = -1,
                       labels = c("No management", "Management")) +
-  scale_fill_brewer(palette = "Dark2", 
+  scale_fill_brewer(palette = "Dark2",direction = -1,
                       labels = c("No management", "Management")) +
   scale_x_continuous(breaks = c(0, 5, 10, 15, 20, 25)) +
   luke_theme +
-  theme(legend.position = c(0.25, 0.1),
+  theme(legend.position = c(0.19, 0.1),
         legend.title = element_blank(),
         legend.justification = c(1, 0),
-        strip.background = element_blank()) +
+        strip.background = element_blank(),
+         panel.spacing.x = unit(3, "mm"), 
+        legend.background = element_rect(fill = "transparent")) +
   xlab("Maximum number of dogs exposed to") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
-  facet_grid(. ~ region, labeller = as_labeller(region_names))
+  facet_grid(. ~ region, labeller = as_labeller(region_names_break))
+
+dogs_DSR_plot
+
+ggsave(plot = dogs_DSR_plot, 
+       filename = "dogs_DSR_plot.png", 
+       path = "results/", height = 4, width = 8)
 ```
 
 ## Effect of Dogs off leash on nest survival (max counted)
@@ -8531,24 +8646,33 @@ pred.dof_m <-
             pred.dof_m_status_BSC,
             pred.dof_m_status_PI)
 
-ggplot(pred.dof_m, 
-       aes(x = covdata, y = estimate, color = status, fill = status)) +
-  geom_line(size = 1.5) +
-  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2) +
-  scale_colour_brewer(palette = "Dark2", 
+dogs_unleashed_DSR_plot <- 
+  ggplot(pred.dof_m, 
+         aes(x = covdata, y = estimate)) +
+  geom_line(size = 1, aes(color = status)) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = status), alpha = 0.5) +
+  scale_colour_brewer(palette = "Dark2", direction = -1,
                       labels = c("No management", "Management")) +
-  scale_fill_brewer(palette = "Dark2", 
+  scale_fill_brewer(palette = "Dark2", direction = -1,
                       labels = c("No management", "Management")) +
   scale_x_continuous(breaks = c(0, 5, 10, 15, 20, 25)) +
   luke_theme +
-  theme(legend.position = c(0.25, 0.1),
+  theme(legend.position = c(0.19, 0.1),
         legend.title = element_blank(),
         legend.justification = c(1, 0),
-        strip.background = element_blank()) +
+        strip.background = element_blank(),
+         panel.spacing.x = unit(3, "mm"), 
+        legend.background = element_rect(fill = "transparent")) +
   xlab("Maximum number of dogs off leash exposed to") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
-  facet_grid(. ~ region, labeller = as_labeller(region_names))
+  facet_grid(. ~ region, labeller = as_labeller(region_names_break))
+
+dogs_unleashed_DSR_plot
+
+ggsave(plot = dogs_unleashed_DSR_plot, 
+       filename = "dogs_unleashed_DSR_plot.png", 
+       path = "results/", height = 4, width = 8)
 ```
 
 ## Effect of humans on nest survival (max counted)
@@ -8630,24 +8754,33 @@ pred.hum_m <-
             pred.hum_m_status_BSC,
             pred.hum_m_status_PI)
 
-ggplot(pred.hum_m, 
-       aes(x = covdata, y = estimate, color = status, fill = status)) +
-  geom_line(size = 1.5) +
-  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2) +
-  scale_colour_brewer(palette = "Dark2", 
+humans_DSR_plot <- 
+  ggplot(pred.hum_m, 
+       aes(x = covdata, y = estimate)) +
+  geom_line(size = 1, aes(color = status)) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = status), alpha = 0.5) +
+  scale_colour_brewer(palette = "Dark2", direction = -1, 
                       labels = c("No management", "Management")) +
-  scale_fill_brewer(palette = "Dark2", 
+  scale_fill_brewer(palette = "Dark2", direction = -1, 
                       labels = c("No management", "Management")) +
   scale_x_continuous(breaks = c(0, 10, 20, 30, 40, 50)) +
   luke_theme +
-  theme(legend.position = c(0.25, 0.1),
+  theme(legend.position = c(0.19, 0.1),
         legend.title = element_blank(),
         legend.justification = c(1, 0),
-        strip.background = element_blank()) +
+        strip.background = element_blank(),
+         panel.spacing.x = unit(3, "mm"), 
+        legend.background = element_rect(fill = "transparent")) +
   xlab("Maximum number of humans exposed to") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
-  facet_grid(. ~ region, labeller = as_labeller(region_names))
+  facet_grid(. ~ region, labeller = as_labeller(region_names_break))
+
+humans_DSR_plot
+
+ggsave(plot = humans_DSR_plot, 
+       filename = "humans_DSR_plot.png", 
+       path = "results/", height = 4, width = 8)
 ```
 
 ## Effect of corvids on nest survival (max counted)
@@ -8729,24 +8862,33 @@ pred.pbd_m <-
             pred.pbd_m_status_BSC,
             pred.pbd_m_status_PI)
 
-ggplot(pred.pbd_m, 
-       aes(x = covdata, y = estimate, color = status, fill = status)) +
-  geom_line(size = 1.5) +
-  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2) +
-  scale_colour_brewer(palette = "Dark2", 
+pred_birds_DSR_plot <- 
+  ggplot(pred.pbd_m, 
+         aes(x = covdata, y = estimate)) +
+  geom_line(size = 1, aes(color = status)) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = status), alpha = 0.5) +
+  scale_colour_brewer(palette = "Dark2", direction = -1,
                       labels = c("No management", "Management")) +
-  scale_fill_brewer(palette = "Dark2", 
+  scale_fill_brewer(palette = "Dark2", direction = -1,
                       labels = c("No management", "Management")) +
   scale_x_continuous(breaks = c(0, 5, 10, 15, 20, 25)) +
   luke_theme +
-  theme(legend.position = c(0.25, 0.1),
+  theme(legend.position = c(0.19, 0.1),
         legend.title = element_blank(),
         legend.justification = c(1, 0),
-        strip.background = element_blank()) +
+        strip.background = element_blank(),
+         panel.spacing.x = unit(3, "mm"), 
+        legend.background = element_rect(fill = "transparent")) +
   xlab("Maximum number of ravens and magpies exposed to") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
-  facet_grid(. ~ region, labeller = as_labeller(region_names))
+  facet_grid(. ~ region, labeller = as_labeller(region_names_break))
+
+pred_birds_DSR_plot
+
+ggsave(plot = pred_birds_DSR_plot, 
+       filename = "pred_birds_DSR_plot.png", 
+       path = "results/", height = 4, width = 8)
 ```
 
 ## Effect of gulls on nest survival (max counted)
@@ -8830,24 +8972,34 @@ pred.gul_m <-
             pred.gul_m_status_BSC, 
             pred.gul_m_status_PI)
 
-ggplot(pred.gul_m, 
-       aes(x = covdata, y = estimate, color = status, fill = status)) +
-  geom_line(size = 1.5) +
-  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2) +
-  scale_colour_brewer(palette = "Dark2", 
+gulls_DSR_plot <- 
+  ggplot(pred.gul_m, 
+         aes(x = covdata, y = estimate)) +
+  geom_line(size = 1, aes(color = status)) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = status), alpha = 0.5) +
+  scale_colour_brewer(palette = "Dark2", direction = -1, 
                       labels = c("No management", "Management")) +
-  scale_fill_brewer(palette = "Dark2", 
+  scale_fill_brewer(palette = "Dark2", direction = -1, 
                       labels = c("No management", "Management")) +
   # scale_x_continuous(breaks = c(0, 10, 20, 30, 40, 50, 60, 70)) +
   luke_theme +
-  theme(legend.position = c(0.25, 0.1),
+  theme(legend.position = c(0.19, 0.1),
         legend.title = element_blank(),
         legend.justification = c(1, 0),
-        strip.background = element_blank()) +
+        strip.background = element_blank(),
+         panel.spacing.x = unit(3, "mm"), 
+        legend.background = element_rect(fill = "transparent")) +
   xlab("Maximum number of gulls exposed to") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
   ylim(c(0, 1)) +
-  facet_grid(. ~ region, labeller = as_labeller(region_names))
+  facet_grid(. ~ region, labeller = as_labeller(region_names)) +
+  facet_grid(. ~ region, labeller = as_labeller(region_names_break))
+
+gulls_DSR_plot
+
+ggsave(plot = gulls_DSR_plot, 
+       filename = "gulls_DSR_plot.png", 
+       path = "results/", height = 4, width = 8)
 ```
 
 ## Effect of Fox activity on nest survival (max print level) (NOT RUN IN MODELS)
@@ -9142,13 +9294,13 @@ nest_survival_reals_year <-
 region_labels <- nest_survival_reals_year %>%
   group_by(region) %>%
   summarise(
-    y_top = max(ucl, na.rm = TRUE)
+    y_top = 1.01
   ) %>%
   ungroup() %>%
   mutate(
     x = min(nest_survival_reals_year$season),  # left-aligned at panel start
     y = y_top + 0.04,                           # fixed offset above panel top
-    label = region_names[as.character(region)]
+    label = region_names_no_break[as.character(region)]
   )
 
 # 2️⃣ Clip error bars to panel limits
@@ -9158,10 +9310,11 @@ nest_survival_reals_year <- nest_survival_reals_year %>%
     ucl_clip = pmin(ucl, 1)
   )
 
-ggplot() +
+annual_nest_surv_plot <- 
+  ggplot() +
   geom_line(data = nest_survival_reals_year, 
             aes(x = season, y = estimate, color = region, group = region),
-            position = position_dodge(width = 0.5), alpha = 0.2) +
+            position = position_dodge(width = 0.5), alpha = 0.5, size = 1) +
   geom_errorbar(data = nest_survival_reals_year, 
                 aes(ymin = pmax(lcl,0.7), ymax = pmin(ucl,1), x = season, y = estimate, group = region),
                 position = position_dodge(width = 0.5),
@@ -9179,16 +9332,21 @@ ggplot() +
     strip.text.y = element_blank(),
     strip.background = element_blank(),
     axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-    panel.spacing = grid::unit(1, "lines"),
+    panel.spacing = grid::unit(1.5, "lines"),
     plot.margin = margin(50, 10, 20, 10)) +
   xlab("Season") + 
   ylab("Estimated daily survival rate (± 95% CI)") +
-  coord_cartesian(ylim = c(0.7, 1), clip = "off") +   
+  coord_cartesian(ylim = c(0.7, 1.02), clip = "off") +   
   facet_grid(region ~ ., labeller = as_labeller(region_names),
              scales = "free_y", space = "free_y") +
   scale_colour_brewer(palette = "Dark2") +
   scale_fill_brewer(palette = "Dark2")
 
+annual_nest_surv_plot
+
+ggsave(plot = annual_nest_surv_plot, 
+       filename = "annual_nest_surv_plot.png", 
+       path = "results/", height = 8, width = 8)
 ```
 
 ## Variation within years
@@ -9301,10 +9459,10 @@ nest_survival_reals_dates_FP <-
 nest_survival_season_plot_FP <- 
   ggplot(data = nest_survival_reals_dates_FP) +
   geom_ribbon(aes(x = date, ymin = lcl, ymax = ucl),
-              fill = brewer.pal(8, "Dark2")[c(1)], 
-              alpha = 0.3) +
+              fill = brewer.pal(8, "Dark2")[c(3)], 
+              alpha = 0.5) +
   geom_line(aes(x = date, y = estimate), 
-            color = brewer.pal(8, "Dark2")[c(1)],
+            color = brewer.pal(8, "Dark2")[c(3)],
             size = 1) +
   scale_x_date(date_labels = "%B", 
                expand = c(0.01, 0.01), 
@@ -9326,7 +9484,7 @@ nest_discovery_season_plot_FP <-
              aes(as.Date(FirstFound, origin = "2023-01-01") - 180,
                                fill = Fate)) +
       geom_histogram(bins = 30,
-                     # fill = brewer.pal(8, "Set1")[c(2)], 
+                     fill = brewer.pal(8, "Dark2")[c(3)],
                      alpha = 0.5) +
       scale_fill_manual(values = brewer.pal(8, "Set1")[c(2, 1)],
                         labels = c("Failed", "Hatched")) +
@@ -9368,10 +9526,10 @@ nest_survival_reals_dates_MP <-
 nest_survival_season_plot_MP <- 
   ggplot(data = nest_survival_reals_dates_MP) +
   geom_ribbon(aes(x = date, ymin = lcl, ymax = ucl),
-              fill = brewer.pal(8, "Dark2")[c(1)], 
-              alpha = 0.3) +
+              fill = brewer.pal(8, "Dark2")[c(4)], 
+              alpha = 0.5) +
   geom_line(aes(x = date, y = estimate), 
-            color = brewer.pal(8, "Dark2")[c(1)],
+            color = brewer.pal(8, "Dark2")[c(4)],
             size = 1) +
   scale_x_date(date_labels = "%B", 
                expand = c(0.01, 0.01), 
@@ -9393,7 +9551,7 @@ nest_discovery_season_plot_MP <-
              aes(as.Date(FirstFound, origin = "2023-01-01") - 180,
                                fill = Fate)) +
       geom_histogram(bins = 30,
-                     # fill = brewer.pal(8, "Set1")[c(2)], 
+                     fill = brewer.pal(8, "Dark2")[c(4)],
                      alpha = 0.5) +
       scale_fill_manual(values = brewer.pal(8, "Set1")[c(2, 1)],
                         labels = c("Failed", "Hatched")) +
@@ -9436,7 +9594,7 @@ nest_survival_season_plot_BC <-
   ggplot(data = nest_survival_reals_dates_BC) +
   geom_ribbon(aes(x = date, ymin = lcl, ymax = ucl),
               fill = brewer.pal(8, "Dark2")[c(1)], 
-              alpha = 0.3) +
+              alpha = 0.5) +
   geom_line(aes(x = date, y = estimate), 
             color = brewer.pal(8, "Dark2")[c(1)],
             size = 1) +
@@ -9461,7 +9619,7 @@ nest_discovery_season_plot_BC <-
              aes(as.Date(FirstFound, origin = "2023-01-01") - 180,
                                fill = Fate)) +
       geom_histogram(bins = 30,
-                     # fill = brewer.pal(8, "Set1")[c(2)], 
+                     fill = brewer.pal(8, "Dark2")[c(1)],
                      alpha = 0.5) +
       scale_fill_manual(values = brewer.pal(8, "Set1")[c(2, 1)],
                         labels = c("Failed", "Hatched")) +
@@ -9503,10 +9661,10 @@ nest_survival_reals_dates_BSC <-
 nest_survival_season_plot_BSC <- 
   ggplot(data = nest_survival_reals_dates_BSC) +
   geom_ribbon(aes(x = date, ymin = lcl, ymax = ucl),
-              fill = brewer.pal(8, "Dark2")[c(1)], 
-              alpha = 0.3) +
+              fill = brewer.pal(8, "Dark2")[c(2)], 
+              alpha = 0.5) +
   geom_line(aes(x = date, y = estimate), 
-            color = brewer.pal(8, "Dark2")[c(1)],
+            color = brewer.pal(8, "Dark2")[c(2)],
             size = 1) +
   scale_x_date(date_labels = "%B", 
                expand = c(0.01, 0.01), 
@@ -9528,7 +9686,7 @@ nest_discovery_season_plot_BSC <-
              aes(as.Date(FirstFound, origin = "2023-01-01") - 180,
                                fill = Fate)) +
       geom_histogram(bins = 30,
-                     # fill = brewer.pal(8, "Set1")[c(2)], 
+                     fill = brewer.pal(8, "Dark2")[c(2)],
                      alpha = 0.5) +
       scale_fill_manual(values = brewer.pal(8, "Set1")[c(2, 1)],
                         labels = c("Failed", "Hatched")) +
@@ -9570,10 +9728,10 @@ nest_survival_reals_dates_PI <-
 nest_survival_season_plot_PI <- 
   ggplot(data = nest_survival_reals_dates_PI) +
   geom_ribbon(aes(x = date, ymin = lcl, ymax = ucl),
-              fill = brewer.pal(8, "Dark2")[c(1)], 
-              alpha = 0.3) +
+              fill = brewer.pal(8, "Dark2")[c(5)], 
+              alpha = 0.5) +
   geom_line(aes(x = date, y = estimate), 
-            color = brewer.pal(8, "Dark2")[c(1)],
+            color = brewer.pal(8, "Dark2")[c(5)],
             size = 1) +
   scale_x_date(date_labels = "%B", 
                expand = c(0.01, 0.01), 
@@ -9595,7 +9753,7 @@ nest_discovery_season_plot_PI <-
              aes(as.Date(FirstFound, origin = "2023-01-01") - 180,
                                fill = Fate)) +
       geom_histogram(bins = 30,
-                     # fill = brewer.pal(8, "Set1")[c(2)], 
+                     fill = brewer.pal(8, "Dark2")[c(5)],
                      alpha = 0.5) +
       scale_fill_manual(values = brewer.pal(8, "Set1")[c(2, 1)],
                         labels = c("Failed", "Hatched")) +
@@ -9622,10 +9780,29 @@ hooded_plover_nest_plot_PI <-
   plot_annotation(tag_levels = 'A', title = "Phillip Island")
 
 hooded_plover_nest_plot_FP
+ggsave(plot = hooded_plover_nest_plot_FP, 
+       filename = "seasonal_nest_surv_plot_FP.png", 
+       path = "results/", height = 8, width = 8)
+
 hooded_plover_nest_plot_MP
+ggsave(plot = hooded_plover_nest_plot_MP, 
+       filename = "seasonal_nest_surv_plot_MP.png", 
+       path = "results/", height = 8, width = 8)
+
 hooded_plover_nest_plot_BC
+ggsave(plot = hooded_plover_nest_plot_BC, 
+       filename = "seasonal_nest_surv_plot_BC.png", 
+       path = "results/", height = 8, width = 8)
+
 hooded_plover_nest_plot_BSC
+ggsave(plot = hooded_plover_nest_plot_BSC, 
+       filename = "seasonal_nest_surv_plot_BSC.png", 
+       path = "results/", height = 8, width = 8)
+
 hooded_plover_nest_plot_PI
+ggsave(plot = hooded_plover_nest_plot_PI, 
+       filename = "seasonal_nest_surv_plot_PI.png", 
+       path = "results/", height = 8, width = 8)
 ```
 
 # Chick Survival
@@ -11769,7 +11946,6 @@ PI_chick_ch %>%
 ```
 
 
-
 ##MP
 ### Mark-recapture modelling
 ```{r}
@@ -11789,12 +11965,13 @@ quad_time <- data.frame(time, Quadratic, Cubic)
 funday_cov <- data.frame(time = 0:(MP_chicks.proc$nocc[1]-1),
                          funday = MP_chick_ch$funday[1:MP_chicks.proc$nocc[1]])
 MP_chicks.ddl$p <- merge_design.covariates(MP_chicks.ddl$Phi, 
-                                              quad_time, bygroup = FALSE, bytime = TRUE)
+                                           quad_time, bygroup = FALSE, bytime = TRUE)
 MP_chicks.ddl$Phi <- merge_design.covariates(MP_chicks.ddl$Phi, 
-                                                quad_time, bygroup = FALSE, bytime = TRUE)
+                                             quad_time, bygroup = FALSE, bytime = TRUE)
 MP_chicks.ddl$Phi <- merge_design.covariates(MP_chicks.ddl$Phi, 
                                              funday_cov, bygroup = FALSE, bytime = TRUE)
 ```
+
 ### Detection probability modelling
 ```{r}
 # First assess the best model structure of encounter probability (p) while
@@ -11864,7 +12041,7 @@ MP_chicks_p=function()
 MP_chicks_p_run <- MP_chicks_p()
 
 # inspect p AIC table to find top model
-MP_chicks_p_run # best structure: p(~season + Quadratic)
+MP_chicks_p_run # best structures under 2 DeltaAICc: p(~season + Quadratic), p(~season * Quadratic), p(~Quadratic)
 
 saveRDS(MP_chicks_p_run, "output/MP_chicks_p_run.rds")
 
@@ -11928,6 +12105,7 @@ MP_chicks_p_run$model.table %>%
     table.width = pct(80))
 
 ```
+
 ### Extract results and visualize p
 ```{r}
 MP_chicks_p_run <- readRDS("output/MP_chicks_p_run.rds")
@@ -12060,58 +12238,16 @@ MP_chicks_Phi <- function()
    # Interaction between funday and management status
   Phi.funday.x.mgmt_s <-
     list(formula = ~ funday * mgmt_s)
-
-  # # additive effect of hach date and age and management level
-  # Phi.date.age.mgmt_l <-
-  #   list(formula = ~date_j + Time + mgmt_l)
-  # 
-  # # additive effect of hatch date and quadratic age and management level
-  # Phi.date.quadage.mgmt_l <-
-  #   list(formula = ~date_j + Quadratic + mgmt_l)
-  # 
-  # # interaction between hatch date and age and management level
-  # Phi.date.x.age.mgmt_l <-
-  #   list(formula = ~date_j * Time + mgmt_l)
-  # 
-  # # interaction between hatch date and quadratic age and management level
-  # Phi.date.x.quadage.mgmt_l <-
-  #   list(formula = ~date_j * Quadratic + mgmt_l)
-  # 
-  # # interaction between year and hatch date and management level
-  # Phi.season.x.date.mgmt_l <-
-  #   list(formula = ~season * date_j + mgmt_l)
-  # 
-  # # additive between year and hatch date and management level
-  # Phi.season.date.mgmt_l <-
-  #   list(formula = ~season + date_j + mgmt_l)
-  # 
-  # # additive effect of hach date and age and management status
-  # Phi.date.age.mgmt_s <-
-  #   list(formula = ~date_j + Time + mgmt_s)
-  # 
-  # # additive effect of hatch date and quadratic age and management status
-  # Phi.date.quadage.mgmt_s <-
-  #   list(formula = ~date_j + Quadratic + mgmt_s)
-  # 
-  # # interaction between hatch date and age and management status
-  # Phi.date.x.age.mgmt_s <-
-  #   list(formula = ~date_j * Time + mgmt_s)
-  # 
-  # # interaction between hatch date and quadratic age and management status
-  # Phi.date.x.quadage.mgmt_s <-
-  #   list(formula = ~date_j * Quadratic + mgmt_s)
-  # 
-  # # interaction between year and hatch date and management status
-  # Phi.season.x.date.mgmt_s <-
-  #   list(formula = ~season * date_j + mgmt_s)
-  # 
-  # # additive between year and hatch date and management status
-  # Phi.season.date.mgmt_s <-
-  #   list(formula = ~season + date_j + mgmt_s)
-  # 
-  # # best structure of p determined from previous analysis
+  
+  # # best structures of p determined from previous analysis
   p.quadage <-
     list(formula = ~Quadratic)
+  
+  p.season_quadage <-
+  list(formula = ~season + Quadratic)
+  
+  p.season_x_quadage <-
+  list(formula = ~season * Quadratic)
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
@@ -12201,91 +12337,104 @@ MP_chicks_Phi_run$model.table %>%
 MP_chicks_Phi_run <- readRDS("output/MP_chicks_Phi_run.rds")
 
 # Extract estimates of survival from top models
-MP_Chick_dot_surv <- MP_chicks_Phi_run[[13]]$results$real
-MP_Chick_quadage_surv <- MP_chicks_Phi_run[[23]]$results$real
-MP_Chick_hatch_date_surv <- MP_chicks_Phi_run[[8]]$results$real
-MP_Chick_mgmt_s_surv <- MP_chicks_Phi_run[[20]]$results$real
-MP_Chick_mgmt_l_surv <- MP_chicks_Phi_run[[19]]$results$real
-MP_Chick_mgmt_s_x_quadage_surv <- MP_chicks_Phi_run[[25]]$results$real
-MP_Chick_mgmt_s_quadage_surv <- MP_chicks_Phi_run[[22]]$results$real
-MP_Chick_mgmt_l_quadage_surv <- MP_chicks_Phi_run[[21]]$results$real
-MP_Chick_funday_mgmt_s_surv  <- MP_chicks_Phi_run[[15]]$results$real # second most convincing based on a priori hypothesis and more parsimonious)
-MP_Chick_funday_mgmt_l_surv  <- MP_chicks_Phi_run[[14]]$results$real # TOP MODEL (and most convincing based on a priori hypothesis)
-MP_Chick_funday_surv            <- MP_chicks_Phi_run[[16]]$results$real
-MP_Chick_funday_x_mgmt_s_surv   <- MP_chicks_Phi_run[[18]]$results$real
-MP_Chick_funday_x_mgmt_l_surv   <- MP_chicks_Phi_run[[17]]$results$real
+MP_s_funday_mgmt_l_p_quadage_x_year_surv <- MP_chicks_Phi_run[[42]]$results$real
 
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_dot_surv), " ", n = 5))
-MP_Chick_dot_surv <- cbind(Groups, MP_Chick_dot_surv)
-MP_Chick_dot_surv$season <- unlist(substr(MP_Chick_dot_surv$X2, 2, 7))
-MP_Chick_dot_surv$age <- as.numeric(sub("^a", "", MP_Chick_dot_surv$X4))
-MP_Chick_dot_surv$mgmt_s <- unlist(substr(MP_Chick_dot_surv$X2, 11, 11))
+Groups <- 
+  data.frame(str_split_fixed(rownames(MP_s_funday_mgmt_l_p_quadage_x_year_surv), " ", n = 5))
+MP_s_funday_mgmt_l_p_quadage_x_year_surv <- 
+  cbind(Groups, MP_s_funday_mgmt_l_p_quadage_x_year_surv)
+MP_s_funday_mgmt_l_p_quadage_x_year_surv$season <-
+  unlist(substr(MP_s_funday_mgmt_l_p_quadage_x_year_surv$X2, 2, 7))
+MP_s_funday_mgmt_l_p_quadage_x_year_surv$age <- 
+  as.numeric(sub("^a", "", MP_s_funday_mgmt_l_p_quadage_x_year_surv$X4))
+MP_s_funday_mgmt_l_p_quadage_x_year_surv$mgmt_s <-
+  unlist(substr(MP_s_funday_mgmt_l_p_quadage_x_year_surv$X2, 11, 11))
 
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_quadage_surv), " ", n = 5))
-MP_Chick_quadage_surv <- cbind(Groups, MP_Chick_quadage_surv)
-MP_Chick_quadage_surv$season <- unlist(substr(MP_Chick_quadage_surv$X2, 2, 7))
-MP_Chick_quadage_surv$age <- as.numeric(sub("^a", "", MP_Chick_quadage_surv$X4))
-MP_Chick_quadage_surv$mgmt_s <- unlist(substr(MP_Chick_quadage_surv$X2, 11, 11))
+# MP_Chick_dot_surv <- MP_chicks_Phi_run[[13]]$results$real
+# MP_Chick_quadage_surv <- MP_chicks_Phi_run[[23]]$results$real
+# MP_Chick_hatch_date_surv <- MP_chicks_Phi_run[[8]]$results$real
+# MP_Chick_mgmt_s_surv <- MP_chicks_Phi_run[[20]]$results$real
+# MP_Chick_mgmt_l_surv <- MP_chicks_Phi_run[[19]]$results$real
+# MP_Chick_mgmt_s_x_quadage_surv <- MP_chicks_Phi_run[[25]]$results$real
+# MP_Chick_mgmt_s_quadage_surv <- MP_chicks_Phi_run[[22]]$results$real
+# MP_Chick_mgmt_l_quadage_surv <- MP_chicks_Phi_run[[21]]$results$real
+# MP_Chick_funday_mgmt_s_surv  <- MP_chicks_Phi_run[[15]]$results$real # second most convincing based on a priori hypothesis and more parsimonious)
+# MP_Chick_funday_mgmt_l_surv  <- MP_chicks_Phi_run[[14]]$results$real # TOP MODEL (and most convincing based on a priori hypothesis)
+# MP_Chick_funday_surv            <- MP_chicks_Phi_run[[16]]$results$real
+# MP_Chick_funday_x_mgmt_s_surv   <- MP_chicks_Phi_run[[18]]$results$real
+# MP_Chick_funday_x_mgmt_l_surv   <- MP_chicks_Phi_run[[17]]$results$real
 
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_hatch_date_surv), " ", n = 5))
-MP_Chick_hatch_date_surv <- cbind(Groups, MP_Chick_hatch_date_surv)
-MP_Chick_hatch_date_surv$season <- unlist(substr(MP_Chick_hatch_date_surv$X2, 2, 7))
-MP_Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", MP_Chick_hatch_date_surv$X4))
-MP_Chick_hatch_date_surv$mgmt_s <- unlist(substr(MP_Chick_hatch_date_surv$X2, 11, 11))
-
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_s_surv), " ", n = 5))
-MP_Chick_mgmt_s_surv <- cbind(Groups, MP_Chick_mgmt_s_surv)
-MP_Chick_mgmt_s_surv$season <- unlist(substr(MP_Chick_mgmt_s_surv$X2, 2, 7))
-MP_Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_s_surv$X4))
-MP_Chick_mgmt_s_surv$mgmt_s <- unlist(substr(MP_Chick_mgmt_s_surv$X2, 11, 11))
-
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_l_surv), " ", n = 5))
-MP_Chick_mgmt_l_surv <- cbind(Groups, MP_Chick_mgmt_l_surv)
-MP_Chick_mgmt_l_surv$season <- unlist(substr(MP_Chick_mgmt_l_surv$X2, 2, 7))
-MP_Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_l_surv$X4))
-MP_Chick_mgmt_l_surv$mgmt_l <- unlist(substr(MP_Chick_mgmt_l_surv$X2, 10, 10))
-
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_s_quadage_surv), " ", n = 5))
-MP_Chick_mgmt_s_quadage_surv <- cbind(Groups, MP_Chick_mgmt_s_quadage_surv)
-MP_Chick_mgmt_s_quadage_surv$season <- unlist(substr(MP_Chick_mgmt_s_quadage_surv$X2, 2, 7))
-MP_Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_s_quadage_surv$X4))
-MP_Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(MP_Chick_mgmt_s_quadage_surv$X2, 11, 11))
-
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_s_x_quadage_surv), " ", n = 5))
-MP_Chick_mgmt_s_x_quadage_surv <- cbind(Groups, MP_Chick_mgmt_s_x_quadage_surv)
-MP_Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(MP_Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
-MP_Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_s_x_quadage_surv$X4))
-MP_Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(MP_Chick_mgmt_s_x_quadage_surv$X2, 11, 11))
-
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_l_quadage_surv), " ", n = 5))
-MP_Chick_mgmt_l_quadage_surv <- cbind(Groups, MP_Chick_mgmt_l_quadage_surv)
-MP_Chick_mgmt_l_quadage_surv$season <- unlist(substr(MP_Chick_mgmt_l_quadage_surv$X2, 2, 7))
-MP_Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_l_quadage_surv$X4))
-MP_Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(MP_Chick_mgmt_l_quadage_surv$X2, 10, 10))
-
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_x_mgmt_s_surv), " ", n = 5))
-MP_Chick_funday_x_mgmt_s_surv <- cbind(Groups, MP_Chick_funday_x_mgmt_s_surv)
-MP_Chick_funday_x_mgmt_s_surv$season <- unlist(substr(MP_Chick_funday_x_mgmt_s_surv$X2, 2, 7))
-MP_Chick_funday_x_mgmt_s_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_x_mgmt_s_surv$X4))
-MP_Chick_funday_x_mgmt_s_surv$mgmt_l <- unlist(substr(MP_Chick_funday_x_mgmt_s_surv$X2, 10, 10))
-
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_x_mgmt_l_surv), " ", n = 5))
-MP_Chick_funday_x_mgmt_l_surv <- cbind(Groups, MP_Chick_funday_x_mgmt_l_surv)
-MP_Chick_funday_x_mgmt_l_surv$season <- unlist(substr(MP_Chick_funday_x_mgmt_l_surv$X2, 2, 7))
-MP_Chick_funday_x_mgmt_l_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_x_mgmt_l_surv$X4))
-MP_Chick_funday_x_mgmt_l_surv$mgmt_l <- unlist(substr(MP_Chick_funday_x_mgmt_l_surv$X2, 10, 10))
-
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_mgmt_s_surv), " ", n = 5))
-MP_Chick_funday_mgmt_s_surv <- cbind(Groups, MP_Chick_funday_mgmt_s_surv)
-MP_Chick_funday_mgmt_s_surv$season <- unlist(substr(MP_Chick_funday_mgmt_s_surv$X2, 2, 7))
-MP_Chick_funday_mgmt_s_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_mgmt_s_surv$X4))
-MP_Chick_funday_mgmt_s_surv$mgmt_s <- unlist(substr(MP_Chick_funday_mgmt_s_surv$X2, 11, 11))
-
-Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_surv), " ", n = 5))
-MP_Chick_funday_surv <- cbind(Groups, MP_Chick_funday_surv)
-MP_Chick_funday_surv$season <- unlist(substr(MP_Chick_funday_surv$X2, 2, 7))
-MP_Chick_funday_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_surv$X4))
-MP_Chick_funday_surv$mgmt_s <- unlist(substr(MP_Chick_funday_surv$X2, 11, 11))
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_dot_surv), " ", n = 5))
+# MP_Chick_dot_surv <- cbind(Groups, MP_Chick_dot_surv)
+# MP_Chick_dot_surv$season <- unlist(substr(MP_Chick_dot_surv$X2, 2, 7))
+# MP_Chick_dot_surv$age <- as.numeric(sub("^a", "", MP_Chick_dot_surv$X4))
+# MP_Chick_dot_surv$mgmt_s <- unlist(substr(MP_Chick_dot_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_quadage_surv), " ", n = 5))
+# MP_Chick_quadage_surv <- cbind(Groups, MP_Chick_quadage_surv)
+# MP_Chick_quadage_surv$season <- unlist(substr(MP_Chick_quadage_surv$X2, 2, 7))
+# MP_Chick_quadage_surv$age <- as.numeric(sub("^a", "", MP_Chick_quadage_surv$X4))
+# MP_Chick_quadage_surv$mgmt_s <- unlist(substr(MP_Chick_quadage_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_hatch_date_surv), " ", n = 5))
+# MP_Chick_hatch_date_surv <- cbind(Groups, MP_Chick_hatch_date_surv)
+# MP_Chick_hatch_date_surv$season <- unlist(substr(MP_Chick_hatch_date_surv$X2, 2, 7))
+# MP_Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", MP_Chick_hatch_date_surv$X4))
+# MP_Chick_hatch_date_surv$mgmt_s <- unlist(substr(MP_Chick_hatch_date_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_s_surv), " ", n = 5))
+# MP_Chick_mgmt_s_surv <- cbind(Groups, MP_Chick_mgmt_s_surv)
+# MP_Chick_mgmt_s_surv$season <- unlist(substr(MP_Chick_mgmt_s_surv$X2, 2, 7))
+# MP_Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_s_surv$X4))
+# MP_Chick_mgmt_s_surv$mgmt_s <- unlist(substr(MP_Chick_mgmt_s_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_l_surv), " ", n = 5))
+# MP_Chick_mgmt_l_surv <- cbind(Groups, MP_Chick_mgmt_l_surv)
+# MP_Chick_mgmt_l_surv$season <- unlist(substr(MP_Chick_mgmt_l_surv$X2, 2, 7))
+# MP_Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_l_surv$X4))
+# MP_Chick_mgmt_l_surv$mgmt_l <- unlist(substr(MP_Chick_mgmt_l_surv$X2, 10, 10))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_s_quadage_surv), " ", n = 5))
+# MP_Chick_mgmt_s_quadage_surv <- cbind(Groups, MP_Chick_mgmt_s_quadage_surv)
+# MP_Chick_mgmt_s_quadage_surv$season <- unlist(substr(MP_Chick_mgmt_s_quadage_surv$X2, 2, 7))
+# MP_Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_s_quadage_surv$X4))
+# MP_Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(MP_Chick_mgmt_s_quadage_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_s_x_quadage_surv), " ", n = 5))
+# MP_Chick_mgmt_s_x_quadage_surv <- cbind(Groups, MP_Chick_mgmt_s_x_quadage_surv)
+# MP_Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(MP_Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
+# MP_Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_s_x_quadage_surv$X4))
+# MP_Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(MP_Chick_mgmt_s_x_quadage_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_mgmt_l_quadage_surv), " ", n = 5))
+# MP_Chick_mgmt_l_quadage_surv <- cbind(Groups, MP_Chick_mgmt_l_quadage_surv)
+# MP_Chick_mgmt_l_quadage_surv$season <- unlist(substr(MP_Chick_mgmt_l_quadage_surv$X2, 2, 7))
+# MP_Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", MP_Chick_mgmt_l_quadage_surv$X4))
+# MP_Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(MP_Chick_mgmt_l_quadage_surv$X2, 10, 10))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_x_mgmt_s_surv), " ", n = 5))
+# MP_Chick_funday_x_mgmt_s_surv <- cbind(Groups, MP_Chick_funday_x_mgmt_s_surv)
+# MP_Chick_funday_x_mgmt_s_surv$season <- unlist(substr(MP_Chick_funday_x_mgmt_s_surv$X2, 2, 7))
+# MP_Chick_funday_x_mgmt_s_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_x_mgmt_s_surv$X4))
+# MP_Chick_funday_x_mgmt_s_surv$mgmt_l <- unlist(substr(MP_Chick_funday_x_mgmt_s_surv$X2, 10, 10))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_x_mgmt_l_surv), " ", n = 5))
+# MP_Chick_funday_x_mgmt_l_surv <- cbind(Groups, MP_Chick_funday_x_mgmt_l_surv)
+# MP_Chick_funday_x_mgmt_l_surv$season <- unlist(substr(MP_Chick_funday_x_mgmt_l_surv$X2, 2, 7))
+# MP_Chick_funday_x_mgmt_l_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_x_mgmt_l_surv$X4))
+# MP_Chick_funday_x_mgmt_l_surv$mgmt_l <- unlist(substr(MP_Chick_funday_x_mgmt_l_surv$X2, 10, 10))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_mgmt_s_surv), " ", n = 5))
+# MP_Chick_funday_mgmt_s_surv <- cbind(Groups, MP_Chick_funday_mgmt_s_surv)
+# MP_Chick_funday_mgmt_s_surv$season <- unlist(substr(MP_Chick_funday_mgmt_s_surv$X2, 2, 7))
+# MP_Chick_funday_mgmt_s_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_mgmt_s_surv$X4))
+# MP_Chick_funday_mgmt_s_surv$mgmt_s <- unlist(substr(MP_Chick_funday_mgmt_s_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(MP_Chick_funday_surv), " ", n = 5))
+# MP_Chick_funday_surv <- cbind(Groups, MP_Chick_funday_surv)
+# MP_Chick_funday_surv$season <- unlist(substr(MP_Chick_funday_surv$X2, 2, 7))
+# MP_Chick_funday_surv$age <- as.numeric(sub("^a", "", MP_Chick_funday_surv$X4))
+# MP_Chick_funday_surv$mgmt_s <- unlist(substr(MP_Chick_funday_surv$X2, 11, 11))
 ```
 
 ### Plot the effect of funday exposure under different managment levels
@@ -12301,10 +12450,10 @@ Our model shows that the probability of daily survival decreases with increasing
 ### plot the survival trend of the Phi(~funday + mgmt_l)p(~Quadratic) model ----
 # extract the beta and vcv estimates
 funday_mgmt_l_vcv <- 
-  MP_chicks_Phi_run[[14]]$results$beta.vcv
+  MP_chicks_Phi_run[[42]]$results$beta.vcv
 
 funday_mgmt_l_betas <- 
-  MP_chicks_Phi_run[[14]]$results$beta
+  MP_chicks_Phi_run[[42]]$results$beta
 
 # Assign the correct names to the vcv matrix
 rownames(funday_mgmt_l_vcv) <- rownames(funday_mgmt_l_betas)
@@ -12378,11 +12527,16 @@ pred_df <- bind_rows(pred_list)
 # --- Plot ---
 library(ggplot2)
 
+# Extract two Dark2 colors
+cols <- brewer.pal(3, "Dark2")[1:2]  # pick first two colors
+
 MP_chick_ch %>% pull(mgmt_l) %>% table()
 # note that I removed the prediction of the management level 2 because it failed to properly estimate this likely due to low sample size (only 4 broods experienced this treatment)
-ggplot(pred_df %>% 
+
+fundays_mgmt_l_brood_surv_plot <- 
+  ggplot(pred_df %>% 
          filter(mgmt_l != 2), 
-       aes(x = funday, y = mean, color = factor(mgmt_l), fill = factor(mgmt_l))) +
+       aes(x = funday, y = mean, color = as.numeric(mgmt_l), fill = as.numeric(mgmt_l))) +
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
   labs(x = "Number of fundays (weekend days and holidays) exposed to", 
@@ -12390,7 +12544,23 @@ ggplot(pred_df %>%
     fill = "Management\nlevel"    # line break with \n
   ) +
   theme_minimal() +
-  facet_grid(. ~ mgmt_l)
+  facet_grid(. ~ mgmt_l) +
+  scale_color_gradient(
+    low = cols[2],  # from Dark2[2]
+    high = cols[1]  # to Dark2[1]
+  ) +
+  scale_fill_gradient(
+    low = cols[2],  # from Dark2[2]
+    high = cols[1]  # to Dark2[1]
+  ) +
+  luke_theme +
+  theme(legend.position = "none")
+
+fundays_mgmt_l_brood_surv_plot
+
+ggsave(plot = fundays_mgmt_l_brood_surv_plot, 
+       filename = "fundays_mgmt_l_brood_surv_plot.png", 
+       path = "results/", height = 4, width = 8)
 ```
 
 ```{r}
@@ -12821,62 +12991,19 @@ BC_chicks_Phi <- function()
    # Interaction between funday and management status
   Phi.funday.x.mgmt_s <-
     list(formula = ~ funday * mgmt_s)
-
-  # # additive effect of hach date and age and management level
-  # Phi.date.age.mgmt_l <-
-  #   list(formula = ~date_j + Time + mgmt_l)
-  # 
-  # # additive effect of hatch date and quadratic age and management level
-  # Phi.date.quadage.mgmt_l <-
-  #   list(formula = ~date_j + Quadratic + mgmt_l)
-  # 
-  # # interaction between hatch date and age and management level
-  # Phi.date.x.age.mgmt_l <-
-  #   list(formula = ~date_j * Time + mgmt_l)
-  # 
-  # # interaction between hatch date and quadratic age and management level
-  # Phi.date.x.quadage.mgmt_l <-
-  #   list(formula = ~date_j * Quadratic + mgmt_l)
-  # 
-  # # interaction between year and hatch date and management level
-  # Phi.season.x.date.mgmt_l <-
-  #   list(formula = ~season * date_j + mgmt_l)
-  # 
-  # # additive between year and hatch date and management level
-  # Phi.season.date.mgmt_l <-
-  #   list(formula = ~season + date_j + mgmt_l)
-  # 
-  # # additive effect of hach date and age and management status
-  # Phi.date.age.mgmt_s <-
-  #   list(formula = ~date_j + Time + mgmt_s)
-  # 
-  # # additive effect of hatch date and quadratic age and management status
-  # Phi.date.quadage.mgmt_s <-
-  #   list(formula = ~date_j + Quadratic + mgmt_s)
-  # 
-  # # interaction between hatch date and age and management status
-  # Phi.date.x.age.mgmt_s <-
-  #   list(formula = ~date_j * Time + mgmt_s)
-  # 
-  # # interaction between hatch date and quadratic age and management status
-  # Phi.date.x.quadage.mgmt_s <-
-  #   list(formula = ~date_j * Quadratic + mgmt_s)
-  # 
-  # # interaction between year and hatch date and management status
-  # Phi.season.x.date.mgmt_s <-
-  #   list(formula = ~season * date_j + mgmt_s)
-  # 
-  # # additive between year and hatch date and management status
-  # Phi.season.date.mgmt_s <-
-  #   list(formula = ~season + date_j + mgmt_s)
-  # 
-  # # best structure of p determined from previous analysis
-  # p.year.x.quadage <- 
-  #   list(formula = ~season * Quadratic)
   
-    # best structure of p determined from previous analysis
- p.dot <- 
+    # best structures of p determined from previous analysis
+  p.dot <- 
     list(formula = ~1)
+ 
+  p.quadage <- 
+    list(formula = ~Quadratic)
+  
+  p.date_j <- 
+    list(formula = ~date_j)
+    
+  p.age <- 
+    list(formula = ~Time)
  
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
@@ -12960,162 +13087,48 @@ BC_chicks_Phi_run$model.table %>%
     row_group.font.size = 12,
     table.width = pct(80))
 ```
+
 ### Extract results and visualize Phi
 ```{r}
 BC_chicks_Phi_run <- readRDS("output/BC_chicks_Phi_run.rds")
 
-# Extract estimates of survival from top models
-BC_Chick_dot_surv <- BC_chicks_Phi_run[[13]]$results$real
-BC_Chick_hatch_date_x_mgmt_s_surv <- BC_chicks_Phi_run[[11]]$results$real
-BC_Chick_quadage_surv <- BC_chicks_Phi_run[[23]]$results$real
-BC_Chick_hatch_date_surv <- BC_chicks_Phi_run[[8]]$results$real
-BC_Chick_mgmt_s_surv <- BC_chicks_Phi_run[[15]]$results$real
-BC_Chick_mgmt_l_surv <- BC_chicks_Phi_run[[14]]$results$real
-BC_Chick_mgmt_s_x_quadage_surv <- BC_chicks_Phi_run[[20]]$results$real
-BC_Chick_mgmt_s_quadage_surv <- BC_chicks_Phi_run[[17]]$results$real
-BC_Chick_mgmt_l_quadage_surv <- BC_chicks_Phi_run[[16]]$results$real
+# Extract estimates of survival from top model (the constant model is the 
+# most parsimonious, and so let's go with that one)
+BC_Chick_dot_surv <- BC_chicks_Phi_run[[51]]$results$real
 
 Groups <- data.frame(str_split_fixed(rownames(BC_Chick_dot_surv), " ", n = 5))
 BC_Chick_dot_surv <- cbind(Groups, BC_Chick_dot_surv)
 BC_Chick_dot_surv$season <- unlist(substr(BC_Chick_dot_surv$X2, 2, 7))
 BC_Chick_dot_surv$age <- as.numeric(sub("^a", "", BC_Chick_dot_surv$X4))
-BC_Chick_dot_surv$mgmt_s <- unlist(substr(BC_Chick_dot_surv$X2, 11, 11))
+BC_Chick_dot_surv$mgmt_l <- unlist(substr(BC_Chick_dot_surv$X2, 10, 10))
 
-Groups <- data.frame(str_split_fixed(rownames(BC_Chick_quadage_surv), " ", n = 5))
-BC_Chick_quadage_surv <- cbind(Groups, BC_Chick_quadage_surv)
-BC_Chick_quadage_surv$season <- unlist(substr(BC_Chick_quadage_surv$X2, 2, 7))
-BC_Chick_quadage_surv$age <- as.numeric(sub("^a", "", BC_Chick_quadage_surv$X4))
-BC_Chick_quadage_surv$mgmt_s <- unlist(substr(BC_Chick_quadage_surv$X2, 11, 11))
+constant_plot_BC <- 
+  ggplot() +
+  geom_errorbar(data = BC_Chick_dot_surv %>% filter(X1 == "Phi"), 
+                aes(ymin = lcl, ymax = ucl, 
+                    x = 1, 
+                    y = estimate),
+                alpha = 0.5, color = "black", width = 0.1, lwd = 0.5) +
+  geom_point(data = BC_Chick_dot_surv %>% filter(X1 == "Phi"), 
+             aes(x = 1, y = estimate),
+             shape = 21, size = 4, fill = "grey80") +
+  scale_colour_brewer(palette = "Set1") +
+  luke_theme +
+  theme(legend.position = c(0.55, 0.05),
+        legend.justification = c(1, 0),
+        strip.background = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank()) +
+  xlab("Management level") + 
+  ylab("Estimated daily survival rate (± 95% CI)") +
+  ylim(c(0.4, 1)) +
+  xlim(c(0.5, 1.5))
 
-Groups <- data.frame(str_split_fixed(rownames(BC_Chick_hatch_date_surv), " ", n = 5))
-BC_Chick_hatch_date_surv <- cbind(Groups, BC_Chick_hatch_date_surv)
-BC_Chick_hatch_date_surv$season <- unlist(substr(BC_Chick_hatch_date_surv$X2, 2, 7))
-BC_Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", BC_Chick_hatch_date_surv$X4))
-BC_Chick_hatch_date_surv$mgmt_s <- unlist(substr(BC_Chick_hatch_date_surv$X2, 11, 11))
+constant_plot_BC
 
-Groups <- data.frame(str_split_fixed(rownames(BC_Chick_mgmt_s_surv), " ", n = 5))
-BC_Chick_mgmt_s_surv <- cbind(Groups, BC_Chick_mgmt_s_surv)
-BC_Chick_mgmt_s_surv$season <- unlist(substr(BC_Chick_mgmt_s_surv$X2, 2, 7))
-BC_Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", BC_Chick_mgmt_s_surv$X4))
-BC_Chick_mgmt_s_surv$mgmt_s <- unlist(substr(BC_Chick_mgmt_s_surv$X2, 11, 11))
-
-Groups <- data.frame(str_split_fixed(rownames(BC_Chick_mgmt_l_surv), " ", n = 5))
-BC_Chick_mgmt_l_surv <- cbind(Groups, BC_Chick_mgmt_l_surv)
-BC_Chick_mgmt_l_surv$season <- unlist(substr(BC_Chick_mgmt_l_surv$X2, 2, 7))
-BC_Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", BC_Chick_mgmt_l_surv$X4))
-BC_Chick_mgmt_l_surv$mgmt_l <- unlist(substr(BC_Chick_mgmt_l_surv$X2, 10, 10))
-
-Groups <- data.frame(str_split_fixed(rownames(BC_Chick_mgmt_s_quadage_surv), " ", n = 5))
-BC_Chick_mgmt_s_quadage_surv <- cbind(Groups, BC_Chick_mgmt_s_quadage_surv)
-BC_Chick_mgmt_s_quadage_surv$season <- unlist(substr(BC_Chick_mgmt_s_quadage_surv$X2, 2, 7))
-BC_Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", BC_Chick_mgmt_s_quadage_surv$X4))
-BC_Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(BC_Chick_mgmt_s_quadage_surv$X2, 11, 11))
-
-Groups <- data.frame(str_split_fixed(rownames(BC_Chick_mgmt_s_x_quadage_surv), " ", n = 5))
-BC_Chick_mgmt_s_x_quadage_surv <- cbind(Groups, BC_Chick_mgmt_s_x_quadage_surv)
-BC_Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(BC_Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
-BC_Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", BC_Chick_mgmt_s_x_quadage_surv$X4))
-BC_Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(BC_Chick_mgmt_s_x_quadage_surv$X2, 11, 11))
-
-Groups <- data.frame(str_split_fixed(rownames(BC_Chick_mgmt_l_quadage_surv), " ", n = 5))
-BC_Chick_mgmt_l_quadage_surv <- cbind(Groups, BC_Chick_mgmt_l_quadage_surv)
-BC_Chick_mgmt_l_quadage_surv$season <- unlist(substr(BC_Chick_mgmt_l_quadage_surv$X2, 2, 7))
-BC_Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", BC_Chick_mgmt_l_quadage_surv$X4))
-BC_Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(BC_Chick_mgmt_l_quadage_surv$X2, 10, 10))
-
-# constant survival
-ggplot() +
-  geom_line(data = BC_Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = BC_Chick_dot_surv, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
-  scale_color_gradient(
-    low = "black",
-    high = "red",
-    name = "season"
-  ) +
-  scale_fill_gradient(
-    low = "black",
-    high = "red",
-    name = "season"
-  ) +
-  ylab("daily brood survival (± 95% CI)") +
-  xlab("brood age (days)")
-
-# quadratic age-dependent survival
-ggplot() +
-  geom_line(data = filter(BC_Chick_quadage_surv, X1 == "Phi"), 
-            aes(x = age, y = estimate)) +
-  geom_ribbon(data = filter(BC_Chick_quadage_surv, X1 == "Phi"), 
-              aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
-  ylab("daily brood survival (± 95% CI)") +
-  xlab("brood age (days)")
-
-# quadratic age-dependent survival and management status
-ggplot() +
-  geom_line(data = filter(BC_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
-            aes(x = age, y = estimate, color = mgmt_s)) +
-  geom_ribbon(data = filter(BC_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
-              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("daily brood survival (± 95% CI)") +
-  xlab("brood age (days)")
-
-# quadratic age-dependent survival and management level
-ggplot() +
-  geom_line(data = filter(BC_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
-            aes(x = age, y = estimate, color = mgmt_l)) +
-  geom_ribbon(data = filter(BC_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
-              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
-  ylab("daily brood survival (± 95% CI)") +
-  xlab("brood age (days)")
-
-# quadratic age-dependent survival and management status
-ggplot() +
-  geom_line(data = filter(BC_Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
-            aes(x = age, y = estimate, color = mgmt_s)) +
-  geom_ribbon(data = filter(BC_Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
-              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("daily brood survival (± 95% CI)") +
-  xlab("brood age (days)")
-
-# management status-dependent survival
-ggplot() +
-  geom_point(data = filter(BC_Chick_mgmt_s_surv, X1 == "Phi"), 
-            aes(x = mgmt_s, y = estimate, color = mgmt_s)) +
-  geom_errorbar(data = filter(BC_Chick_mgmt_s_surv, X1 == "Phi"), 
-              aes(x = mgmt_s, ymin = lcl, ymax = ucl, color = mgmt_s)) +
-  ylab("daily brood survival (± 95% CI)") +
-  xlab("managed?") +
-  scale_y_continuous(limits = c(0, 1))
-
-# management level-dependent survival
-ggplot() +
-  geom_point(data = filter(BC_Chick_mgmt_l_surv, X1 == "Phi"), 
-            aes(x = mgmt_l, y = estimate, color = mgmt_l)) +
-  geom_errorbar(data = filter(BC_Chick_mgmt_l_surv, X1 == "Phi"), 
-              aes(x = mgmt_l, ymin = lcl, ymax = ucl, color = mgmt_l)) +
-  ylab("daily brood survival (± 95% CI)") +
-  xlab("Managed?") +
-  scale_y_continuous(limits = c(0, 1))
-
-
-filter(BC_Chick_dot_surv, X1 == "Phi") %>% 
-  mutate(fledgling_success = estimate^35)
-
-# seasonal dependent survival (hatch date)
-# ggplot() +
-#   geom_line(data = Chick_p_reals, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-#   geom_ribbon(data = Chick_p_reals, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
-#   scale_color_gradient(
-#     low = "black",
-#     high = "red",
-#     name = "season"
-#   ) +
-#   scale_fill_gradient(
-#     low = "black",
-#     high = "red",
-#     name = "season"
-#   ) +
-#   ylab("detection probability of a brood") +
-#   xlab("brood age (days)")
+ggsave(plot = constant_plot_BC, 
+       filename = "constant_plot_BC.png", 
+       path = "results/", height = 4, width = 4)
 ```
 
 
@@ -13575,56 +13588,56 @@ BSC_chicks_Phi_run <- readRDS("output/BSC_chicks_Phi_run.rds")
 
 # Extract estimates of survival from top models
 #BSC_Chick_dot_surv <- BSC_chicks_Phi_run[[13]]$results$real
-BSC_Chick_quadage_surv <- BSC_chicks_Phi_run[[23]]$results$real
+# BSC_Chick_quadage_surv <- BSC_chicks_Phi_run[[23]]$results$real
 #BSC_Chick_hatch_date_surv <- BSC_chicks_Phi_run[[1]]$results$real
 #BSC_Chick_mgmt_s_surv <- BSC_chicks_Phi_run[[15]]$results$real
 #BSC_Chick_mgmt_l_surv <- BSC_chicks_Phi_run[[22]]$results$real
 #BSC_Chick_mgmt_s_x_quadage_surv <- BSC_chicks_Phi_run[[20]]$results$real
-BSC_Chick_mgmt_s_quadage_surv <- BSC_chicks_Phi_run[[22]]$results$real
+# BSC_Chick_mgmt_s_quadage_surv <- BSC_chicks_Phi_run[[22]]$results$real
 BSC_Chick_mgmt_l_quadage_surv <- BSC_chicks_Phi_run[[21]]$results$real
 
 
-Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_dot_surv), " ", n = 5))
-BSC_Chick_dot_surv <- cbind(Groups, BSC_Chick_dot_surv)
-BSC_Chick_dot_surv$season <- unlist(substr(BSC_Chick_dot_surv$X2, 2, 7))
-BSC_Chick_dot_surv$age <- as.numeric(sub("^a", "", BSC_Chick_dot_surv$X4))
-BSC_Chick_dot_surv$mgmt_s <- unlist(substr(BSC_Chick_dot_surv$X2, 12, 12))
-
-Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_quadage_surv), " ", n = 5))
-BSC_Chick_quadage_surv <- cbind(Groups, BSC_Chick_quadage_surv)
-BSC_Chick_quadage_surv$season <- unlist(substr(BSC_Chick_quadage_surv$X2, 2, 7))
-BSC_Chick_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_quadage_surv$X4))
-BSC_Chick_quadage_surv$mgmt_s <- unlist(substr(BSC_Chick_quadage_surv$X2, 12, 12))
-
-Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_hatch_date_surv), " ", n = 5))
-BSC_Chick_hatch_date_surv <- cbind(Groups, BSC_Chick_hatch_date_surv)
-BSC_Chick_hatch_date_surv$season <- unlist(substr(BSC_Chick_hatch_date_surv$X2, 2, 7))
-BSC_Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", BSC_Chick_hatch_date_surv$X4))
-BSC_Chick_hatch_date_surv$mgmt_s <- unlist(substr(BSC_Chick_hatch_date_surv$X2, 12, 12))
-
-Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_s_surv), " ", n = 5))
-BSC_Chick_mgmt_s_surv <- cbind(Groups, BSC_Chick_mgmt_s_surv)
-BSC_Chick_mgmt_s_surv$season <- unlist(substr(BSC_Chick_mgmt_s_surv$X2, 2, 7))
-BSC_Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_s_surv$X4))
-BSC_Chick_mgmt_s_surv$mgmt_s <- unlist(substr(BSC_Chick_mgmt_s_surv$X2, 12, 12))
-
-Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_l_surv), " ", n = 5))
-BSC_Chick_mgmt_l_surv <- cbind(Groups, BSC_Chick_mgmt_l_surv)
-BSC_Chick_mgmt_l_surv$season <- unlist(substr(BSC_Chick_mgmt_l_surv$X2, 2, 7))
-BSC_Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_l_surv$X4))
-BSC_Chick_mgmt_l_surv$mgmt_l <- unlist(substr(BSC_Chick_mgmt_l_surv$X2, 11, 11))
-
-Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_s_quadage_surv), " ", n = 5))
-BSC_Chick_mgmt_s_quadage_surv <- cbind(Groups, BSC_Chick_mgmt_s_quadage_surv)
-BSC_Chick_mgmt_s_quadage_surv$season <- unlist(substr(BSC_Chick_mgmt_s_quadage_surv$X2, 2, 7))
-BSC_Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_s_quadage_surv$X4))
-BSC_Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(BSC_Chick_mgmt_s_quadage_surv$X2, 12, 12))
-
-Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_s_x_quadage_surv), " ", n = 5))
-BSC_Chick_mgmt_s_x_quadage_surv <- cbind(Groups, BSC_Chick_mgmt_s_x_quadage_surv)
-BSC_Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(BSC_Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
-BSC_Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_s_x_quadage_surv$X4))
-BSC_Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(BSC_Chick_mgmt_s_x_quadage_surv$X2, 12, 12))
+# Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_dot_surv), " ", n = 5))
+# BSC_Chick_dot_surv <- cbind(Groups, BSC_Chick_dot_surv)
+# BSC_Chick_dot_surv$season <- unlist(substr(BSC_Chick_dot_surv$X2, 2, 7))
+# BSC_Chick_dot_surv$age <- as.numeric(sub("^a", "", BSC_Chick_dot_surv$X4))
+# BSC_Chick_dot_surv$mgmt_s <- unlist(substr(BSC_Chick_dot_surv$X2, 12, 12))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_quadage_surv), " ", n = 5))
+# BSC_Chick_quadage_surv <- cbind(Groups, BSC_Chick_quadage_surv)
+# BSC_Chick_quadage_surv$season <- unlist(substr(BSC_Chick_quadage_surv$X2, 2, 7))
+# BSC_Chick_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_quadage_surv$X4))
+# BSC_Chick_quadage_surv$mgmt_s <- unlist(substr(BSC_Chick_quadage_surv$X2, 12, 12))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_hatch_date_surv), " ", n = 5))
+# BSC_Chick_hatch_date_surv <- cbind(Groups, BSC_Chick_hatch_date_surv)
+# BSC_Chick_hatch_date_surv$season <- unlist(substr(BSC_Chick_hatch_date_surv$X2, 2, 7))
+# BSC_Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", BSC_Chick_hatch_date_surv$X4))
+# BSC_Chick_hatch_date_surv$mgmt_s <- unlist(substr(BSC_Chick_hatch_date_surv$X2, 12, 12))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_s_surv), " ", n = 5))
+# BSC_Chick_mgmt_s_surv <- cbind(Groups, BSC_Chick_mgmt_s_surv)
+# BSC_Chick_mgmt_s_surv$season <- unlist(substr(BSC_Chick_mgmt_s_surv$X2, 2, 7))
+# BSC_Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_s_surv$X4))
+# BSC_Chick_mgmt_s_surv$mgmt_s <- unlist(substr(BSC_Chick_mgmt_s_surv$X2, 12, 12))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_l_surv), " ", n = 5))
+# BSC_Chick_mgmt_l_surv <- cbind(Groups, BSC_Chick_mgmt_l_surv)
+# BSC_Chick_mgmt_l_surv$season <- unlist(substr(BSC_Chick_mgmt_l_surv$X2, 2, 7))
+# BSC_Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_l_surv$X4))
+# BSC_Chick_mgmt_l_surv$mgmt_l <- unlist(substr(BSC_Chick_mgmt_l_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_s_quadage_surv), " ", n = 5))
+# BSC_Chick_mgmt_s_quadage_surv <- cbind(Groups, BSC_Chick_mgmt_s_quadage_surv)
+# BSC_Chick_mgmt_s_quadage_surv$season <- unlist(substr(BSC_Chick_mgmt_s_quadage_surv$X2, 2, 7))
+# BSC_Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_s_quadage_surv$X4))
+# BSC_Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(BSC_Chick_mgmt_s_quadage_surv$X2, 12, 12))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_s_x_quadage_surv), " ", n = 5))
+# BSC_Chick_mgmt_s_x_quadage_surv <- cbind(Groups, BSC_Chick_mgmt_s_x_quadage_surv)
+# BSC_Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(BSC_Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
+# BSC_Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_s_x_quadage_surv$X4))
+# BSC_Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(BSC_Chick_mgmt_s_x_quadage_surv$X2, 12, 12))
 
 Groups <- data.frame(str_split_fixed(rownames(BSC_Chick_mgmt_l_quadage_surv), " ", n = 5))
 BSC_Chick_mgmt_l_quadage_surv <- cbind(Groups, BSC_Chick_mgmt_l_quadage_surv)
@@ -13632,49 +13645,38 @@ BSC_Chick_mgmt_l_quadage_surv$season <- unlist(substr(BSC_Chick_mgmt_l_quadage_s
 BSC_Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", BSC_Chick_mgmt_l_quadage_surv$X4))
 BSC_Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(BSC_Chick_mgmt_l_quadage_surv$X2, 11, 11))
 
-# constant survival
-ggplot() +
-  geom_line(data = BSC_Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = BSC_Chick_dot_surv, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+BSC_Chick_mgmt_l_quadage_surv_plot <-
+  ggplot(BSC_Chick_mgmt_l_quadage_surv %>% 
+         filter(mgmt_l != 0) %>%
+           filter(X1 == "Phi"), 
+       aes(x = age, y = estimate, 
+           color = as.numeric(mgmt_l), 
+           fill = as.numeric(mgmt_l))) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Brood age (days)", 
+       y = "Daily brood survival (± 95% CI)",
+       color = "Management\nlevel",  # line break with \n
+    fill = "Management\nlevel"    # line break with \n
+  ) +
+  theme_minimal() +
+  facet_grid(. ~ mgmt_l) +
   scale_color_gradient(
-    low = "black",
-    high = "red",
-    name = "season"
+    low = cols[2],  # from Dark2[2]
+    high = cols[1]  # to Dark2[1]
   ) +
   scale_fill_gradient(
-    low = "black",
-    high = "red",
-    name = "season"
+    low = cols[2],  # from Dark2[2]
+    high = cols[1]  # to Dark2[1]
   ) +
-  ylab("Daily brood survival") +
-  xlab("Brood age (days)")
+  luke_theme +
+  theme(legend.position = "none")
 
-# quadratic age-dependent survival
-ggplot() +
-  geom_line(data = filter(BSC_Chick_quadage_surv, X1 == "Phi"), 
-            aes(x = age, y = estimate)) +
-  geom_ribbon(data = filter(BSC_Chick_quadage_surv, X1 == "Phi"), 
-              aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
-  ylab("Daily brood survival (± 95% CI)") +
-  xlab("Brood age (days)")
+BSC_Chick_mgmt_l_quadage_surv_plot
 
-# quadratic age-dependent survival and management status
-ggplot() +
-  geom_line(data = filter(BSC_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
-            aes(x = age, y = estimate, color = mgmt_s)) +
-  geom_ribbon(data = filter(BSC_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
-              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
-  ylab("daily brood survival (± 95% CI)") +
-  xlab("brood age (days)")
-
-# quadratic age-dependent survival and management level
-ggplot() +
-  geom_line(data = filter(BSC_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
-            aes(x = age, y = estimate, color = mgmt_l)) +
-  geom_ribbon(data = filter(BSC_Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
-              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
-  ylab("Daily brood survival (± 95% CI)") +
-  xlab("Brood age (days)")
+ggsave(plot = BSC_Chick_mgmt_l_quadage_surv_plot, 
+       filename = "BSC_Chick_mgmt_l_quadage_surv_plot.png", 
+       path = "results/", height = 4, width = 8)
 
 
 # Get the colors that ggplot would assign automatically to the present levels
@@ -14117,9 +14119,17 @@ FP_chicks_Phi <- function()
   #   list(formula = ~season * Quadratic)
   
     # best structure of p determined from previous analysis
-   p.dot <- 
+  p.dot <- 
     list(formula = ~1)
   
+  p.age <- 
+    list(formula = ~Time)
+      
+  p.season <- 
+    list(formula = ~date_j)
+         
+  p.quadage <- 
+    list(formula = ~Quadratic)
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
