@@ -12,7 +12,7 @@
 !data/**
 !output/
 !output/**
-!results/**
+!results/
 !results/**
 
 # Still ignore RStudio-specific and temporary files
