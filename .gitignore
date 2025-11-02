@@ -10,8 +10,6 @@
 # Allow these directories and everything inside them
 !data/
 !data/**
-!output/
-!output/**
 !results/
 !results/**
 
