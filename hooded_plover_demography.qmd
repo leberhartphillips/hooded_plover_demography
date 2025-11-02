@@ -15009,6 +15009,969 @@ filter(Chick_mgmt_s_surv, X1 == "Phi") %>%
 #   xlab("brood age (days)")
 ```
 
+##all populations
+### Mark-recapture modelling
+```{r}
+chick_ch <- 
+  bind_rows(
+    MP_chick_ch,
+    BC_chick_ch,
+    FP_chick_ch,
+    BSC_chick_ch,
+    PI_chick_ch
+  ) %>% 
+  filter(mgmt_l %in% c(4, 5))
+
+# Create processed RMARK data format as CJS with "Year" as group
+chicks.proc <- process.data(chick_ch, model = "CJS",
+                               groups = c("season", "region", 
+                                          "mgmt_l", "mgmt_s"))
+
+# Create the design data
+chicks.ddl <- make.design.data(chicks.proc)
+
+# create a quadratic time variable
+time <- c(0:(chicks.proc$nocc[1]-1))
+Quadratic <- time^2
+Cubic <- time^3
+quad_time <- data.frame(time, Quadratic, Cubic)
+funday_cov <- data.frame(time = 0:(chicks.proc$nocc[1]-1),
+                         funday = chick_ch$funday[1:chicks.proc$nocc[1]])
+chicks.ddl$p <- merge_design.covariates(chicks.ddl$Phi, 
+                                              quad_time, bygroup = FALSE, bytime = TRUE)
+chicks.ddl$Phi <- merge_design.covariates(chicks.ddl$Phi, 
+                                                quad_time, bygroup = FALSE, bytime = TRUE)
+chicks.ddl$Phi <- merge_design.covariates(chicks.ddl$Phi, 
+                                             funday_cov, bygroup = FALSE, bytime = TRUE)
+```
+
+### Detection probability modelling
+```{r}
+# First assess the best model structure of encounter probability (p) while
+# keeping survival (Phi) constant
+chicks_p=function() 
+{
+  # Constant Phi
+  Phi.dot <- 
+    list(formula = ~1)
+  
+  # Constant p
+  p.dot <- 
+    list(formula = ~1)
+  
+  # p varies linearly with chick age
+  p.age <- 
+    list(formula = ~Time)
+  
+  # p varies quadratically with chick age
+  p.quadage <- 
+    list(formula = ~Quadratic)
+  
+  # p varies across year
+  p.season <- 
+    list(formula = ~season)
+  
+  # p varies across the hatch date
+  p.date <- 
+    list(formula = ~date_j)
+  
+  # interaction between year and age
+  p.year.x.age <- 
+    list(formula = ~season * Time)
+  
+  # interaction between year and quadratic age
+  p.year.x.quadage <- 
+    list(formula = ~season * Quadratic)
+  
+  # interaction between year and hatch date
+  p.year.x.date <- 
+    list(formula = ~season * date_j)
+  
+  # additive effect between year and age
+  p.year.age <- 
+    list(formula = ~season + Time)
+  
+  # additive effect between year and quadratic age
+  p.year.quadage <- 
+    list(formula = ~season + Quadratic)
+  
+  # additive effect between year and hatch date
+  p.year.date <- 
+    list(formula = ~season + date_j)
+  
+  # additive effect between year and hatch date
+  p.region <- 
+    list(formula = ~region)
+  
+  # additive effect between year and hatch date
+  p.region.age <- 
+    list(formula = ~region + Time)
+  
+  # additive effect between year and hatch date
+  p.region.quadage <- 
+    list(formula = ~region + Quadratic)
+  
+  # create model list for all a priori models above that begin with Phi. or p.
+  cml <- create.model.list("CJS") 
+  
+  # runs model list in program MARK
+  model.list <- mark.wrapper(model.list = cml, data = chicks.proc, 
+                             ddl = chicks.ddl, 
+                             threads = 4, brief = TRUE, delete = TRUE)
+  
+  # store coPIleted model list
+  return(model.list) 
+}
+
+# Run model selection to determine best structure of p
+chicks_p_run <- chicks_p()
+
+# inspect p AIC table to find top model
+chicks_p_run # best structure: p(~season + date_j)
+
+saveRDS(chicks_p_run, "output/chicks_p_run.rds")
+
+#Create AIC model selection table
+
+chicks_p_run <- readRDS(file = "output/chicks_p_run.rds") 
+
+chicks_p_run$model.table %>% 
+ mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+      "Time" = "time",
+      "season" = "year"))) %>%
+  dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
+  cols_label(model = html("<i>Phillip Island</i>"), 
+             npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
+  cols_align(align = "left", columns = vars(model)) %>% 
+  tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(
+    locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold", 
+              row_group.background.color = brewer.pal(9,"Greys")[3], 
+              table.font.size = 12, data_row.padding = 3, 
+              row_group.padding = 4, summary_row.padding = 2, 
+              column_labels.font.size = 14, row_group.font.size = 12, 
+              table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+chicks_p_run$model.table %>%
+   filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+   mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
+  dplyr::select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Phillip Island</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
+
+```
+### Extract results and visualize p
+```{r}
+PI_chicks_p_run <- readRDS("output/PI_chicks_p_run.rds")
+
+# Extract estimates of survival from top model
+Chick_p_reals <- PI_chicks_p_run[[4]]$results$real
+
+# wrangle dataframe to get annual estimates (grouped by "Year")
+Groups <- data.frame(str_split_fixed(rownames(Chick_p_reals), " ", n = 5))
+Chick_p_reals <- cbind(Groups, Chick_p_reals)
+Chick_p_reals$season <- unlist(substr(Chick_p_reals$X2, 2, 7))
+Chick_p_reals$age <- as.numeric(sub("^a", "", Chick_p_reals$X4))
+
+ggplot() +
+  geom_line(data = Chick_p_reals, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
+  geom_ribbon(data = Chick_p_reals, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+  scale_color_gradient(
+    low = "black",
+    high = "red",
+    name = "season"
+  ) +
+  scale_fill_gradient(
+    low = "black",
+    high = "red",
+    name = "season"
+  ) +
+  ylab("daily detection probability of a brood") +
+  xlab("brood age (days)")
+
+Chick_p_reals <- Chick_p_reals[which(Chick_p_reals$X1 == "p"),]
+
+# clean dataframe
+Chick_p_reals <- Chick_p_reals[,-c(1:11)]
+Chick_p_reals$Age <- "Chick"
+row.names(Chick_p_reals) <- NULL
+```
+### Survival modelling (Phi)
+```{r}
+# Find best structure of Phi while using p = ~season * date_j
+chicks_Phi <- function() 
+{
+  # Constant Phi
+  Phi.dot <- 
+    list(formula = ~1)
+  
+  # Phi varies with chick age
+  Phi.age <-
+    list(formula = ~Time)
+
+  # Phi varies quadratically with chick age
+  Phi.quadage <-
+    list(formula = ~Quadratic)
+
+  # Phi varies by year
+  Phi.season <-
+    list(formula = ~season)
+
+  # Phi varies by hatch date
+  Phi.date <-
+    list(formula = ~date_j)
+  
+  # Phi varies by management level
+  Phi.mgmt_l <-
+    list(formula = ~mgmt_l)
+  
+  # Phi varies by management status
+  Phi.mgmt_s <-
+    list(formula = ~mgmt_s)
+
+  # # interaction between hatch date and age
+  # Phi.date.x.age <-
+  #   list(formula = ~date_j * Time)
+
+  # # interaction between hatch date and quadratic age
+  # Phi.date.x.quadage <-
+  #   list(formula = ~date_j * Quadratic)
+
+  # # interaction between year and hatch date
+  # Phi.season.x.date <-
+  #   list(formula = ~season * date_j)
+  
+  # # interaction between hatch date and age and management level
+  # Phi.date.x.mgmt_l <-
+  #   list(formula = ~date_j * mgmt_l)
+
+  # # interaction between hatch date and quadratic age and management level
+  # Phi.age.x.mgmt_l <-
+  #   list(formula = ~Time * mgmt_l)
+
+  # # interaction between year and hatch date and management level
+  # Phi.quadage.x.mgmt_l <-
+  #   list(formula = ~Quadratic * mgmt_l)
+  
+  # # interaction between hatch date and age and management level
+  # Phi.date.mgmt_l <-
+  #   list(formula = ~date_j + mgmt_l)
+
+  # interaction between hatch date and quadratic age and management level
+  Phi.age.mgmt_l <-
+    list(formula = ~Time + mgmt_l)
+
+  # interaction between year and hatch date and management level
+  Phi.quadage.mgmt_l <-
+    list(formula = ~Quadratic + mgmt_l)
+  
+  # # interaction between hatch date and age and management status
+  # Phi.date.x.mgmt_s <-
+  #   list(formula = ~date_j * mgmt_s)
+
+  # # interaction between hatch date and quadratic age and management status
+  # Phi.age.x.mgmt_s <-
+  #   list(formula = ~Time * mgmt_s)
+  # 
+  # # interaction between year and hatch date and management status
+  # Phi.quadage.x.mgmt_s <-
+  #   list(formula = ~Quadratic * mgmt_s)
+  
+  # # interaction between hatch date and age and management status
+  # Phi.date.mgmt_s <-
+  #   list(formula = ~date_j + mgmt_s)
+
+  # interaction between hatch date and quadratic age and management status
+  Phi.age.mgmt_s <-
+    list(formula = ~Time + mgmt_s)
+
+  # interaction between year and hatch date and management status
+  Phi.quadage.mgmt_s <-
+    list(formula = ~Quadratic + mgmt_s)
+  
+   # Phi varies with number of fun days
+  Phi.funday <-
+    list(formula = ~ funday)
+  
+  # Additive effect of funday and management level
+  Phi.funday.mgmt_l <-
+    list(formula = ~ funday + mgmt_l)
+
+  # Additive effect of funday and management status
+  Phi.funday.mgmt_s <-
+    list(formula = ~ funday + mgmt_s)
+  
+    # Additive effect of funday and management level
+  Phi.funday.age <-
+    list(formula = ~ funday + Time)
+
+  # Additive effect of funday and management status
+  Phi.funday.quadage <-
+    list(formula = ~ funday + Quadratic)
+  
+    # Additive effect of funday and management status
+  Phi.region <-
+    list(formula = ~ region)
+  
+  # Additive effect of region and management level
+  Phi.region.mgmt_l <-
+    list(formula = ~ region + mgmt_l)
+
+  # Additive effect of region and management status
+  Phi.region.mgmt_s <-
+    list(formula = ~ region + mgmt_s)
+  
+      # Additive effect of region and management level
+  Phi.region.age <-
+    list(formula = ~ region + Time)
+
+  # Additive effect of region and management status
+  Phi.region.quadage <-
+    list(formula = ~ region + Quadratic)
+  
+  
+  #  # Interaction between funday and management level
+  # Phi.funday.x.mgmt_l <-
+  #   list(formula = ~ funday * mgmt_l)
+  # 
+  #  # Interaction between funday and management status
+  # Phi.funday.x.mgmt_s <-
+  #   list(formula = ~ funday * mgmt_s)
+
+  # # additive effect of hach date and age and management level
+  # Phi.date.age.mgmt_l <-
+  #   list(formula = ~date_j + Time + mgmt_l)
+  # 
+  # # additive effect of hatch date and quadratic age and management level
+  # Phi.date.quadage.mgmt_l <-
+  #   list(formula = ~date_j + Quadratic + mgmt_l)
+  # 
+  # # interaction between hatch date and age and management level
+  # Phi.date.x.age.mgmt_l <-
+  #   list(formula = ~date_j * Time + mgmt_l)
+  # 
+  # # interaction between hatch date and quadratic age and management level
+  # Phi.date.x.quadage.mgmt_l <-
+  #   list(formula = ~date_j * Quadratic + mgmt_l)
+  # 
+  # # interaction between year and hatch date and management level
+  # Phi.season.x.date.mgmt_l <-
+  #   list(formula = ~season * date_j + mgmt_l)
+  # 
+  # # additive between year and hatch date and management level
+  # Phi.season.date.mgmt_l <-
+  #   list(formula = ~season + date_j + mgmt_l)
+  # 
+  # # additive effect of hach date and age and management status
+  # Phi.date.age.mgmt_s <-
+  #   list(formula = ~date_j + Time + mgmt_s)
+  # 
+  # # additive effect of hatch date and quadratic age and management status
+  # Phi.date.quadage.mgmt_s <-
+  #   list(formula = ~date_j + Quadratic + mgmt_s)
+  # 
+  # # interaction between hatch date and age and management status
+  # Phi.date.x.age.mgmt_s <-
+  #   list(formula = ~date_j * Time + mgmt_s)
+  # 
+  # # interaction between hatch date and quadratic age and management status
+  # Phi.date.x.quadage.mgmt_s <-
+  #   list(formula = ~date_j * Quadratic + mgmt_s)
+  # 
+  # # interaction between year and hatch date and management status
+  # Phi.season.x.date.mgmt_s <-
+  #   list(formula = ~season * date_j + mgmt_s)
+  # 
+  # # additive between year and hatch date and management status
+  # Phi.season.date.mgmt_s <-
+  #   list(formula = ~season + date_j + mgmt_s)
+  # 
+  # # best structure of p determined from previous analysis
+  # p.year.x.quadage <- 
+  #   list(formula = ~season * Quadratic)
+  
+    # best structure of p determined from previous analysis
+ p.region.quadage <- 
+    list(formula = ~region + Quadratic) 
+ 
+  # create model list for all a priori models above that begin with Phi. or p.
+  cml <- create.model.list("CJS")
+  
+  # runs model list in program MARK
+  model.list <- mark.wrapper(model.list = cml, data = chicks.proc, 
+                             ddl = chicks.ddl,
+                             threads = 4, brief = TRUE, delete = TRUE)
+  
+  # store coPIleted model list
+  return(model.list) 
+}
+
+# Run model selection to determine best structure of Phi
+chicks_Phi_run <- chicks_Phi()
+
+# inspect Phi AIC table to find top model
+chicks_Phi_run # best structure: Phi(~Year * Day_of_Season)
+
+saveRDS(chicks_Phi_run, "output/chicks_Phi_run.rds")
+
+#Create AIC model selection table
+
+chicks_Phi_run <- readRDS(file = "output/chicks_Phi_run.rds") 
+
+chicks_Phi_run$model.table %>% 
+ mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
+  dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
+  cols_label(model = html("<i>Phillip Island</i>"), 
+             npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
+  cols_align(align = "left", columns = vars(model)) %>% 
+   tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~year * hatch date)")) %>% 
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold", 
+              row_group.background.color = brewer.pal(9,"Greys")[3], 
+              table.font.size = 12, data_row.padding = 3, 
+              row_group.padding = 4, summary_row.padding = 2, 
+              column_labels.font.size = 14, row_group.font.size = 12, 
+              table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+chicks_Phi_run$model.table %>%
+  filter(DeltaAICc < 2 | model == "Phi(~1)p(~season * date_j)") %>%
+  mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+      "mgmt_l" = "management level",
+      "mgmt_s" = "management status",
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
+  dplyr::select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Phillip Island</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
+```
+### Extract results and visualize Phi
+```{r}
+chicks_Phi_run <- readRDS("output/chicks_Phi_run.rds")
+
+Chick_mgmt_l_region_surv <- chicks_Phi_run[[17]]$results$real
+
+Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_region_surv), " ", n = 5))
+Chick_mgmt_l_region_surv <- cbind(Groups, Chick_mgmt_l_region_surv)
+Chick_mgmt_l_region_surv <- 
+Chick_mgmt_l_region_surv %>% 
+  filter(X1 == "Phi") %>% 
+  mutate(region = ifelse(nchar(X2) == 11, substr(Chick_mgmt_l_region_surv$X2, 8, 9),
+                         ifelse(nchar(X2) == 12, substr(Chick_mgmt_l_region_surv$X2, 8, 10), "XX")),
+         mgmt_l = ifelse(nchar(X2) == 11, substr(Chick_mgmt_l_region_surv$X2, 10, 10),
+                         ifelse(nchar(X2) == 12, substr(Chick_mgmt_l_region_surv$X2, 11, 11), "XX")))
+
+
+mgmt_level_plot_chick_surv <- 
+  ggplot() +
+  geom_line(data = Chick_mgmt_l_region_surv, 
+            aes(x = mgmt_l, y = estimate^35, color = region, group = region),
+            position = position_dodge(width = 0.5), alpha = 0.5, size = 1) +
+  geom_errorbar(data = Chick_mgmt_l_region_surv, 
+                aes(ymin = lcl^35, ymax = ucl^35, 
+                    x = mgmt_l, 
+                    y = estimate, group = region), position = position_dodge(width = 0.5),
+                alpha = 0.5, color = "black", width = 0.3, lwd = 0.5) +
+  geom_point(data = Chick_mgmt_l_region_surv, 
+             aes(x = mgmt_l, y = estimate^35, fill = region),
+             shape = 21, size = 4, position = position_dodge(width = 0.5)) +
+  scale_colour_brewer(palette = "Set1") +
+  luke_theme +
+  theme(legend.position = c(0.9, 0.05),
+        legend.justification = c(1, 0),
+        strip.background = element_blank()) +
+  xlab("Management action") + 
+  ylab("Apparent fledgling success (± 95% CI)") +
+  scale_x_discrete(
+    breaks = c("4", "5"),
+    labels = c("fencing", "wardens")
+  ) +
+  scale_colour_brewer(palette = "Dark2", 
+                      name = "Region", 
+labels = c("BSC" = "Bellarine-Surf Coast", 
+                                 "FP" = "Fleurieu Peninsula",
+                                 "MP" = "Mornington Peninsula",
+                                 "BC" = "Bass Coast",
+                                 "PI" = "Phillip Island")) +
+  scale_fill_brewer(palette = "Dark2", 
+                      name = "Region", 
+labels = c("BSC" = "Bellarine-Surf Coast", 
+                                 "FP" = "Fleurieu Peninsula",
+                                 "MP" = "Mornington Peninsula",
+                                 "BC" = "Bass Coast",
+                                 "PI" = "Phillip Island"))
+
+
+mgmt_level_plot_chick_surv
+
+ggsave(plot = mgmt_level_plot_chick_surv, 
+       filename = "mgmt_level_plot_chick_surv.png", 
+       path = "results/", height = 6, width = 6)
+
+### plot the survival trend of the Phi(~funday + mgmt_l)p(~Quadratic) model ----
+# extract the beta and vcv estimates
+quadage_mgmt_l_vcv <- 
+  chicks_Phi_run[[20]]$results$beta.vcv
+
+quadage_mgmt_l_betas <- 
+  chicks_Phi_run[[20]]$results$beta
+
+# Assign the correct names to the vcv matrix
+rownames(quadage_mgmt_l_vcv) <- rownames(quadage_mgmt_l_betas)
+colnames(quadage_mgmt_l_vcv) <- rownames(quadage_mgmt_l_betas)
+
+# Define funday gradient
+quadage_vals <- 
+  seq(min(chicks.ddl$Phi$Quadratic), max(chicks.ddl$Phi$Quadratic), 
+      length.out = 50)
+
+# mgmt_l levels (assuming 0-5 coded, adjust if different)
+mgmt_levels <- paste0("mgmt_l", 0:6)  # adjust 0 if intercept represents mgmt_l0
+region_levels <- c("MP", "BC", "FP", "BSC", "PI")
+# Number of simulations
+n_sims <- 10000
+
+# --- Function to build design matrix for a given mgmt_l ---
+build_design <- function(quadage_vals, region_level) {
+  n <- length(quadage_vals)
+  
+  # Create an empty matrix with same columns as betas
+  mat <- matrix(0, nrow = n, ncol = length(quadage_mgmt_l_betas$estimate))
+  colnames(mat) <- rownames(quadage_mgmt_l_betas)
+  
+  # Fill intercept
+  mat[, "Phi:(Intercept)"] <- 1
+  
+  # Fill funday covariate
+  mat[, "Phi:Quadratic"] <- quadage_vals
+  
+  # Fill the mgmt_l dummy
+  if (region_level != "MP") {   # baseline is 0, others add their beta
+    mat[, paste0("Phi:region", region_level)] <- 1
+  }
+  
+  return(mat)
+}
+library(MASS)
+# --- Simulate beta draws ---
+set.seed(123)
+beta_sims <- mvrnorm(n = n_sims, mu = quadage_mgmt_l_betas$estimate, Sigma = quadage_mgmt_l_vcv)
+
+# --- Compute predicted survival and 95% CIs ---
+pred_list <- list()
+
+for (i in c("BC", "FP", "BSC", "PI", "MP")) {  # mgmt_l levels
+  design_mat <- build_design(quadage_vals, i)
+  
+  # Linear predictor
+  eta <- design_mat %*% t(beta_sims)
+  
+  # Transform via inverse logit
+  Phi_pred <- plogis(eta)
+  
+  # Compute pointwise summary: mean and 95% CI
+  Phi_mean <- apply(Phi_pred, 1, mean)
+  Phi_lcl  <- apply(Phi_pred, 1, quantile, probs = 0.025)
+  Phi_ucl  <- apply(Phi_pred, 1, quantile, probs = 0.975)
+  
+  pred_list[[paste0("region", i)]] <- data.frame(
+    quadage = quadage_vals,
+    mean   = Phi_mean,
+    lcl    = Phi_lcl,
+    ucl    = Phi_ucl,
+    region = i
+  )
+}
+
+# Combine into single dataframe
+pred_df <- bind_rows(pred_list)
+
+# --- Plot ---
+library(ggplot2)
+
+# Extract two Dark2 colors
+cols <- brewer.pal(3, "Dark2")[1:2]  # pick first two colors
+
+chick_ch %>% pull(mgmt_l) %>% table()
+# note that I removed the prediction of the management level 2 because it failed to properly estimate this likely due to low sample size (only 4 broods experienced this treatment)
+
+quadage_region_brood_surv_plot <- 
+  ggplot(pred_df, #%>% 
+         # filter(mgmt_l != 2), 
+       aes(x = sqrt(quadage), y = mean, color = region, fill = region)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Number of fundays (weekend days and holidays) exposed to", 
+       y = "Apparent daily brood survival (± 95% CI)",  color = "Management\nlevel",  # line break with \n
+    fill = "Management\nlevel"    # line break with \n
+  ) +
+  theme_minimal() +
+  facet_grid(. ~ region) +
+  # scale_color_gradient(
+  #   low = cols[2],  # from Dark2[2]
+  #   high = cols[1]  # to Dark2[1]
+  # ) +
+  # scale_fill_gradient(
+  #   low = cols[2],  # from Dark2[2]
+  #   high = cols[1]  # to Dark2[1]
+  # ) +
+  luke_theme +
+  theme(legend.position = "none")
+
+quadage_region_brood_surv_plot
+
+#### fundays ----
+### plot the survival trend of the Phi(~funday + mgmt_l)p(~Quadratic) model ----
+# extract the beta and vcv estimates
+funday_mgmt_l_vcv <- 
+  chicks_Phi_run[[7]]$results$beta.vcv
+
+funday_mgmt_l_betas <- 
+  chicks_Phi_run[[7]]$results$beta
+
+# Assign the correct names to the vcv matrix
+rownames(funday_mgmt_l_vcv) <- rownames(funday_mgmt_l_betas)
+colnames(funday_mgmt_l_vcv) <- rownames(funday_mgmt_l_betas)
+
+# Define funday gradient
+funday_vals <- 
+  seq(min(MP_chicks.ddl$Phi$funday), max(MP_chicks.ddl$Phi$funday), length.out = 50)
+
+# mgmt_l levels (assuming 0-5 coded, adjust if different)
+mgmt_levels <- paste0("mgmt_l", 4:5)  # adjust 0 if intercept represents mgmt_l0
+
+# Number of simulations
+n_sims <- 10000
+
+# --- Function to build design matrix for a given mgmt_l ---
+build_design <- function(funday_vals, mgmt_l_level) {
+  n <- length(funday_vals)
+  
+  # Create an empty matrix with same columns as betas
+  mat <- matrix(0, nrow = n, ncol = length(funday_mgmt_l_betas$estimate))
+  colnames(mat) <- rownames(funday_mgmt_l_betas)
+  
+  # Fill intercept
+  mat[, "Phi:(Intercept)"] <- 1
+  
+  # Fill funday covariate
+  mat[, "Phi:funday"] <- funday_vals
+  
+  # Fill the mgmt_l dummy
+  if (mgmt_l_level != 4) {   # baseline is 0, others add their beta
+    mat[, paste0("Phi:mgmt_l", mgmt_l_level)] <- 1
+  }
+  
+  return(mat)
+}
+library(MASS)
+# --- Simulate beta draws ---
+set.seed(123)
+beta_sims <- 
+  mvrnorm(n = n_sims, 
+          mu = funday_mgmt_l_betas$estimate, 
+          Sigma = funday_mgmt_l_vcv)
+
+# --- Compute predicted survival and 95% CIs ---
+pred_list <- list()
+
+for (i in 0:5) {  # mgmt_l levels
+  design_mat <- build_design(funday_vals, i)
+  
+  # Linear predictor
+  eta <- design_mat %*% t(beta_sims)
+  
+  # Transform via inverse logit
+  Phi_pred <- plogis(eta)
+  
+  # Compute pointwise summary: mean and 95% CI
+  Phi_mean <- apply(Phi_pred, 1, mean)
+  Phi_lcl  <- apply(Phi_pred, 1, quantile, probs = 0.025)
+  Phi_ucl  <- apply(Phi_pred, 1, quantile, probs = 0.975)
+  
+  pred_list[[paste0("mgmt_l", i)]] <- data.frame(
+    funday = funday_vals,
+    mean   = Phi_mean,
+    lcl    = Phi_lcl,
+    ucl    = Phi_ucl,
+    mgmt_l = i
+  )
+}
+
+# Combine into single dataframe
+pred_df <- bind_rows(pred_list)
+
+# --- Plot ---
+library(ggplot2)
+
+# Extract two Dark2 colors
+cols <- brewer.pal(3, "Dark2")[1:2]  # pick first two colors
+
+MP_chick_ch %>% pull(mgmt_l) %>% table()
+# note that I removed the prediction of the management level 2 because it failed to properly estimate this likely due to low sample size (only 4 broods experienced this treatment)
+
+fundays_mgmt_l_brood_surv_plot <- 
+  ggplot(pred_df %>% 
+         filter(mgmt_l != 2), 
+       aes(x = funday, y = mean, color = as.numeric(mgmt_l), fill = as.numeric(mgmt_l))) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Number of fundays (weekend days and holidays) exposed to", 
+       y = "Apparent daily brood survival (± 95% CI)",  color = "Management\nlevel",  # line break with \n
+    fill = "Management\nlevel"    # line break with \n
+  ) +
+  theme_minimal() +
+  facet_grid(. ~ mgmt_l) +
+  scale_color_gradient(
+    low = cols[2],  # from Dark2[2]
+    high = cols[1]  # to Dark2[1]
+  ) +
+  scale_fill_gradient(
+    low = cols[2],  # from Dark2[2]
+    high = cols[1]  # to Dark2[1]
+  ) +
+  luke_theme +
+  theme(legend.position = "none")
+
+fundays_mgmt_l_brood_surv_plot
+
+ggsave(plot = fundays_mgmt_l_brood_surv_plot, 
+       filename = "fundays_mgmt_l_brood_surv_plot.png", 
+       path = "results/", height = 4, width = 8)
+
+
+# Extract estimates of survival from top models
+# PI_Chick_age_surv <- PI_chicks_Phi_run[[3]]$results$real #top model
+# PI_Chick_dot_surv <- PI_chicks_Phi_run[[13]]$results$real 
+# PI_Chick_quadage_surv <- PI_chicks_Phi_run[[23]]$results$real # 2nd model
+# PI_Chick_hatch_date_surv <- PI_chicks_Phi_run[[8]]$results$real
+# PI_Chick_mgmt_s_surv <- PI_chicks_Phi_run[[15]]$results$real
+# PI_Chick_mgmt_l_surv <- PI_chicks_Phi_run[[14]]$results$real
+#PI_Chick_mgmt_s_x_quadage_surv <- PI_chicks_Phi_run[[20]]$results$real
+Chick_mgmt_l_quadage_surv <- chicks_Phi_run[[4]]$results$real
+
+# Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_quadage_surv), " ", n = 5))
+# Chick_mgmt_l_quadage_surv <- cbind(Groups, Chick_mgmt_l_quadage_surv)
+# Chick_mgmt_l_quadage_surv$season <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 2, 7))
+# Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_quadage_surv$X4))
+# Chick_mgmt_l_quadage_surv$mgmt_s <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 11, 11))
+
+# Groups <- data.frame(str_split_fixed(rownames(PI_Chick_dot_surv), " ", n = 5))
+# PI_Chick_dot_surv <- cbind(Groups, PI_Chick_dot_surv)
+# PI_Chick_dot_surv$season <- unlist(substr(PI_Chick_dot_surv$X2, 2, 7))
+# PI_Chick_dot_surv$age <- as.numeric(sub("^a", "", PI_Chick_dot_surv$X4))
+# PI_Chick_dot_surv$mgmt_s <- unlist(substr(PI_Chick_dot_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(PI_Chick_quadage_surv), " ", n = 5))
+# PI_Chick_quadage_surv <- cbind(Groups, PI_Chick_quadage_surv)
+# PI_Chick_quadage_surv$season <- unlist(substr(PI_Chick_quadage_surv$X2, 2, 7))
+# PI_Chick_quadage_surv$age <- as.numeric(sub("^a", "", PI_Chick_quadage_surv$X4))
+# PI_Chick_quadage_surv$mgmt_s <- unlist(substr(PI_Chick_quadage_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(PI_Chick_hatch_date_surv), " ", n = 5))
+# PI_Chick_hatch_date_surv <- cbind(Groups, PI_Chick_hatch_date_surv)
+# PI_Chick_hatch_date_surv$season <- unlist(substr(PI_Chick_hatch_date_surv$X2, 2, 7))
+# PI_Chick_hatch_date_surv$age <- as.numeric(sub("^a", "", PI_Chick_hatch_date_surv$X4))
+# PI_Chick_hatch_date_surv$mgmt_s <- unlist(substr(PI_Chick_hatch_date_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(PI_Chick_mgmt_s_surv), " ", n = 5))
+# PI_Chick_mgmt_s_surv <- cbind(Groups, PI_Chick_mgmt_s_surv)
+# PI_Chick_mgmt_s_surv$season <- unlist(substr(PI_Chick_mgmt_s_surv))
+# PI_Chick_mgmt_s_surv$age <- as.numeric(sub("^a", "", PI_Chick_mgmt_s_surv$X4))
+# PI_Chick_mgmt_s_surv$mgmt_s <- unlist(substr(PI_Chick_mgmt_s_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(PI_Chick_mgmt_l_surv), " ", n = 5))
+# PI_Chick_mgmt_l_surv <- cbind(Groups, PI_Chick_mgmt_l_surv)
+# PI_Chick_mgmt_l_surv$season <- unlist(substr(PI_Chick_mgmt_l_surv$X2, 2, 7))
+# PI_Chick_mgmt_l_surv$age <- as.numeric(sub("^a", "", PI_Chick_mgmt_l_surv$X4))
+# PI_Chick_mgmt_l_surv$mgmt_l <- unlist(substr(PI_Chick_mgmt_l_surv$X2, 10, 10))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_quadage_surv), " ", n = 5))
+# Chick_mgmt_s_quadage_surv <- cbind(Groups, Chick_mgmt_s_quadage_surv)
+# Chick_mgmt_s_quadage_surv$season <- unlist(substr(Chick_mgmt_s_quadage_surv$X2, 2, 7))
+# Chick_mgmt_s_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_quadage_surv$X4))
+# Chick_mgmt_s_quadage_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_quadage_surv$X2, 11, 11))
+# 
+# Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_s_x_quadage_surv), " ", n = 5))
+# Chick_mgmt_s_x_quadage_surv <- cbind(Groups, Chick_mgmt_s_x_quadage_surv)
+# Chick_mgmt_s_x_quadage_surv$season <- unlist(substr(Chick_mgmt_s_x_quadage_surv$X2, 2, 7))
+# Chick_mgmt_s_x_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_s_x_quadage_surv$X4))
+# Chick_mgmt_s_x_quadage_surv$mgmt_s <- unlist(substr(Chick_mgmt_s_x_quadage_surv$X2, 11, 11))
+# 
+Groups <- data.frame(str_split_fixed(rownames(Chick_mgmt_l_quadage_surv), " ", n = 5))
+Chick_mgmt_l_quadage_surv <- cbind(Groups, Chick_mgmt_l_quadage_surv)
+Chick_mgmt_l_quadage_surv$season <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 2, 7))
+Chick_mgmt_l_quadage_surv$age <- as.numeric(sub("^a", "", Chick_mgmt_l_quadage_surv$X4))
+Chick_mgmt_l_quadage_surv$mgmt_l <- unlist(substr(Chick_mgmt_l_quadage_surv$X2, 10, 10))
+
+# constant survival
+ggplot() +
+  geom_line(data = PI_Chick_dot_surv, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
+  geom_ribbon(data = PI_Chick_dot_surv, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+  scale_color_gradient(
+    low = "black",
+    high = "red",
+    name = "season"
+  ) +
+  scale_fill_gradient(
+    low = "black",
+    high = "red",
+    name = "season"
+  ) +
+  ylab("Daily brood survival (± 95% CI)") +
+  xlab("Brood age (days)")
+
+# quadratic age-dependent survival
+ggplot() +
+  geom_line(data = filter(Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+            aes(x = age, y = estimate)) +
+  geom_ribbon(data = filter(PI_Chick_quadage_surv, X1 == "Phi"), 
+              aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
+  ylab("Daily brood survival (± 95% CI)") +
+  xlab("Brood age (days)")
+
+# age-dependent survival
+ggplot() +
+  geom_line(data = filter(PI_Chick_age_surv, X1 == "Phi"), 
+            aes(x = age, y = estimate)) +
+  geom_ribbon(data = filter(PI_Chick_age_surv, X1 == "Phi"), 
+              aes(x = age, ymin = lcl, ymax = ucl), alpha = 0.2) +
+  ylab("Daily brood survival (± 95% CI)") +
+  xlab("Brood age (days)")
+
+# quadratic age-dependent survival and management status
+ggplot() +
+  geom_line(data = filter(PI_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+            aes(x = age, y = estimate, color = mgmt_s)) +
+  geom_ribbon(data = filter(PI_Chick_mgmt_s_quadage_surv, X1 == "Phi"), 
+              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
+  ylab("Daily brood survival (± 95% CI)") +
+  xlab("Brood age (days)")
+
+# quadratic age-dependent survival and management level
+ggplot() +
+  geom_line(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+            aes(x = age, y = estimate, color = mgmt_l)) +
+  geom_ribbon(data = filter(Chick_mgmt_l_quadage_surv, X1 == "Phi"), 
+              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_l), alpha = 0.2) +
+  ylab("Daily brood survival (± 95% CI)") +
+  xlab("Brood age (days)") +
+  facet_wrap(mgmt_l ~.)
+
+# quadratic age-dependent survival and management status
+ggplot() +
+  geom_line(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
+            aes(x = age, y = estimate, color = mgmt_s)) +
+  geom_ribbon(data = filter(Chick_mgmt_s_x_quadage_surv, X1 == "Phi"), 
+              aes(x = age, ymin = lcl, ymax = ucl, fill = mgmt_s), alpha = 0.2) +
+  ylab("Daily brood survival (± 95% CI)") +
+  xlab("Brood age (days)")
+
+# management status-dependent survival
+ggplot() +
+  geom_point(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
+            aes(x = mgmt_s, y = estimate, color = mgmt_s)) +
+  geom_errorbar(data = filter(Chick_mgmt_s_surv, X1 == "Phi"), 
+              aes(x = mgmt_s, ymin = lcl, ymax = ucl, color = mgmt_s)) +
+  ylab("Daily brood survival (± 95% CI)") +
+  xlab("Managed?") +
+  scale_y_continuous(limits = c(0, 1))
+
+# management level-dependent survival
+ggplot() +
+  geom_point(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
+            aes(x = mgmt_l, y = estimate, color = mgmt_l)) +
+  geom_errorbar(data = filter(Chick_mgmt_l_surv, X1 == "Phi"), 
+              aes(x = mgmt_l, ymin = lcl, ymax = ucl, color = mgmt_l)) +
+  ylab("daily brood survival (± 95% CI)") +
+  xlab("managed?") +
+  scale_y_continuous(limits = c(0, 1))
+
+filter(Chick_mgmt_s_surv, X1 == "Phi") %>% 
+  mutate(fledgling_success = estimate^35)
+
+# seasonal dependent survival (hatch date)
+# ggplot() +
+#   geom_line(data = Chick_p_reals, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
+#   geom_ribbon(data = Chick_p_reals, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+#   scale_color_gradient(
+#     low = "black",
+#     high = "red",
+#     name = "season"
+#   ) +
+#   scale_fill_gradient(
+#     low = "black",
+#     high = "red",
+#     name = "season"
+#   ) +
+#   ylab("detection probability of a brood") +
+#   xlab("brood age (days)")
+```
+
+
+
 
 ## Explore correlations between "Fun days" and the threats
 We can see in our model selection of nest survival all three sites that our variable "fun days" (a measure of the number of weekends or holidays a nest is exposed to) was the best at explaining variation in daily nest survival. To interpret this effect, it essentially means that if a nest is initiated on, for example, a Friday right before a long period of consecutive holidays, this nest is expected to have extremely low survival compared to a nest initiated on, for example, a Monday at the early or late part of the season when there are no holidays.
