@@ -10104,65 +10104,139 @@ MP_chick_data_clean <-
 ```
 
 ```{r}
-##MP
-# Jas and Mike attempt to calculate fundays # need to max fundays = 35
-# Find brood start and end date
-MP_chick_data_clean <- MP_chick_data_clean %>%
-  mutate(
-    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
-  ) %>%
+# ##MP
+# # Jas and Mike attempt to calculate fundays # need to max fundays = 35
+# # Find brood start and end date
+# MP_chick_data_clean <- MP_chick_data_clean %>%
+#   mutate(
+#     date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
+#   ) %>%
+#   group_by(nest_ID) %>%
+#   mutate(
+#     last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
+#   ) %>%
+#   ungroup()
+# #clean
+# MP_chick_data_clean <- MP_chick_data_clean %>%
+#   mutate(
+#     hatch_date = as.Date(hatch_date),
+#     last_checked = as.Date(last_checked)
+#   ) %>%
+#   filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+# 
+# 
+# funday_summary_MP <- 
+#   MP_chick_data_clean %>%
+#   rowwise() %>% 
+#   mutate(
+#     weekend_days = ifelse(
+#       is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+#       0L,
+#       sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
+#     ),
+#     holiday_days = ifelse(
+#       is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+#       0L,
+#       sum(sapply(
+#         seq(hatch_date, last_checked, by = "day"),
+#         function(d) {
+#           is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+#           is_holiday <- any(
+#             !is.na(holidays$start_date) &
+#             !is.na(holidays$end_date) &
+#             d >= holidays$start_date &
+#             d <= holidays$end_date &
+#             holidays$region == "MP"
+#           )
+#           as.integer(is_holiday & !is_weekend)
+#         }
+#       ), na.rm = TRUE)
+#     ),
+#     funday_total = pmin(weekend_days + holiday_days, 35L)
+#   ) %>%
+#   ungroup()
+# 
+# # Step 3: Join funday count back to every row
+# MP_chick_data_clean <- MP_chick_data_clean %>%
+#   left_join(
+#     funday_summary_MP %>% dplyr::select(nest_ID, funday_total),
+#     by = "nest_ID",
+#     relationship = "many-to-many")
+```
+
+```{r}
+# Step 1. Expand holidays into daily rows (as before)
+holidays_expanded <- holidays %>%
+  filter(!is.na(start_date) & !is.na(end_date)) %>%
+  mutate(day = map2(start_date, end_date, seq, by = "day")) %>%  # rename here
+  unnest(day) %>%
+  select(season, region, day) %>%
+  distinct()
+
+# Step 2: Process chick data with special days
+MP_chick_data_specialdays <- MP_chick_data_clean %>%
+  select(region, season, nest_ID, brood_age, hatch_date, date, offspring_seen) %>%
+  mutate(hatch_date = hatch_date + 1) %>% 
+  arrange(nest_ID, date) %>%
   group_by(nest_ID) %>%
+  mutate(start_date = if_else(row_number() == 1, hatch_date, lag(date))) %>%
+  ungroup() %>%
+  rowwise() %>%
   mutate(
-    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
+    # Only create sequences if both start_date and date are non-missing and start_date <= date
+    all_days = if (is.na(start_date) | is.na(date) | start_date > date) {
+      list(as.Date(character(0)))
+    } else {
+      list(seq(start_date, date, by = "day"))
+    }
+  ) %>%
+  ungroup() %>%
+  unnest(all_days) %>%
+  rename(day = all_days) %>%
+  left_join(holidays_expanded, by = c("season", "region", "day")) %>%
+  mutate(
+    is_weekend = weekdays(day) %in% c("Saturday", "Sunday"),
+    is_holiday = !is.na(season),  # after join, holiday rows have non-NA season
+    special_day = is_weekend | is_holiday
+  ) %>%
+  group_by(region, season, nest_ID, date, hatch_date) %>%
+  summarise(specialdays = sum(special_day), .groups = "drop") %>%
+  arrange(nest_ID, date) %>%
+
+  # integrate with original data and accumulate since last sighting
+  left_join(
+    MP_chick_data_clean %>%
+      mutate(hatch_date = hatch_date + 1) %>%
+      select(region, season, nest_ID, date, hatch_date, offspring_seen),
+    by = c("region", "season", "nest_ID", "date", "hatch_date")
+  ) %>%
+  mutate(fledge_date = hatch_date + 35) %>% 
+  filter(date <= fledge_date) %>% 
+  arrange(nest_ID, date) %>%
+  group_by(nest_ID) %>%
+  mutate(event_group = cumsum(offspring_seen == 1)) %>%
+  group_by(nest_ID, event_group) %>%
+  mutate(
+    specialdays_since_seen = cumsum(specialdays),
+    # KEY FIX: if this row has offspring_seen == 1, set the 'since' counter to 0
+    specialdays_since_seen = if_else(offspring_seen == 1, 0L, specialdays_since_seen)
   ) %>%
   ungroup()
-#clean
-MP_chick_data_clean <- MP_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) %>%
-  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
 
-
-funday_summary_MP <- MP_chick_data_clean %>%
-  rowwise() %>% 
-  mutate(
-    weekend_days = ifelse(
-      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
-      0L,
-      sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
-    ),
-    holiday_days = ifelse(
-      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
-      0L,
-      sum(sapply(
-        seq(hatch_date, last_checked, by = "day"),
-        function(d) {
-          is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-          is_holiday <- any(
-            !is.na(holidays$start_date) &
-            !is.na(holidays$end_date) &
-            d >= holidays$start_date &
-            d <= holidays$end_date &
-            holidays$region == "MP"
-          )
-          as.integer(is_holiday & !is_weekend)
-        }
-      ), na.rm = TRUE)
-    ),
-    funday_total = pmin(weekend_days + holiday_days, 35L)
-  ) %>%
-  ungroup()
+# Step 4. Optional summary table: last specialdays_since_seen per nest
+nest_specialday_summary <- MP_chick_data_specialdays %>%
+  group_by(nest_ID) %>%
+  summarise(funday_total = last(na.omit(specialdays_since_seen)))
 
 # Step 3: Join funday count back to every row
 MP_chick_data_clean <- MP_chick_data_clean %>%
+      mutate(hatch_date = hatch_date + 1) %>%
   left_join(
-    funday_summary_MP %>% dplyr::select(nest_ID, funday_total),
+    nest_specialday_summary,
     by = "nest_ID",
     relationship = "many-to-many")
-
 ```
+
 
 ```{r}
 # assess how often management levels and status changed over the chick obs
@@ -10187,6 +10261,7 @@ MP_chick_data_clean %>%
 
 MP_chick_data_clean_ <- 
   MP_chick_data_clean %>% 
+  mutate(brood_age = brood_age - 2) %>% 
   filter(brood_age >= 0) %>%
   bind_rows(., data.frame(nest_ID = "junk", brood_age = c(1:35), offspring_seen = 1)) %>% 
   filter(brood_age <= 35) %>% 
@@ -10212,11 +10287,15 @@ MP_chick_data_clean_wide <-
   )
 
 # Get the age columns in numeric order
-age_cols <- names(MP_chick_data_clean_wide)[-c(1:6)] %>%           # drop nest_ID
+age_cols <- names(MP_chick_data_clean_wide)[-c(1:7)] %>%           # drop nest_ID
   sub("age_", "", .) %>%                     # remove prefix
   as.numeric() %>%                            # convert to numeric
   sort() %>%                                  # sort numerically
   paste0("age_", .)                           # add prefix back
+
+# Reorder the dataframe
+MP_chick_data_clean_wide <- MP_chick_data_clean_wide %>%
+  select(nest_ID, management_level, management_status, season, region, hatch_date, funday_total, all_of(age_cols))
 
 MP_chick_ch <-
   MP_chick_data_clean_wide %>%
@@ -10503,6 +10582,7 @@ BC_chick_data_clean <-
   select(region, season, site, nest_ID, hatch_date, date, 
          n_adults_seen, n_juvs_seen, n_chicks_seen, lat, lon, 
          management_level, management_status) %>% 
+  mutate(hatch_date = hatch_date + 2) %>% 
   group_by(nest_ID) %>% 
   arrange(date) %>% 
   ungroup() %>% 
@@ -10518,62 +10598,136 @@ BC_chick_data_clean <-
 ```
 
 ```{r}
-#Fundays
-# Find brood start and end date
-BC_chick_data_clean <- BC_chick_data_clean %>%
-  mutate(
-    date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
-  ) %>%
+# #Fundays
+# # Find brood start and end date
+# BC_chick_data_clean <- BC_chick_data_clean %>%
+#   mutate(
+#     date_formatted = as.Date(date, format = "%d%m%Y")  # new column with proper Date format
+#   ) %>%
+#   group_by(nest_ID) %>%
+#   mutate(
+#     last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
+#   ) %>%
+#   ungroup()
+# #clean
+# BC_chick_data_clean <- BC_chick_data_clean %>%
+#   mutate(
+#     hatch_date = as.Date(hatch_date),
+#     last_checked = as.Date(last_checked)
+#   ) 
+# # Join threat and brood data to find out weekends and weekdays
+# funday_summary_BC <- BC_chick_data_clean %>%
+#   rowwise() %>%  
+#   mutate(
+#     weekend_days = ifelse(
+#       is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+#       0L,
+#       sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
+#     ),
+#     holiday_days = ifelse(
+#       is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+#       0L,
+#       sum(sapply(
+#         seq(hatch_date, last_checked, by = "day"),
+#         function(d) {
+#           is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+#           is_holiday <- any(
+#             !is.na(holidays$start_date) &
+#             !is.na(holidays$end_date) &
+#             d >= holidays$start_date &
+#             d <= holidays$end_date &
+#             holidays$region == "BC"
+#           )
+#           as.integer(is_holiday & !is_weekend)
+#         }
+#       ), na.rm = TRUE)
+#     ),
+#     funday_total = pmin(weekend_days + holiday_days, 35L)
+#   ) %>%
+#   ungroup()
+# 
+# # Step 3: Join funday count back to every row
+# BC_chick_data_clean <- BC_chick_data_clean %>%
+#   left_join(
+#     funday_summary_BC %>% select(nest_ID, funday_total),
+#     by = "nest_ID",
+#     relationship = "many-to-many")
+
+```
+
+```{r}
+# Step 1. Expand holidays into daily rows (as before)
+holidays_expanded <- holidays %>%
+  filter(!is.na(start_date) & !is.na(end_date)) %>%
+  mutate(day = map2(start_date, end_date, seq, by = "day")) %>%  # rename here
+  unnest(day) %>%
+  select(season, region, day) %>%
+  distinct()
+
+# Step 2: Process chick data with special days
+BC_chick_data_specialdays <- BC_chick_data_clean %>%
+  select(region, season, nest_ID, brood_age, hatch_date, date, offspring_seen) %>%
+  mutate(hatch_date = hatch_date + 1) %>% 
+  arrange(nest_ID, date) %>%
   group_by(nest_ID) %>%
+  mutate(start_date = if_else(row_number() == 1, hatch_date, lag(date))) %>%
+  ungroup() %>%
+  rowwise() %>%
   mutate(
-    last_checked = max(date_formatted, na.rm = TRUE)  # latest date per nest_ID
+    # Only create sequences if both start_date and date are non-missing and start_date <= date
+    all_days = if (is.na(start_date) | is.na(date) | start_date > date) {
+      list(as.Date(character(0)))
+    } else {
+      list(seq(start_date, date, by = "day"))
+    }
+  ) %>%
+  ungroup() %>%
+  unnest(all_days) %>%
+  rename(day = all_days) %>%
+  left_join(holidays_expanded, by = c("season", "region", "day")) %>%
+  mutate(
+    is_weekend = weekdays(day) %in% c("Saturday", "Sunday"),
+    is_holiday = !is.na(season),  # after join, holiday rows have non-NA season
+    special_day = is_weekend | is_holiday
+  ) %>%
+  group_by(region, season, nest_ID, date, hatch_date) %>%
+  summarise(specialdays = sum(special_day), .groups = "drop") %>%
+  arrange(nest_ID, date) %>%
+
+  # integrate with original data and accumulate since last sighting
+  left_join(
+    BC_chick_data_clean %>%
+      mutate(hatch_date = hatch_date + 1) %>%
+      select(region, season, nest_ID, date, hatch_date, offspring_seen),
+    by = c("region", "season", "nest_ID", "date", "hatch_date")
+  ) %>%
+  mutate(fledge_date = hatch_date + 35) %>% 
+  filter(date <= fledge_date) %>% 
+  arrange(nest_ID, date) %>%
+  group_by(nest_ID) %>%
+  mutate(event_group = cumsum(offspring_seen == 1)) %>%
+  group_by(nest_ID, event_group) %>%
+  mutate(
+    specialdays_since_seen = cumsum(specialdays),
+    # KEY FIX: if this row has offspring_seen == 1, set the 'since' counter to 0
+    specialdays_since_seen = if_else(offspring_seen == 1, 0L, specialdays_since_seen)
   ) %>%
   ungroup()
-#clean
-BC_chick_data_clean <- BC_chick_data_clean %>%
-  mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
-  ) 
-# Join threat and brood data to find out weekends and weekdays
-funday_summary_BC <- BC_chick_data_clean %>%
-  rowwise() %>%  
-  mutate(
-    weekend_days = ifelse(
-      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
-      0L,
-      sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
-    ),
-    holiday_days = ifelse(
-      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
-      0L,
-      sum(sapply(
-        seq(hatch_date, last_checked, by = "day"),
-        function(d) {
-          is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-          is_holiday <- any(
-            !is.na(holidays$start_date) &
-            !is.na(holidays$end_date) &
-            d >= holidays$start_date &
-            d <= holidays$end_date &
-            holidays$region == "BC"
-          )
-          as.integer(is_holiday & !is_weekend)
-        }
-      ), na.rm = TRUE)
-    ),
-    funday_total = pmin(weekend_days + holiday_days, 35L)
-  ) %>%
-  ungroup()
+
+# Step 4. Optional summary table: last specialdays_since_seen per nest
+nest_specialday_summary <- BC_chick_data_specialdays %>%
+  group_by(nest_ID) %>%
+  summarise(funday_total = last(na.omit(specialdays_since_seen)))
 
 # Step 3: Join funday count back to every row
 BC_chick_data_clean <- BC_chick_data_clean %>%
+      mutate(hatch_date = hatch_date + 1) %>%
   left_join(
-    funday_summary_BC %>% select(nest_ID, funday_total),
+    nest_specialday_summary,
     by = "nest_ID",
     relationship = "many-to-many")
-
 ```
+
 
 ```{r}
 # assess how often management levels and status changed over the chick obs
@@ -10642,7 +10796,7 @@ BC_chick_ch <-
     remove = TRUE        # keep the original columns
   ) %>%
   filter(str_detect(ch, "1")) %>%
-  mutate(ch = paste0("1", str_sub(ch, start = 2, end = nchar(ch)))) %>% 
+  # mutate(ch = paste0("1", str_sub(ch, start = 2, end = nchar(ch)))) %>% 
   mutate(hatch_date_j = as.numeric(format(hatch_date + 180, "%j"))) %>% 
   mutate(management_level = as.factor(management_level)) %>% 
   mutate(region = as.factor(region)) %>% 
@@ -10909,6 +11063,7 @@ BSC_chick_data_clean <-
   select(region, season, site, nest_ID, hatch_date, date, 
          n_adults_seen, n_juvs_seen, n_chicks_seen, lat, lon, 
          management_level, management_status) %>% 
+  mutate(hatch_date = hatch_date + 2) %>% 
   group_by(nest_ID) %>% 
   arrange(date) %>% 
   ungroup() %>% 
@@ -10924,62 +11079,136 @@ BSC_chick_data_clean <-
 ```
 
 ```{r}
-## Fundays
-# Find brood start and end date
-BSC_chick_data_clean <- BSC_chick_data_clean %>%
-  mutate(date_formatted = as.Date(date, format = "%d%m%Y") ) %>%
+# ## Fundays
+# # Find brood start and end date
+# BSC_chick_data_clean <- BSC_chick_data_clean %>%
+#   mutate(date_formatted = as.Date(date, format = "%d%m%Y") ) %>%
+#   group_by(nest_ID) %>%
+#   mutate(last_checked = max(date_formatted, na.rm = TRUE)) %>%
+#   ungroup()
+# #clean
+# BSC_chick_data_clean <- BSC_chick_data_clean %>%
+#   mutate(
+#     hatch_date = as.Date(hatch_date),
+#     last_checked = as.Date(last_checked)
+#   ) %>%
+#   filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+# 
+# 
+# # Join threat and brood data to find out weekends and weekdays
+# funday_summary_BSC <- BSC_chick_data_clean %>%
+#   rowwise() %>%  
+#   mutate(
+#     weekend_days = ifelse(
+#       is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+#       0L,
+#       sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
+#     ),
+#     holiday_days = ifelse(
+#       is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+#       0L,
+#       sum(sapply(
+#         seq(hatch_date, last_checked, by = "day"),
+#         function(d) {
+#           is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+#           is_holiday <- any(
+#             !is.na(holidays$start_date) &
+#             !is.na(holidays$end_date) &
+#             d >= holidays$start_date &
+#             d <= holidays$end_date &
+#             holidays$region == "BSC"
+#           )
+#           as.integer(is_holiday & !is_weekend)
+#         }
+#       ), na.rm = TRUE)
+#     ),
+#     funday_total = pmin(weekend_days + holiday_days, 35L)
+#   ) %>%
+#   ungroup()
+# 
+# 
+# # Step 3: Join funday count back to every row
+# BSC_chick_data_clean <- BSC_chick_data_clean %>%
+#   left_join(
+#     funday_summary_BSC %>% select(nest_ID, funday_total),
+#     by = "nest_ID",
+#     relationship = "many-to-many")
+
+```
+
+```{r}
+# Step 1. Expand holidays into daily rows (as before)
+holidays_expanded <- holidays %>%
+  filter(!is.na(start_date) & !is.na(end_date)) %>%
+  mutate(day = map2(start_date, end_date, seq, by = "day")) %>%  # rename here
+  unnest(day) %>%
+  select(season, region, day) %>%
+  distinct()
+
+# Step 2: Process chick data with special days
+BSC_chick_data_specialdays <- BSC_chick_data_clean %>%
+  select(region, season, nest_ID, brood_age, hatch_date, date, offspring_seen) %>%
+  mutate(hatch_date = hatch_date + 1) %>% 
+  arrange(nest_ID, date) %>%
   group_by(nest_ID) %>%
-  mutate(last_checked = max(date_formatted, na.rm = TRUE)) %>%
-  ungroup()
-#clean
-BSC_chick_data_clean <- BSC_chick_data_clean %>%
+  mutate(start_date = if_else(row_number() == 1, hatch_date, lag(date))) %>%
+  ungroup() %>%
+  rowwise() %>%
   mutate(
-    hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)
+    # Only create sequences if both start_date and date are non-missing and start_date <= date
+    all_days = if (is.na(start_date) | is.na(date) | start_date > date) {
+      list(as.Date(character(0)))
+    } else {
+      list(seq(start_date, date, by = "day"))
+    }
   ) %>%
-  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
-
-
-# Join threat and brood data to find out weekends and weekdays
-funday_summary_BSC <- BSC_chick_data_clean %>%
-  rowwise() %>%  
+  ungroup() %>%
+  unnest(all_days) %>%
+  rename(day = all_days) %>%
+  left_join(holidays_expanded, by = c("season", "region", "day")) %>%
   mutate(
-    weekend_days = ifelse(
-      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
-      0L,
-      sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
-    ),
-    holiday_days = ifelse(
-      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
-      0L,
-      sum(sapply(
-        seq(hatch_date, last_checked, by = "day"),
-        function(d) {
-          is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-          is_holiday <- any(
-            !is.na(holidays$start_date) &
-            !is.na(holidays$end_date) &
-            d >= holidays$start_date &
-            d <= holidays$end_date &
-            holidays$region == "BSC"
-          )
-          as.integer(is_holiday & !is_weekend)
-        }
-      ), na.rm = TRUE)
-    ),
-    funday_total = pmin(weekend_days + holiday_days, 35L)
+    is_weekend = weekdays(day) %in% c("Saturday", "Sunday"),
+    is_holiday = !is.na(season),  # after join, holiday rows have non-NA season
+    special_day = is_weekend | is_holiday
+  ) %>%
+  group_by(region, season, nest_ID, date, hatch_date) %>%
+  summarise(specialdays = sum(special_day), .groups = "drop") %>%
+  arrange(nest_ID, date) %>%
+
+  # integrate with original data and accumulate since last sighting
+  left_join(
+    BSC_chick_data_clean %>%
+      mutate(hatch_date = hatch_date + 1) %>%
+      select(region, season, nest_ID, date, hatch_date, offspring_seen),
+    by = c("region", "season", "nest_ID", "date", "hatch_date")
+  ) %>%
+  mutate(fledge_date = hatch_date + 35) %>% 
+  filter(date <= fledge_date) %>% 
+  arrange(nest_ID, date) %>%
+  group_by(nest_ID) %>%
+  mutate(event_group = cumsum(offspring_seen == 1)) %>%
+  group_by(nest_ID, event_group) %>%
+  mutate(
+    specialdays_since_seen = cumsum(specialdays),
+    # KEY FIX: if this row has offspring_seen == 1, set the 'since' counter to 0
+    specialdays_since_seen = if_else(offspring_seen == 1, 0L, specialdays_since_seen)
   ) %>%
   ungroup()
 
+# Step 4. Optional summary table: last specialdays_since_seen per nest
+nest_specialday_summary <- BSC_chick_data_specialdays %>%
+  group_by(nest_ID) %>%
+  summarise(funday_total = last(na.omit(specialdays_since_seen)))
 
 # Step 3: Join funday count back to every row
 BSC_chick_data_clean <- BSC_chick_data_clean %>%
+      mutate(hatch_date = hatch_date + 1) %>%
   left_join(
-    funday_summary_BSC %>% select(nest_ID, funday_total),
+    nest_specialday_summary,
     by = "nest_ID",
     relationship = "many-to-many")
-
 ```
+
 
 ```{r}
 # assess how often management levels and status changed over the chick obs
@@ -11312,6 +11541,7 @@ FP_chick_data_clean <-
   select(region, season, site, nest_ID, hatch_date, date, 
          n_adults_seen, n_juvs_seen, n_chicks_seen, lat, lon, 
          management_level, management_status) %>% 
+  mutate(hatch_date = hatch_date + 2) %>% 
   group_by(nest_ID) %>% 
   arrange(date) %>% 
   ungroup() %>% 
@@ -11327,57 +11557,131 @@ FP_chick_data_clean <-
 ```
 
 ```{r}
-## Fundays
-# Find brood start and end date
-FP_chick_data_clean <- FP_chick_data_clean %>%
-  mutate(date_formatted = as.Date(date, format = "%d%m%Y")) %>%
-  group_by(nest_ID) %>%
-  mutate(last_checked = max(date_formatted, na.rm = TRUE)) %>%
-  ungroup()
-#clean
-FP_chick_data_clean <- FP_chick_data_clean %>%
-  mutate(hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)) %>%
-  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+# ## Fundays
+# # Find brood start and end date
+# FP_chick_data_clean <- FP_chick_data_clean %>%
+#   mutate(date_formatted = as.Date(date, format = "%d%m%Y")) %>%
+#   group_by(nest_ID) %>%
+#   mutate(last_checked = max(date_formatted, na.rm = TRUE)) %>%
+#   ungroup()
+# #clean
+# FP_chick_data_clean <- FP_chick_data_clean %>%
+#   mutate(hatch_date = as.Date(hatch_date),
+#     last_checked = as.Date(last_checked)) %>%
+#   filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+# 
+# # Join threat and brood data to find out weekends and weekdays
+# funday_summary_FP <- FP_chick_data_clean %>%
+#   rowwise() %>%  # optional, can be removed in vectorized version
+#   mutate(
+#     weekend_days = ifelse(
+#       is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+#       0L,
+#       sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
+#     ),
+#     holiday_days = ifelse(
+#       is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
+#       0L,
+#       sum(sapply(
+#         seq(hatch_date, last_checked, by = "day"),
+#         function(d) {
+#           is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+#           is_holiday <- any(
+#             !is.na(holidays$start_date) &
+#             !is.na(holidays$end_date) &
+#             d >= holidays$start_date &
+#             d <= holidays$end_date &
+#             holidays$region == "FP"
+#           )
+#           as.integer(is_holiday & !is_weekend)
+#         }
+#       ), na.rm = TRUE)
+#     ),
+#     funday_total = pmin(weekend_days + holiday_days, 35L)
+#   ) %>%
+#   ungroup()
+# 
+# # Step 3: Join funday count back to every row
+# FP_chick_data_clean <- FP_chick_data_clean %>%
+#   left_join(funday_summary_FP %>% select(nest_ID, funday_total),
+#     by = "nest_ID",
+#     relationship = "many-to-many")
 
-# Join threat and brood data to find out weekends and weekdays
-funday_summary_FP <- FP_chick_data_clean %>%
-  rowwise() %>%  # optional, can be removed in vectorized version
+```
+
+```{r}
+# Step 1. Expand holidays into daily rows (as before)
+holidays_expanded <- holidays %>%
+  filter(!is.na(start_date) & !is.na(end_date)) %>%
+  mutate(day = map2(start_date, end_date, seq, by = "day")) %>%  # rename here
+  unnest(day) %>%
+  select(season, region, day) %>%
+  distinct()
+
+# Step 2: Process chick data with special days
+FP_chick_data_specialdays <- FP_chick_data_clean %>%
+  select(region, season, nest_ID, brood_age, hatch_date, date, offspring_seen) %>%
+  mutate(hatch_date = hatch_date + 1) %>% 
+  arrange(nest_ID, date) %>%
+  group_by(nest_ID) %>%
+  mutate(start_date = if_else(row_number() == 1, hatch_date, lag(date))) %>%
+  ungroup() %>%
+  rowwise() %>%
   mutate(
-    weekend_days = ifelse(
-      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
-      0L,
-      sum(weekdays(seq(hatch_date, last_checked, by = "day")) %in% c("Saturday", "Sunday"))
-    ),
-    holiday_days = ifelse(
-      is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked,
-      0L,
-      sum(sapply(
-        seq(hatch_date, last_checked, by = "day"),
-        function(d) {
-          is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-          is_holiday <- any(
-            !is.na(holidays$start_date) &
-            !is.na(holidays$end_date) &
-            d >= holidays$start_date &
-            d <= holidays$end_date &
-            holidays$region == "FP"
-          )
-          as.integer(is_holiday & !is_weekend)
-        }
-      ), na.rm = TRUE)
-    ),
-    funday_total = pmin(weekend_days + holiday_days, 35L)
+    # Only create sequences if both start_date and date are non-missing and start_date <= date
+    all_days = if (is.na(start_date) | is.na(date) | start_date > date) {
+      list(as.Date(character(0)))
+    } else {
+      list(seq(start_date, date, by = "day"))
+    }
+  ) %>%
+  ungroup() %>%
+  unnest(all_days) %>%
+  rename(day = all_days) %>%
+  left_join(holidays_expanded, by = c("season", "region", "day")) %>%
+  mutate(
+    is_weekend = weekdays(day) %in% c("Saturday", "Sunday"),
+    is_holiday = !is.na(season),  # after join, holiday rows have non-NA season
+    special_day = is_weekend | is_holiday
+  ) %>%
+  group_by(region, season, nest_ID, date, hatch_date) %>%
+  summarise(specialdays = sum(special_day), .groups = "drop") %>%
+  arrange(nest_ID, date) %>%
+
+  # integrate with original data and accumulate since last sighting
+  left_join(
+    FP_chick_data_clean %>%
+      mutate(hatch_date = hatch_date + 1) %>%
+      select(region, season, nest_ID, date, hatch_date, offspring_seen),
+    by = c("region", "season", "nest_ID", "date", "hatch_date")
+  ) %>%
+  mutate(fledge_date = hatch_date + 35) %>% 
+  filter(date <= fledge_date) %>% 
+  arrange(nest_ID, date) %>%
+  group_by(nest_ID) %>%
+  mutate(event_group = cumsum(offspring_seen == 1)) %>%
+  group_by(nest_ID, event_group) %>%
+  mutate(
+    specialdays_since_seen = cumsum(specialdays),
+    # KEY FIX: if this row has offspring_seen == 1, set the 'since' counter to 0
+    specialdays_since_seen = if_else(offspring_seen == 1, 0L, specialdays_since_seen)
   ) %>%
   ungroup()
 
+# Step 4. Optional summary table: last specialdays_since_seen per nest
+nest_specialday_summary <- FP_chick_data_specialdays %>%
+  group_by(nest_ID) %>%
+  summarise(funday_total = last(na.omit(specialdays_since_seen)))
+
 # Step 3: Join funday count back to every row
 FP_chick_data_clean <- FP_chick_data_clean %>%
-  left_join(funday_summary_FP %>% select(nest_ID, funday_total),
+      mutate(hatch_date = hatch_date + 1) %>%
+  left_join(
+    nest_specialday_summary,
     by = "nest_ID",
     relationship = "many-to-many")
-
 ```
+
 
 ```{r}
 # assess how often management levels and status changed over the chick obs
@@ -11716,6 +12020,7 @@ PI_chick_data_clean <-
   select(region, season, site, nest_ID, hatch_date, date, 
          n_adults_seen, n_juvs_seen, n_chicks_seen, lat, lon, 
          management_level, management_status) %>% 
+  mutate(hatch_date = hatch_date + 2) %>% 
   group_by(nest_ID) %>% 
   arrange(date) %>% 
   ungroup() %>% 
@@ -11731,57 +12036,131 @@ PI_chick_data_clean <-
 ```
 
 ```{r}
-## Fundays
-# Find brood start and end date
-PI_chick_data_clean <- PI_chick_data_clean %>%
-  mutate(date_formatted = as.Date(date, format = "%d%m%Y")) %>%
-  group_by(nest_ID) %>%
-  mutate(last_checked = max(date_formatted, na.rm = TRUE)) %>%
-  ungroup()
-#clean
-PI_chick_data_clean <- PI_chick_data_clean %>%
-  mutate(hatch_date = as.Date(hatch_date),
-    last_checked = as.Date(last_checked)) %>%
-  filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+# ## Fundays
+# # Find brood start and end date
+# PI_chick_data_clean <- PI_chick_data_clean %>%
+#   mutate(date_formatted = as.Date(date, format = "%d%m%Y")) %>%
+#   group_by(nest_ID) %>%
+#   mutate(last_checked = max(date_formatted, na.rm = TRUE)) %>%
+#   ungroup()
+# #clean
+# PI_chick_data_clean <- PI_chick_data_clean %>%
+#   mutate(hatch_date = as.Date(hatch_date),
+#     last_checked = as.Date(last_checked)) %>%
+#   filter(!is.na(hatch_date), !is.na(last_checked), hatch_date <= last_checked)
+# 
+# # Join threat and brood data to find out weekends and weekdays
+# funday_summary_PI <- PI_chick_data_clean %>%
+#  rowwise() %>%
+#   mutate(
+#     weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+#       0L
+#     } else {
+#       all_days <- seq(hatch_date, last_checked, by = "day")
+#       sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
+#     },
+#     holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
+#       0L
+#     } else {
+#       all_days <- seq(hatch_date, last_checked, by = "day")
+#       sum(sapply(all_days, function(d) {
+#         is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
+#         is_holiday <- any(
+#           !is.na(holidays$start_date) &
+#           !is.na(holidays$end_date) &
+#           d >= holidays$start_date &
+#           d <= holidays$end_date &
+#           holidays$region == "PI"
+#         )
+#         as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
+#       }), na.rm = TRUE) },
+#   
+#   # Total fundays = weekends + holidays, capped at 35
+#     funday_total = pmin(weekend_days + holiday_days, 35L)
+#   ) %>%
+#   ungroup()
+# 
+# # Step 3: Join funday count back to every row
+# PI_chick_data_clean <- PI_chick_data_clean %>%
+#   left_join(funday_summary_PI %>% select(nest_ID, funday_total),
+#     by = "nest_ID",
+#     relationship = "many-to-many")
 
-# Join threat and brood data to find out weekends and weekdays
-funday_summary_PI <- PI_chick_data_clean %>%
- rowwise() %>%
+```
+
+```{r}
+# Step 1. Expand holidays into daily rows (as before)
+holidays_expanded <- holidays %>%
+  filter(!is.na(start_date) & !is.na(end_date)) %>%
+  mutate(day = map2(start_date, end_date, seq, by = "day")) %>%  # rename here
+  unnest(day) %>%
+  select(season, region, day) %>%
+  distinct()
+
+# Step 2: Process chick data with special days
+PI_chick_data_specialdays <- PI_chick_data_clean %>%
+  select(region, season, nest_ID, brood_age, hatch_date, date, offspring_seen) %>%
+  mutate(hatch_date = hatch_date + 1) %>% 
+  arrange(nest_ID, date) %>%
+  group_by(nest_ID) %>%
+  mutate(start_date = if_else(row_number() == 1, hatch_date, lag(date))) %>%
+  ungroup() %>%
+  rowwise() %>%
   mutate(
-    weekend_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
+    # Only create sequences if both start_date and date are non-missing and start_date <= date
+    all_days = if (is.na(start_date) | is.na(date) | start_date > date) {
+      list(as.Date(character(0)))
     } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(weekdays(all_days) %in% c("Saturday", "Sunday"), na.rm = TRUE)
-    },
-    holiday_days = if (is.na(hatch_date) | is.na(last_checked) | hatch_date > last_checked) {
-      0L
-    } else {
-      all_days <- seq(hatch_date, last_checked, by = "day")
-      sum(sapply(all_days, function(d) {
-        is_weekend <- weekdays(d) %in% c("Saturday", "Sunday")
-        is_holiday <- any(
-          !is.na(holidays$start_date) &
-          !is.na(holidays$end_date) &
-          d >= holidays$start_date &
-          d <= holidays$end_date &
-          holidays$region == "PI"
-        )
-        as.integer(is_holiday & !is_weekend)  # only count holidays that are not weekends
-      }), na.rm = TRUE) },
-  
-  # Total fundays = weekends + holidays, capped at 35
-    funday_total = pmin(weekend_days + holiday_days, 35L)
+      list(seq(start_date, date, by = "day"))
+    }
+  ) %>%
+  ungroup() %>%
+  unnest(all_days) %>%
+  rename(day = all_days) %>%
+  left_join(holidays_expanded, by = c("season", "region", "day")) %>%
+  mutate(
+    is_weekend = weekdays(day) %in% c("Saturday", "Sunday"),
+    is_holiday = !is.na(season),  # after join, holiday rows have non-NA season
+    special_day = is_weekend | is_holiday
+  ) %>%
+  group_by(region, season, nest_ID, date, hatch_date) %>%
+  summarise(specialdays = sum(special_day), .groups = "drop") %>%
+  arrange(nest_ID, date) %>%
+
+  # integrate with original data and accumulate since last sighting
+  left_join(
+    PI_chick_data_clean %>%
+      mutate(hatch_date = hatch_date + 1) %>%
+      select(region, season, nest_ID, date, hatch_date, offspring_seen),
+    by = c("region", "season", "nest_ID", "date", "hatch_date")
+  ) %>%
+  mutate(fledge_date = hatch_date + 35) %>% 
+  filter(date <= fledge_date) %>% 
+  arrange(nest_ID, date) %>%
+  group_by(nest_ID) %>%
+  mutate(event_group = cumsum(offspring_seen == 1)) %>%
+  group_by(nest_ID, event_group) %>%
+  mutate(
+    specialdays_since_seen = cumsum(specialdays),
+    # KEY FIX: if this row has offspring_seen == 1, set the 'since' counter to 0
+    specialdays_since_seen = if_else(offspring_seen == 1, 0L, specialdays_since_seen)
   ) %>%
   ungroup()
 
+# Step 4. Optional summary table: last specialdays_since_seen per nest
+nest_specialday_summary <- PI_chick_data_specialdays %>%
+  group_by(nest_ID) %>%
+  summarise(funday_total = last(na.omit(specialdays_since_seen)))
+
 # Step 3: Join funday count back to every row
 PI_chick_data_clean <- PI_chick_data_clean %>%
-  left_join(funday_summary_PI %>% select(nest_ID, funday_total),
+      mutate(hatch_date = hatch_date + 1) %>%
+  left_join(
+    nest_specialday_summary,
     by = "nest_ID",
     relationship = "many-to-many")
-
 ```
+
 
 ```{r}
 # assess how often management levels and status changed over the chick obs
@@ -11945,9 +12324,8 @@ PI_chick_ch %>%
 
 ```
 
-
-##MP
-### Mark-recapture modelling
+## MP
+### Mark-recapture modelling (with all management levels)
 ```{r}
 # Create processed RMARK data format as CJS with "Year" as group
 MP_chicks.proc <- process.data(MP_chick_ch, model = "CJS",
@@ -11972,7 +12350,7 @@ MP_chicks.ddl$Phi <- merge_design.covariates(MP_chicks.ddl$Phi,
                                              funday_cov, bygroup = FALSE, bytime = TRUE)
 ```
 
-### Detection probability modelling
+### Detection probability modelling (with all management levels)
 ```{r}
 # First assess the best model structure of encounter probability (p) while
 # keeping survival (Phi) constant
@@ -12002,17 +12380,17 @@ MP_chicks_p=function()
   p.date <- 
     list(formula = ~date_j)
   
-  # interaction between year and age
-  p.year.x.age <- 
-    list(formula = ~season * Time)
-  
-  # interaction between year and quadratic age
-  p.year.x.quadage <- 
-    list(formula = ~season * Quadratic)
-  
-  # interaction between year and hatch date
-  p.year.x.date <- 
-    list(formula = ~season * date_j)
+  # # interaction between year and age
+  # p.year.x.age <- 
+  #   list(formula = ~season * Time)
+  # 
+  # # interaction between year and quadratic age
+  # p.year.x.quadage <- 
+  #   list(formula = ~season * Quadratic)
+  # 
+  # # interaction between year and hatch date
+  # p.year.x.date <- 
+  #   list(formula = ~season * date_j)
   
   # additive effect between year and age
   p.year.age <- 
@@ -12043,7 +12421,7 @@ MP_chicks_p_run <- MP_chicks_p()
 # inspect p AIC table to find top model
 MP_chicks_p_run # best structures under 2 DeltaAICc: p(~season + Quadratic), p(~season * Quadratic), p(~Quadratic)
 
-saveRDS(MP_chicks_p_run, "output/MP_chicks_p_run.rds")
+saveRDS(MP_chicks_p_run, "output/chick_surv/MP/MP_chicks_p_run.rds")
 
 #Create AIC model selection table
 
@@ -12105,6 +12483,171 @@ MP_chicks_p_run$model.table %>%
     table.width = pct(80))
 
 ```
+
+### Mark-recapture modelling (with only management levels 4 and 5)
+```{r}
+MP_chick_45_ch <- 
+  MP_chick_ch %>% filter(mgmt_l %in% c("4", "5"))
+
+# Create processed RMARK data format as CJS with "Year" as group
+MP_chicks_45.proc <- process.data(MP_chick_45_ch, 
+                                 model = "CJS",
+                                 groups = c("season", "region", 
+                                            "mgmt_l", "mgmt_s"))
+
+# Create the design data
+MP_chicks_45.ddl <- make.design.data(MP_chicks_45.proc)
+
+# create a quadratic time variable
+time <- c(0:(MP_chicks_45.proc$nocc[1]-1))
+Quadratic <- time^2
+Cubic <- time^3
+quad_time <- data.frame(time, Quadratic, Cubic)
+funday_cov <- data.frame(time = 0:(MP_chicks_45.proc$nocc[1]-1),
+                         funday = MP_chick_45_ch$funday[1:MP_chicks_45.proc$nocc[1]])
+MP_chicks_45.ddl$p <- merge_design.covariates(MP_chicks_45.ddl$Phi, 
+                                           quad_time, bygroup = FALSE, bytime = TRUE)
+MP_chicks_45.ddl$Phi <- merge_design.covariates(MP_chicks_45.ddl$Phi, 
+                                             quad_time, bygroup = FALSE, bytime = TRUE)
+MP_chicks_45.ddl$Phi <- merge_design.covariates(MP_chicks_45.ddl$Phi, 
+                                             funday_cov, bygroup = FALSE, bytime = TRUE)
+```
+
+### Detection probability modelling (with only management levels 4 and 5)
+```{r}
+# First assess the best model structure of encounter probability (p) while
+# keeping survival (Phi) constant
+MP_chicks_p=function() 
+{
+  # Constant Phi
+  Phi.dot <- 
+    list(formula = ~1)
+  
+  # Constant p
+  p.dot <- 
+    list(formula = ~1)
+  
+  # p varies linearly with chick age
+  p.age <- 
+    list(formula = ~Time)
+  
+  # p varies quadratically with chick age
+  p.quadage <- 
+    list(formula = ~Quadratic)
+  
+  # p varies across year
+  p.season <- 
+    list(formula = ~season)
+  
+  # p varies across the hatch date
+  p.date <- 
+    list(formula = ~date_j)
+  
+  # # interaction between year and age
+  # p.year.x.age <- 
+  #   list(formula = ~season * Time)
+  
+  # # interaction between year and quadratic age
+  # p.year.x.quadage <- 
+  #   list(formula = ~season * Quadratic)
+  # 
+  # # interaction between year and hatch date
+  # p.year.x.date <- 
+  #   list(formula = ~season * date_j)
+  
+  # additive effect between year and age
+  p.year.age <- 
+    list(formula = ~season + Time)
+  
+  # additive effect between year and quadratic age
+  p.year.quadage <- 
+    list(formula = ~season + Quadratic)
+  
+  # additive effect between year and hatch date
+  p.year.date <- 
+    list(formula = ~season + date_j)
+  
+  # create model list for all a priori models above that begin with Phi. or p.
+  cml <- create.model.list("CJS") 
+  
+  # runs model list in program MARK
+  model.list <- mark.wrapper(model.list = cml, data = MP_chicks_45.proc, 
+                             ddl = MP_chicks_45.ddl, 
+                             threads = 4, brief = TRUE, delete = TRUE)
+  
+  # store completed model list
+  return(model.list) 
+}
+# Run model selection to determine best structure of p
+MP_chicks_45_p_run <- MP_chicks_p()
+
+# inspect p AIC table to find top model
+MP_chicks_45_p_run # best structures under 2 DeltaAICc: p(~season + Quadratic), p(~season * Quadratic), p(~Quadratic)
+
+saveRDS(MP_chicks_45_p_run, "output/MP_chicks_p_run_45.rds")
+
+#Create AIC model selection table
+
+MP_chicks_p_run <- readRDS(file = "output/MP_chicks_p_run.rds") 
+
+MP_chicks_p_run$model.table %>% 
+  mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+      "Time" = "time",
+      "season" = "year"))) %>%
+  dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
+  cols_label(model = html("<i>Mornington Peninsula</i>"), 
+             npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
+  cols_align(align = "left", columns = vars(model)) %>% 
+  tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~1)")) %>% 
+   text_transform(
+    locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold", 
+              row_group.background.color = brewer.pal(9,"Greys")[3], 
+              table.font.size = 12, data_row.padding = 3, 
+              row_group.padding = 4, summary_row.padding = 2, 
+              column_labels.font.size = 14, row_group.font.size = 12, 
+              table.width = pct(80))
+
+#Create AIC model selection table with delta AIC < 2
+MP_chicks_p_run$model.table %>%
+   filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
+   mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+       "Time" = "time",
+      "season" = "year"))) %>%
+  dplyr::select(model, npar, DeltaAICc, weight) %>%
+  gt() %>%
+  cols_label(model = html("<i>Mornington Peninsula</i>"),
+    npar = "K",
+    DeltaAICc = "DeltaAICc",
+    weight = "weight") %>%
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>%
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>%
+  cols_align(align = "left", columns = vars(model)) %>%
+   text_transform(locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold",
+    row_group.background.color = brewer.pal(9, "Greys")[3],
+    table.font.size = 12,
+    data_row.padding = 3,
+    row_group.padding = 4,
+    summary_row.padding = 2,
+    column_labels.font.size = 14,
+    row_group.font.size = 12,
+    table.width = pct(80))
+
+```
+
+
 
 ### Extract results and visualize p
 ```{r}
@@ -12240,14 +12783,14 @@ MP_chicks_Phi <- function()
     list(formula = ~ funday * mgmt_s)
   
   # # best structures of p determined from previous analysis
+  # p.quadage <-
+  #   list(formula = ~Quadratic)
+  
   p.quadage <-
-    list(formula = ~Quadratic)
+  list(formula = ~Quadratic)
   
-  p.season_quadage <-
-  list(formula = ~season + Quadratic)
-  
-  p.season_x_quadage <-
-  list(formula = ~season * Quadratic)
+  # p.season_x_quadage <-
+  # list(formula = ~season * Quadratic)
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
@@ -12262,12 +12805,12 @@ MP_chicks_Phi <- function()
 }
 
 # Run model selection to determine best structure of Phi
-MP_chicks_Phi_run <- MP_chicks_Phi()
+MP_chicks_45_Phi_run <- MP_chicks_Phi()
 
 # inspect Phi AIC table to find top model
-MP_chicks_Phi_run # best structure: Phi(~season * Quadratic)
+MP_chicks_45_Phi_run # best structure: Phi(~season * Quadratic)
 
-saveRDS(MP_chicks_Phi_run, "output/MP_chicks_Phi_run.rds")
+saveRDS(MP_chicks_45_Phi_run, "output/MP_chicks_45_Phi_run.rds")
 
 #Create AIC model selection table
 
@@ -12702,33 +13245,37 @@ filter(MP_Chick_mgmt_s_surv, X1 == "Phi") %>%
 ##BC
 ### Mark-recapture modelling
 ```{r}
+BC_chick_ch <- 
+  BC_chick_ch %>% 
+  mutate(mgmt_45 = ifelse(mgmt_l %in% c("4", "5"), "Y", "N"))
+
 # Create processed RMARK data format as CJS with "Year" as group
-BC_chicks.proc <- process.data(BC_chick_ch, model = "CJS",
+BC_chicks_45.proc <- process.data(BC_chick_ch, model = "CJS",
                                groups = c("season", "region", 
-                                          "mgmt_l", "mgmt_s"))
+                                          "mgmt_l", "mgmt_s", "mgmt_45"))
 
 # Create the design data
-BC_chicks.ddl <- make.design.data(BC_chicks.proc)
+BC_chicks_45.ddl <- make.design.data(BC_chicks_45.proc)
 
 # create a quadratic time variable
-time <- c(0:(BC_chicks.proc$nocc[1]-1))
+time <- c(0:(BC_chicks_45.proc$nocc[1]-1))
 Quadratic <- time^2
 Cubic <- time^3
 quad_time <- data.frame(time, Quadratic, Cubic)
-funday_cov <- data.frame(time = 0:(BC_chicks.proc$nocc[1]-1),
-                         funday = BC_chick_ch$funday[1:BC_chicks.proc$nocc[1]])
-BC_chicks.ddl$p <- merge_design.covariates(BC_chicks.ddl$Phi, 
+funday_cov <- data.frame(time = 0:(BC_chicks_45.proc$nocc[1]-1),
+                         funday = BC_chick_45_ch$funday[1:BC_chicks_45.proc$nocc[1]])
+BC_chicks_45.ddl$p <- merge_design.covariates(BC_chicks_45.ddl$Phi, 
                                               quad_time, bygroup = FALSE, bytime = TRUE)
-BC_chicks.ddl$Phi <- merge_design.covariates(BC_chicks.ddl$Phi, 
+BC_chicks_45.ddl$Phi <- merge_design.covariates(BC_chicks_45.ddl$Phi, 
                                                 quad_time, bygroup = FALSE, bytime = TRUE)
-BC_chicks.ddl$Phi <- merge_design.covariates(BC_chicks.ddl$Phi, 
+BC_chicks_45.ddl$Phi <- merge_design.covariates(BC_chicks_45.ddl$Phi, 
                                              funday_cov, bygroup = FALSE, bytime = TRUE)
 ```
 ### Detection probability modelling
 ```{r}
 # First assess the best model structure of encounter probability (p) while
 # keeping survival (Phi) constant
-BC_chicks_p=function() 
+BC_chicks_45_p=function() 
 {
   # Constant Phi
   Phi.dot <- 
@@ -12782,8 +13329,8 @@ BC_chicks_p=function()
   cml <- create.model.list("CJS") 
   
   # runs model list in program MARK
-  model.list <- mark.wrapper(model.list = cml, data = BC_chicks.proc, 
-                             ddl = BC_chicks.ddl, 
+  model.list <- mark.wrapper(model.list = cml, data = BC_chicks_45.proc, 
+                             ddl = BC_chicks_45.ddl, 
                              threads = 4, brief = TRUE, delete = TRUE)
   
   # store coBCleted model list
@@ -12791,18 +13338,18 @@ BC_chicks_p=function()
 }
 
 # Run model selection to determine best structure of p
-BC_chicks_p_run <- BC_chicks_p()
+BC_chicks_45_p_run <- BC_chicks_45_p()
 
 # inspect p AIC table to find top model
-BC_chicks_p_run # best structure: p(~1) #model 3
+BC_chicks_45_p_run # best structure: p(~1) #model 3
 
-saveRDS(BC_chicks_p_run, "output/BC_chicks_p_run.rds")
+saveRDS(BC_chicks_45_p_run, "output/BC_chicks_45_p_run.rds")
 
 #Create AIC model selection table
 
-BC_chicks_p_run <- readRDS(file = "output/BC_chicks_p_run.rds") 
+BC_chicks_45_p_run <- readRDS(file = "output/BC_chicks_45_p_run.rds") 
 
-BC_chicks_p_run$model.table %>% 
+BC_chicks_45_p_run$model.table %>% 
   mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
        "date_j" = "hatch date",
@@ -12829,7 +13376,7 @@ BC_chicks_p_run$model.table %>%
               table.width = pct(80))
 
 #Create AIC model selection table with delta AIC < 2
-BC_chicks_p_run$model.table %>%
+BC_chicks_45_p_run$model.table %>%
    filter(DeltaAICc < 2 | model == "Phi(~1)p(~1)") %>%
    mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
@@ -12911,30 +13458,34 @@ BC_chicks_Phi <- function()
   # Phi varies by management status
   Phi.mgmt_s <-
     list(formula = ~mgmt_s)
-
-  # interaction between hatch date and age
-  Phi.date.x.age <-
-    list(formula = ~date_j * Time)
-
-  # interaction between hatch date and quadratic age
-  Phi.date.x.quadage <-
-    list(formula = ~date_j * Quadratic)
-
-  # interaction between year and hatch date
-  Phi.season.x.date <-
-    list(formula = ~season * date_j)
   
-  # interaction between hatch date and age and management level
-  Phi.date.x.mgmt_l <-
-    list(formula = ~date_j * mgmt_l)
+  # Phi varies by management status
+  Phi.mgmt_45 <-
+    list(formula = ~mgmt_45)
 
-  # interaction between hatch date and quadratic age and management level
-  Phi.age.x.mgmt_l <-
-    list(formula = ~Time * mgmt_l)
+  # # interaction between hatch date and age
+  # Phi.date.x.age <-
+  #   list(formula = ~date_j * Time)
+  # 
+  # # interaction between hatch date and quadratic age
+  # Phi.date.x.quadage <-
+  #   list(formula = ~date_j * Quadratic)
 
-  # interaction between year and hatch date and management level
-  Phi.quadage.x.mgmt_l <-
-    list(formula = ~Quadratic * mgmt_l)
+  # # interaction between year and hatch date
+  # Phi.season.x.date <-
+  #   list(formula = ~season * date_j)
+  # 
+  # # interaction between hatch date and age and management level
+  # Phi.date.x.mgmt_l <-
+  #   list(formula = ~date_j * mgmt_l)
+  # 
+  # # interaction between hatch date and quadratic age and management level
+  # Phi.age.x.mgmt_l <-
+  #   list(formula = ~Time * mgmt_l)
+  # 
+  # # interaction between year and hatch date and management level
+  # Phi.quadage.x.mgmt_l <-
+  #   list(formula = ~Quadratic * mgmt_l)
   
   # interaction between hatch date and age and management level
   Phi.date.mgmt_l <-
@@ -12948,17 +13499,17 @@ BC_chicks_Phi <- function()
   Phi.quadage.mgmt_l <-
     list(formula = ~Quadratic + mgmt_l)
   
-  # interaction between hatch date and age and management status
-  Phi.date.x.mgmt_s <-
-    list(formula = ~date_j * mgmt_s)
+  # # interaction between hatch date and age and management status
+  # Phi.date.x.mgmt_s <-
+  #   list(formula = ~date_j * mgmt_s)
+  # 
+  # # interaction between hatch date and quadratic age and management status
+  # Phi.age.x.mgmt_s <-
+  #   list(formula = ~Time * mgmt_s)
 
-  # interaction between hatch date and quadratic age and management status
-  Phi.age.x.mgmt_s <-
-    list(formula = ~Time * mgmt_s)
-
-  # interaction between year and hatch date and management status
-  Phi.quadage.x.mgmt_s <-
-    list(formula = ~Quadratic * mgmt_s)
+  # # interaction between year and hatch date and management status
+  # Phi.quadage.x.mgmt_s <-
+  #   list(formula = ~Quadratic * mgmt_s)
   
   # interaction between hatch date and age and management status
   Phi.date.mgmt_s <-
@@ -12972,6 +13523,18 @@ BC_chicks_Phi <- function()
   Phi.quadage.mgmt_s <-
     list(formula = ~Quadratic + mgmt_s)
   
+    # interaction between hatch date and age and management status
+  Phi.date.mgmt_45 <-
+    list(formula = ~date_j + mgmt_45)
+
+  # interaction between hatch date and quadratic age and management status
+  Phi.age.mgmt_45 <-
+    list(formula = ~Time + mgmt_45)
+
+  # interaction between year and hatch date and management status
+  Phi.quadage.mgmt_45 <-
+    list(formula = ~Quadratic + mgmt_45)
+  
    # Phi varies with number of fun days
   Phi.funday <-
     list(formula = ~ funday)
@@ -12984,33 +13547,37 @@ BC_chicks_Phi <- function()
   Phi.funday.mgmt_s <-
     list(formula = ~ funday + mgmt_s)
   
-   # Interaction between funday and management level
-  Phi.funday.x.mgmt_l <-
-    list(formula = ~ funday * mgmt_l)
-
-   # Interaction between funday and management status
-  Phi.funday.x.mgmt_s <-
-    list(formula = ~ funday * mgmt_s)
+    # Additive effect of funday and management status
+  Phi.funday.mgmt_45 <-
+    list(formula = ~ funday + mgmt_45)
+  
+  #  # Interaction between funday and management level
+  # Phi.funday.x.mgmt_l <-
+  #   list(formula = ~ funday * mgmt_l)
+  # 
+  #  # Interaction between funday and management status
+  # Phi.funday.x.mgmt_s <-
+  #   list(formula = ~ funday * mgmt_s)
   
     # best structures of p determined from previous analysis
   p.dot <- 
     list(formula = ~1)
  
-  p.quadage <- 
-    list(formula = ~Quadratic)
-  
-  p.date_j <- 
-    list(formula = ~date_j)
+  # p.quadage <- 
+  #   list(formula = ~Quadratic)
+  # 
+  # p.date_j <- 
+  #   list(formula = ~date_j)
     
-  p.age <- 
-    list(formula = ~Time)
+  # p.age <- 
+  #   list(formula = ~Time)
  
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS")
   
   # runs model list in program MARK
-  model.list <- mark.wrapper(model.list = cml, data = BC_chicks.proc, 
-                             ddl = BC_chicks.ddl,
+  model.list <- mark.wrapper(model.list = cml, data = BC_chicks_45.proc, 
+                             ddl = BC_chicks_45.ddl,
                              threads = 4, brief = TRUE, delete = TRUE)
   
   # store coBCleted model list
@@ -15012,7 +15579,7 @@ filter(Chick_mgmt_s_surv, X1 == "Phi") %>%
 ##all populations
 ### Mark-recapture modelling
 ```{r}
-chick_ch <- 
+all_chicks_ch <- 
   bind_rows(
     MP_chick_ch,
     BC_chick_ch,
@@ -15020,37 +15587,95 @@ chick_ch <-
     BSC_chick_ch,
     PI_chick_ch
   ) %>% 
-  filter(mgmt_l %in% c(4, 5))
+  mutate(mgmt_45 = ifelse(mgmt_l %in% c("4", "5"), "Y", "N") %>% as.factor())
 
-# Create processed RMARK data format as CJS with "Year" as group
-chicks.proc <- process.data(chick_ch, model = "CJS",
-                               groups = c("season", "region", 
-                                          "mgmt_l", "mgmt_s"))
-
-# Create the design data
-chicks.ddl <- make.design.data(chicks.proc)
-
-# create a quadratic time variable
-time <- c(0:(chicks.proc$nocc[1]-1))
-Quadratic <- time^2
-Cubic <- time^3
-quad_time <- data.frame(time, Quadratic, Cubic)
-funday_cov <- data.frame(time = 0:(chicks.proc$nocc[1]-1),
-                         funday = chick_ch$funday[1:chicks.proc$nocc[1]])
-chicks.ddl$p <- merge_design.covariates(chicks.ddl$Phi, 
-                                              quad_time, bygroup = FALSE, bytime = TRUE)
-chicks.ddl$Phi <- merge_design.covariates(chicks.ddl$Phi, 
-                                                quad_time, bygroup = FALSE, bytime = TRUE)
-chicks.ddl$Phi <- merge_design.covariates(chicks.ddl$Phi, 
-                                             funday_cov, bygroup = FALSE, bytime = TRUE)
+# chicks_45_ch <- 
+#   bind_rows(
+#     MP_chick_ch,
+#     BC_chick_ch,
+#     FP_chick_ch,
+#     BSC_chick_ch,
+#     PI_chick_ch
+#   ) %>% 
+#   filter(mgmt_l %in% c("4", "5"))
+# 
+# chicks_YN_ch <- 
+#   bind_rows(
+#     MP_chick_ch,
+#     BC_chick_ch,
+#     FP_chick_ch,
+#     BSC_chick_ch,
+#     PI_chick_ch
+#   )
+# 
+# # Create processed RMARK data format as CJS with "Year" as group
+# chicks_45.proc <- process.data(chicks_45_ch, model = "CJS",
+#                                groups = c("season", "region", 
+#                                           "mgmt_l", "mgmt_s"))
+# 
+# chicks_YN.proc <- process.data(chicks_YN_ch, model = "CJS",
+#                                groups = c("season", "region", 
+#                                           "mgmt_45", "mgmt_s"))
+# 
+# # Create the design data
+# chicks_45.ddl <- make.design.data(chicks_45.proc)
+# chicks_YN.ddl <- make.design.data(chicks_YN.proc)
+# 
+# # create a quadratic time variable
+# time <- c(0:(chicks_45.proc$nocc[1]-1))
+# Quadratic <- time^2
+# Cubic <- time^3
+# quad_time <- data.frame(time, Quadratic, Cubic)
+# funday_cov <- data.frame(time = 0:(chicks_45.proc$nocc[1]-1),
+#                          funday = chick_ch$funday[1:chicks_45.proc$nocc[1]])
+# chicks_45.ddl$p <- merge_design.covariates(chicks_45.ddl$Phi, 
+#                                               quad_time, bygroup = FALSE, bytime = TRUE)
+# chicks_45.ddl$Phi <- merge_design.covariates(chicks_45.ddl$Phi, 
+#                                                 quad_time, bygroup = FALSE, bytime = TRUE)
+# chicks_45.ddl$Phi <- merge_design.covariates(chicks_45.ddl$Phi, 
+#                                              funday_cov, bygroup = FALSE, bytime = TRUE)
+# 
+# time <- c(0:(chicks_YN.proc$nocc[1]-1))
+# Quadratic <- time^2
+# Cubic <- time^3
+# quad_time <- data.frame(time, Quadratic, Cubic)
+# funday_cov <- data.frame(time = 0:(chicks_YN.proc$nocc[1]-1),
+#                          funday = chick_ch$funday[1:chicks_YN.proc$nocc[1]])
+# chicks_YN.ddl$p <- merge_design.covariates(chicks_YN.ddl$Phi, 
+#                                               quad_time, bygroup = FALSE, bytime = TRUE)
+# chicks_YN.ddl$Phi <- merge_design.covariates(chicks_YN.ddl$Phi, 
+#                                                 quad_time, bygroup = FALSE, bytime = TRUE)
+# chicks_YN.ddl$Phi <- merge_design.covariates(chicks_YN.ddl$Phi, 
+#                                              funday_cov, bygroup = FALSE, bytime = TRUE)
 ```
 
 ### Detection probability modelling
 ```{r}
 # First assess the best model structure of encounter probability (p) while
 # keeping survival (Phi) constant
-chicks_p=function() 
+chicks_p = function(region_, ch_, groups_) 
 {
+  ch <- 
+    ch_ %>% 
+    filter(region %in% region_)
+  
+  ch.proc <- process.data(ch, model = "CJS", groups = groups_)
+  ch.ddl <- make.design.data(ch.proc)
+  
+  time <- c(0:(ch.proc$nocc[1]-1))
+  Quadratic <- time^2
+  Cubic <- time^3
+  
+  quad_time <- data.frame(time, Quadratic, Cubic)
+  funday_cov <- data.frame(time = 0:(ch.proc$nocc[1]-1),
+                           funday = ch$funday[1:ch.proc$nocc[1]])
+  ch.ddl$p <- merge_design.covariates(ch.ddl$Phi, 
+                                      quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        funday_cov, bygroup = FALSE, bytime = TRUE)
+  
   # Constant Phi
   Phi.dot <- 
     list(formula = ~1)
@@ -15075,18 +15700,6 @@ chicks_p=function()
   p.date <- 
     list(formula = ~date_j)
   
-  # interaction between year and age
-  p.year.x.age <- 
-    list(formula = ~season * Time)
-  
-  # interaction between year and quadratic age
-  p.year.x.quadage <- 
-    list(formula = ~season * Quadratic)
-  
-  # interaction between year and hatch date
-  p.year.x.date <- 
-    list(formula = ~season * date_j)
-  
   # additive effect between year and age
   p.year.age <- 
     list(formula = ~season + Time)
@@ -15099,50 +15712,89 @@ chicks_p=function()
   p.year.date <- 
     list(formula = ~season + date_j)
   
-  # additive effect between year and hatch date
-  p.region <- 
-    list(formula = ~region)
-  
-  # additive effect between year and hatch date
-  p.region.age <- 
-    list(formula = ~region + Time)
-  
-  # additive effect between year and hatch date
-  p.region.quadage <- 
-    list(formula = ~region + Quadratic)
+ # Only include region effects if region_ has >1 unique value
+  if (length(unique(ch$region)) > 1) {
+    
+    # p varies across regions
+    p.region <- list(formula = ~region)
+    
+    # additive effect between region and age
+    p.region.age <- list(formula = ~region + Time)
+    
+    # additive effect between region and quadratic age
+    p.region.quadage <- list(formula = ~region + Quadratic)
+  }
   
   # create model list for all a priori models above that begin with Phi. or p.
   cml <- create.model.list("CJS") 
   
   # runs model list in program MARK
-  model.list <- mark.wrapper(model.list = cml, data = chicks.proc, 
-                             ddl = chicks.ddl, 
+  model.list <- mark.wrapper(model.list = cml, data = ch.proc, 
+                             ddl = ch.ddl, 
                              threads = 4, brief = TRUE, delete = TRUE)
   
-  # store coPIleted model list
+  # store completed model list
   return(model.list) 
 }
+```
 
+
+```{r}
 # Run model selection to determine best structure of p
-chicks_p_run <- chicks_p()
+MP_chicks_p_run <- chicks_p(region_ = "MP", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+BC_chicks_p_run <- chicks_p(region_ = "BC", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+BSC_chicks_p_run <- chicks_p(region_ = "BSC", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+FP_chicks_p_run <- chicks_p(region_ = "FP", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+PI_chicks_p_run <- chicks_p(region_ = "PI", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+all_chicks_p_run <- chicks_p(region_ = c("PI", "MP", "BC", "BSC", "FP"), 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
 
 # inspect p AIC table to find top model
-chicks_p_run # best structure: p(~season + date_j)
+MP_chicks_p_run # best structure: p(~season + date_j)
+BC_chicks_p_run
+BSC_chicks_p_run
+FP_chicks_p_run
+PI_chicks_p_run
+all_chicks_p_run
+```
 
+```{r}
 saveRDS(chicks_p_run, "output/chicks_p_run.rds")
 
 #Create AIC model selection table
 
 chicks_p_run <- readRDS(file = "output/chicks_p_run.rds") 
 
-chicks_p_run$model.table %>% 
+all_chicks_p_run$model.table %>% 
  mutate(model = str_replace_all(model, c(
       "Quadratic" = "quadratic age",
        "date_j" = "hatch date",
-      "Time" = "time",
+      "Time" = "linear age",
       "season" = "year"))) %>%
   dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
-  cols_label(model = html("<i>Phillip Island</i>"), 
+  cols_label(model = html("<i>All Regions</i>"), 
              npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
   fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
   fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
@@ -15159,7 +15811,11 @@ chicks_p_run$model.table %>%
               table.font.size = 12, data_row.padding = 3, 
               row_group.padding = 4, summary_row.padding = 2, 
               column_labels.font.size = 14, row_group.font.size = 12, 
-              table.width = pct(80))
+              table.width = pct(80)) %>%
+  tab_header(
+    title = "Hooded Plover daily brood resighting probability",
+    subtitle = "Relative importance of age, region, and time"
+  )
 
 #Create AIC model selection table with delta AIC < 2
 chicks_p_run$model.table %>%
@@ -15195,18 +15851,25 @@ chicks_p_run$model.table %>%
 ```{r}
 PI_chicks_p_run <- readRDS("output/PI_chicks_p_run.rds")
 
-# Extract estimates of survival from top model
-Chick_p_reals <- PI_chicks_p_run[[4]]$results$real
-
-# wrangle dataframe to get annual estimates (grouped by "Year")
-Groups <- data.frame(str_split_fixed(rownames(Chick_p_reals), " ", n = 5))
-Chick_p_reals <- cbind(Groups, Chick_p_reals)
-Chick_p_reals$season <- unlist(substr(Chick_p_reals$X2, 2, 7))
-Chick_p_reals$age <- as.numeric(sub("^a", "", Chick_p_reals$X4))
+# Extract and wrangle estimates of survival from top model
+all_chicks_p_reals_region_quad <- 
+  all_chicks_p_run[[6]]$results$real %>%
+  # Convert rownames into a separate column
+  rownames_to_column(var = "rownames") %>%
+  # Split the rownames into 5 separate columns
+  separate(rownames, into = paste0("X", 1:5), sep = " ", remove = FALSE) %>%
+  filter(X1 == "p") %>%
+  # Extract region from X2
+  mutate(region = ifelse(nchar(X2) == 12, substr(X2, 8, 9),
+                         ifelse(nchar(X2) == 13, substr(X2, 8, 10), "XX")),
+         age = as.numeric(str_remove(X4, "^a")))
 
 ggplot() +
-  geom_line(data = Chick_p_reals, aes(x = age, y = estimate, color = as.numeric(season), group = season)) +
-  geom_ribbon(data = Chick_p_reals, aes(x = age, ymin = lcl, ymax = ucl, fill = as.numeric(season), group = season), alpha = 0.2) +
+  geom_line(data = all_chicks_p_reals_region_quad, 
+            aes(x = age, y = estimate)) +
+  geom_ribbon(data = all_chicks_p_reals_region_quad, 
+              aes(x = age, ymin = lcl, ymax = ucl), 
+              alpha = 0.2) +
   scale_color_gradient(
     low = "black",
     high = "red",
@@ -15218,7 +15881,8 @@ ggplot() +
     name = "season"
   ) +
   ylab("daily detection probability of a brood") +
-  xlab("brood age (days)")
+  xlab("brood age (days)") +
+  facet_grid(. ~ region)
 
 Chick_p_reals <- Chick_p_reals[which(Chick_p_reals$X1 == "p"),]
 
@@ -15230,8 +15894,27 @@ row.names(Chick_p_reals) <- NULL
 ### Survival modelling (Phi)
 ```{r}
 # Find best structure of Phi while using p = ~season * date_j
-chicks_Phi <- function() 
+chicks_Phi = function(region_, ch_, groups_) 
 {
+  ch <- 
+    ch_ %>% 
+    filter(region %in% region_)
+  
+  ch.proc <- process.data(ch, model = "CJS", groups = groups_)
+  ch.ddl <- make.design.data(ch.proc)
+  
+  time <- c(0:(ch.proc$nocc[1]-1))
+  Quadratic <- time^2
+  Cubic <- time^3
+  quad_time <- data.frame(time, Quadratic, Cubic)
+  funday_cov <- data.frame(time = 0:(ch.proc$nocc[1]-1),
+                           funday = ch$funday[1:ch.proc$nocc[1]])
+  ch.ddl$p <- merge_design.covariates(ch.ddl$Phi, 
+                                      quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        funday_cov, bygroup = FALSE, bytime = TRUE)
   # Constant Phi
   Phi.dot <- 
     list(formula = ~1)
@@ -15259,34 +15942,10 @@ chicks_Phi <- function()
   # Phi varies by management status
   Phi.mgmt_s <-
     list(formula = ~mgmt_s)
-
-  # # interaction between hatch date and age
-  # Phi.date.x.age <-
-  #   list(formula = ~date_j * Time)
-
-  # # interaction between hatch date and quadratic age
-  # Phi.date.x.quadage <-
-  #   list(formula = ~date_j * Quadratic)
-
-  # # interaction between year and hatch date
-  # Phi.season.x.date <-
-  #   list(formula = ~season * date_j)
   
-  # # interaction between hatch date and age and management level
-  # Phi.date.x.mgmt_l <-
-  #   list(formula = ~date_j * mgmt_l)
-
-  # # interaction between hatch date and quadratic age and management level
-  # Phi.age.x.mgmt_l <-
-  #   list(formula = ~Time * mgmt_l)
-
-  # # interaction between year and hatch date and management level
-  # Phi.quadage.x.mgmt_l <-
-  #   list(formula = ~Quadratic * mgmt_l)
-  
-  # # interaction between hatch date and age and management level
-  # Phi.date.mgmt_l <-
-  #   list(formula = ~date_j + mgmt_l)
+    # Phi varies by management status
+  Phi.mgmt_45 <-
+    list(formula = ~mgmt_45)
 
   # interaction between hatch date and quadratic age and management level
   Phi.age.mgmt_l <-
@@ -15296,21 +15955,13 @@ chicks_Phi <- function()
   Phi.quadage.mgmt_l <-
     list(formula = ~Quadratic + mgmt_l)
   
-  # # interaction between hatch date and age and management status
-  # Phi.date.x.mgmt_s <-
-  #   list(formula = ~date_j * mgmt_s)
+    # interaction between hatch date and quadratic age and management level
+  Phi.age.mgmt_45 <-
+    list(formula = ~Time + mgmt_45)
 
-  # # interaction between hatch date and quadratic age and management status
-  # Phi.age.x.mgmt_s <-
-  #   list(formula = ~Time * mgmt_s)
-  # 
-  # # interaction between year and hatch date and management status
-  # Phi.quadage.x.mgmt_s <-
-  #   list(formula = ~Quadratic * mgmt_s)
-  
-  # # interaction between hatch date and age and management status
-  # Phi.date.mgmt_s <-
-  #   list(formula = ~date_j + mgmt_s)
+  # interaction between year and hatch date and management level
+  Phi.quadage.mgmt_45 <-
+    list(formula = ~Quadratic + mgmt_45)
 
   # interaction between hatch date and quadratic age and management status
   Phi.age.mgmt_s <-
@@ -15332,6 +15983,10 @@ chicks_Phi <- function()
   Phi.funday.mgmt_s <-
     list(formula = ~ funday + mgmt_s)
   
+  # Additive effect of funday and management status
+  Phi.funday.mgmt_45 <-
+    list(formula = ~ funday + mgmt_45)
+  
     # Additive effect of funday and management level
   Phi.funday.age <-
     list(formula = ~ funday + Time)
@@ -15340,103 +15995,1142 @@ chicks_Phi <- function()
   Phi.funday.quadage <-
     list(formula = ~ funday + Quadratic)
   
+    # Only include region effects if region_ has >1 unique value
+  if (length(unique(ch$region)) > 1) {
+    
+    # p varies across regions
+    Phi.region <- 
+      list(formula = ~region)
+    
+    # additive effect between region and age
+    Phi.region.age <- 
+      list(formula = ~region + Time)
+    
+    # additive effect between region and quadratic age
+    Phi.region.quadage <- 
+      list(formula = ~region + Quadratic)
+    
+    # additive effect between region and age
+    Phi.region.age.funday <- 
+      list(formula = ~region + Time + funday)
+    
+    # additive effect between region and quadratic age
+    Phi.region.quadage.funday <- 
+      list(formula = ~region + Quadratic + funday)
+
+    # additive effect between region and age
+    Phi.region.age.mgmt_l <- 
+      list(formula = ~region + Time + mgmt_l)
+    
+    # additive effect between region and quadratic age
+    Phi.region.quadage.mgmt_l <- 
+      list(formula = ~region + Quadratic + mgmt_l)
+    
+        # additive effect between region and age
+    Phi.region.age.mgmt_s <- 
+      list(formula = ~region + Time + mgmt_s)
+    
+    # additive effect between region and quadratic age
+    Phi.region.quadage.mgmt_s <- 
+      list(formula = ~region + Quadratic + mgmt_s)
+    
+            # additive effect between region and age
+    Phi.region.age.mgmt_45 <- 
+      list(formula = ~region + Time + mgmt_45)
+    
+    # additive effect between region and quadratic age
+    Phi.region.quadage.mgmt_45 <- 
+      list(formula = ~region + Quadratic + mgmt_45)
+    
+    
+    # additive effect between region and quadratic age
+    Phi.region.funday <- 
+      list(formula = ~region + funday)
+    
+    # additive effect between region and quadratic age
+    Phi.region.date <- 
+      list(formula = ~region + date_j)
+    
+    # Additive effect of funday and management level
+    Phi.region.mgmt_l <-
+      list(formula = ~ region + mgmt_l)
+  
     # Additive effect of funday and management status
-  Phi.region <-
-    list(formula = ~ region)
+    Phi.region.mgmt_s <-
+      list(formula = ~ region + mgmt_s)
+    
+    # Additive effect of funday and management status
+    Phi.region.mgmt_45 <-
+      list(formula = ~ region + mgmt_45)
+    
+    # Additive effect of funday and management level
+    Phi.region.mgmt_l.funday <-
+      list(formula = ~ region + funday + mgmt_l)
   
-  # Additive effect of region and management level
-  Phi.region.mgmt_l <-
-    list(formula = ~ region + mgmt_l)
-
-  # Additive effect of region and management status
-  Phi.region.mgmt_s <-
-    list(formula = ~ region + mgmt_s)
+    # Additive effect of funday and management status
+    Phi.region.mgmt_s.funday <-
+      list(formula = ~ region + funday + mgmt_s)
+    
+    # Additive effect of funday and management status
+    Phi.region.mgmt_45.funday <-
+      list(formula = ~ region + funday + mgmt_45)
+    
+    # Additive effect of funday and management level
+    Phi.region.mgmt_l.date <-
+      list(formula = ~ region + date_j + mgmt_l)
   
-      # Additive effect of region and management level
-  Phi.region.age <-
-    list(formula = ~ region + Time)
-
-  # Additive effect of region and management status
-  Phi.region.quadage <-
-    list(formula = ~ region + Quadratic)
+    # Additive effect of funday and management status
+    Phi.region.mgmt_s.date <-
+      list(formula = ~ region + date_j + mgmt_s)
+    
+    # Additive effect of funday and management status
+    Phi.region.mgmt_45.date <-
+      list(formula = ~ region + date_j + mgmt_45)
+  }
   
+    # Only include region effects if region_ has >1 unique value
+  if (length(unique(ch$region)) > 1) {
+    # additive effect between region and quadratic age
+    p.region.age <- list(formula = ~region + Time)
+  } else {
+    p.age <- list(formula = ~Time)
+  }
   
-  #  # Interaction between funday and management level
-  # Phi.funday.x.mgmt_l <-
-  #   list(formula = ~ funday * mgmt_l)
-  # 
-  #  # Interaction between funday and management status
-  # Phi.funday.x.mgmt_s <-
-  #   list(formula = ~ funday * mgmt_s)
-
-  # # additive effect of hach date and age and management level
-  # Phi.date.age.mgmt_l <-
-  #   list(formula = ~date_j + Time + mgmt_l)
-  # 
-  # # additive effect of hatch date and quadratic age and management level
-  # Phi.date.quadage.mgmt_l <-
-  #   list(formula = ~date_j + Quadratic + mgmt_l)
-  # 
-  # # interaction between hatch date and age and management level
-  # Phi.date.x.age.mgmt_l <-
-  #   list(formula = ~date_j * Time + mgmt_l)
-  # 
-  # # interaction between hatch date and quadratic age and management level
-  # Phi.date.x.quadage.mgmt_l <-
-  #   list(formula = ~date_j * Quadratic + mgmt_l)
-  # 
-  # # interaction between year and hatch date and management level
-  # Phi.season.x.date.mgmt_l <-
-  #   list(formula = ~season * date_j + mgmt_l)
-  # 
-  # # additive between year and hatch date and management level
-  # Phi.season.date.mgmt_l <-
-  #   list(formula = ~season + date_j + mgmt_l)
-  # 
-  # # additive effect of hach date and age and management status
-  # Phi.date.age.mgmt_s <-
-  #   list(formula = ~date_j + Time + mgmt_s)
-  # 
-  # # additive effect of hatch date and quadratic age and management status
-  # Phi.date.quadage.mgmt_s <-
-  #   list(formula = ~date_j + Quadratic + mgmt_s)
-  # 
-  # # interaction between hatch date and age and management status
-  # Phi.date.x.age.mgmt_s <-
-  #   list(formula = ~date_j * Time + mgmt_s)
-  # 
-  # # interaction between hatch date and quadratic age and management status
-  # Phi.date.x.quadage.mgmt_s <-
-  #   list(formula = ~date_j * Quadratic + mgmt_s)
-  # 
-  # # interaction between year and hatch date and management status
-  # Phi.season.x.date.mgmt_s <-
-  #   list(formula = ~season * date_j + mgmt_s)
-  # 
-  # # additive between year and hatch date and management status
-  # Phi.season.date.mgmt_s <-
-  #   list(formula = ~season + date_j + mgmt_s)
-  # 
-  # # best structure of p determined from previous analysis
-  # p.year.x.quadage <- 
-  #   list(formula = ~season * Quadratic)
-  
-    # best structure of p determined from previous analysis
- p.region.quadage <- 
-    list(formula = ~region + Quadratic) 
- 
   # create model list for all a priori models above that begin with Phi. or p.
-  cml <- create.model.list("CJS")
+  cml <- create.model.list("CJS") 
   
   # runs model list in program MARK
-  model.list <- mark.wrapper(model.list = cml, data = chicks.proc, 
-                             ddl = chicks.ddl,
+  model.list <- mark.wrapper(model.list = cml, data = ch.proc, 
+                             ddl = ch.ddl, 
                              threads = 4, brief = TRUE, delete = TRUE)
   
-  # store coPIleted model list
+  # store completed model list
   return(model.list) 
 }
+```
 
+### region + funday * mgmt_l
+```{r}
+region_ = c("PI", "MP", "BC", "BSC", "FP")
+# region_ = "MP"
+groups_ = c("season", "region", "mgmt_l", "mgmt_s", "mgmt_45")
+ch_ = all_chicks_ch# %>% filter(mgmt_l %in% c("4", "5"))
+{
+  ch <- 
+    ch_ %>% 
+    filter(region %in% region_) %>%
+    group_by(region) %>%                     # group by region
+    mutate(date_js = (date_j - mean(date_j, na.rm = TRUE)) / 
+             sd(date_j, na.rm = TRUE)) %>%
+    ungroup()
+    
+  ch.proc <- process.data(ch, model = "CJS", groups = groups_)
+  ch.ddl <- make.design.data(ch.proc)
+  
+  time <- c(0:(ch.proc$nocc[1]-1))
+  Quadratic <- time^2
+  Cubic <- time^3
+  quad_time <- data.frame(time, Quadratic, Cubic)
+  funday_cov <- data.frame(time = 0:(ch.proc$nocc[1]-1),
+                           funday = ch$funday[1:ch.proc$nocc[1]])
+  ch.ddl$p <- merge_design.covariates(ch.ddl$Phi, 
+                                      quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        funday_cov, bygroup = FALSE, bytime = TRUE)
+}
+Phi.region.mgmt_l.funday <- 
+  mark(data = ch.proc, 
+       ddl = ch.ddl, 
+       model = "CJS",
+       model.parameters = list("Phi" = list(formula = ~region + funday + mgmt_l),
+                               "p" = list(formula = ~region + Time)),
+       brief = TRUE, 
+       delete = TRUE)
+
+Phi.region.mgmt_l.funday$results$beta
+
+# Extract betas and vcv
+betas <- Phi.region.mgmt_l.x.funday$results$beta
+vcv   <- Phi.region.mgmt_l.x.funday$results$beta.vcv
+
+# Assign proper row/col names to vcv
+rownames(vcv) <- rownames(betas)
+colnames(vcv) <- rownames(betas)
+
+# Define funday gradient
+funday_vals <- seq(min(all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")) %>% pull(funday)),
+                   max(all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")) %>% pull(funday)),
+                   length.out = 50)
+
+# mgmt_l levels
+mgmt_levels <- c(4,5)
+
+# region levels
+region_levels <- c("BC","FP","BSC","PI","MP")  # MP as baseline
+
+# number of simulations
+n_sims <- 10000
+
+# --- Function to build design matrix with interaction ---
+build_design <- function(funday_vals, mgmt_l_level, region_level) {
+  n <- length(funday_vals)
+  mat <- matrix(0, nrow = n, ncol = length(betas$estimate))
+  colnames(mat) <- rownames(betas)
+  
+  # Intercept
+  mat[, "Phi:(Intercept)"] <- 1
+  
+  # funday covariate
+  mat[, "Phi:funday"] <- funday_vals
+  
+  # mgmt_l main effect
+  if (!is.na(mgmt_l_level) && mgmt_l_level != 0) {
+    beta_name <- paste0("Phi:mgmt_l", mgmt_l_level)
+    if (beta_name %in% colnames(mat)) mat[, beta_name] <- 1
+    
+    # interaction with funday
+    beta_inter <- paste0("Phi:funday:mgmt_l", mgmt_l_level)
+    if (beta_inter %in% colnames(mat)) mat[, beta_inter] <- funday_vals
+  }
+  
+  # region main effect
+  if (!is.na(region_level) && region_level != "MP") {
+    beta_name <- paste0("Phi:region", region_level)
+    if (beta_name %in% colnames(mat)) mat[, beta_name] <- 1
+  }
+  
+  return(mat)
+}
+
+# --- Simulate beta draws ---
+vcv_pd <- nearPD(vcv)$mat
+vcv_pd <- as.matrix(vcv_pd)
+set.seed(123)
+beta_sims <- mvrnorm(n = n_sims, mu = betas$estimate, Sigma = vcv_pd)
+
+# --- Compute predicted survival for all combinations ---
+pred_list <- list()
+for (r in region_levels) {
+  for (m in mgmt_levels) {
+    design_mat <- build_design(funday_vals, m, r)
+    eta <- design_mat %*% t(beta_sims)
+    Phi_pred <- plogis(eta)
+    
+    pred_df_temp <- data.frame(
+      funday = funday_vals,
+      mean   = apply(Phi_pred, 1, mean),
+      lcl    = apply(Phi_pred, 1, quantile, 0.025),
+      ucl    = apply(Phi_pred, 1, quantile, 0.975),
+      mgmt_l = m,
+      region = r
+    )
+    
+    pred_list[[paste0(r,"_mgmt",m)]] <- pred_df_temp
+  }
+}
+
+# Combine all
+pred_df <- bind_rows(pred_list)
+
+# --- Plot ---
+cols <- brewer.pal(5, "Dark2")
+ggplot(pred_df %>% filter(region %in% region_), aes(x = funday, y = mean, color = region, linetype = as.factor(mgmt_l), fill = region)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Number of fundays exposed",
+       y = "Apparent daily brood survival (± 95% CI)",
+       color = "Region",
+       fill  = "Region",
+       linetype = "Management level") +
+  scale_color_manual(values = cols) +
+  scale_fill_manual(values = cols) +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  facet_grid(.~region)
+###
+Phi.region.mgmt_l.x.quadage <- 
+  mark(data = ch.proc, 
+       ddl = ch.ddl, 
+       model = "CJS",
+       model.parameters = list("Phi" = list(formula = ~ region + Quadratic * mgmt_l),
+                               "p" = list(formula = ~region + Quadratic)),
+       brief = TRUE, 
+       delete = TRUE)
+
+Phi.region.mgmt_l.x.quadage$results$beta
+
+# Extract and wrangle estimates of survival from top model
+all_chicks_Phi.region.mgmt_l.quadage_reals <- 
+  Phi.region.mgmt_l.quadage$results$real %>%
+  # Convert rownames into a separate column
+  rownames_to_column(var = "rownames") %>%
+  # Split the rownames into 5 separate columns
+  separate(rownames, into = paste0("X", 1:5), sep = " ", remove = FALSE) %>%
+  filter(X1 == "Phi") %>%
+  # Extract region from X2
+  mutate(region = ifelse(nchar(X2) == 12, substr(X2, 8, 9),
+                         ifelse(nchar(X2) == 13, substr(X2, 8, 10), "XX")),
+         mgmt_l = ifelse(nchar(X2) == 12, substr(X2, 10, 10),
+                         ifelse(nchar(X2) == 13, substr(X2, 11, 11), "XX")),
+         age = as.numeric(str_remove(X4, "^a")))
+
+cols <- brewer.pal(5, "Dark2")  # for 5 regions
+ggplot(all_chicks_Phi.region.mgmt_l.quadage_reals, 
+       aes(x = age, y = estimate, color = region, linetype = as.factor(mgmt_l), fill = region)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Number of fundays exposed",
+       y = "Apparent daily brood survival (± 95% CI)",
+       color = "Region",
+       fill  = "Region",
+       linetype = "Management level") +
+  scale_color_manual(values = cols) +
+  scale_fill_manual(values = cols) +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  facet_grid(.~region)
+```
+
+### region + funday + mgmt_l
+```{r}
+region_ = c("PI", "MP", "BC", "BSC", "FP")
+# region_ = "MP"
+groups_ = c("season", "region", "mgmt_l", "mgmt_s", "mgmt_45")
+ch_ = all_chicks_ch# %>% filter(mgmt_l %in% c("4", "5"))
+{
+  ch <- 
+    ch_ %>% 
+    filter(region %in% region_) %>%
+    group_by(region) %>%                     # group by region
+    mutate(date_js = (date_j - mean(date_j, na.rm = TRUE)) / 
+             sd(date_j, na.rm = TRUE)) %>%
+    ungroup()
+    
+  ch.proc <- process.data(ch, model = "CJS", groups = groups_)
+  ch.ddl <- make.design.data(ch.proc)
+  
+  time <- c(0:(ch.proc$nocc[1]-1))
+  Quadratic <- time^2
+  Cubic <- time^3
+  quad_time <- data.frame(time, Quadratic, Cubic)
+  funday_cov <- data.frame(time = 0:(ch.proc$nocc[1]-1),
+                           funday = ch$funday[1:ch.proc$nocc[1]])
+  ch.ddl$p <- merge_design.covariates(ch.ddl$Phi, 
+                                      quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        funday_cov, bygroup = FALSE, bytime = TRUE)
+}
+Phi.region.mgmt_l.funday.quadage <- 
+  mark(data = ch.proc, 
+       ddl = ch.ddl, 
+       model = "CJS",
+       model.parameters = list("Phi" = list(formula = ~region + funday + mgmt_l + Quadratic),
+                               "p" = list(formula = ~region + Quadratic)),
+       brief = TRUE, 
+       delete = TRUE)
+
+Phi.region.mgmt_l.funday.quadage$results$beta
+
+ # ---- Extract betas and vcv ----#
+betas <- Phi.region.mgmt_l.funday.quadage$results$beta
+vcv   <- Phi.region.mgmt_l.funday.quadage$results$beta.vcv
+
+# # keep only Phi parameters (drop detection ones)
+# betas <- betas[grep("^Phi:", rownames(betas)), , drop = FALSE]
+# vcv   <- vcv[rownames(betas), rownames(betas)]
+
+# ---- ensure names line up ----
+rownames(vcv) <- rownames(betas)
+colnames(vcv) <- rownames(betas)
+
+# ---- funday gradient ----
+funday_vals <- seq(
+  min(all_chicks_ch %>% filter(mgmt_l %in% c("1","2","3","4","5","6")) %>% pull(funday), na.rm = TRUE),
+  max(all_chicks_ch %>% filter(mgmt_l %in% c("1","2","3","4","5","6")) %>% pull(funday), na.rm = TRUE),
+  length.out = 50
+)
+
+# ---- mgmt and region levels ----
+mgmt_beta_names <- grep("^Phi:mgmt_l", rownames(betas), value = TRUE)
+mgmt_levels <- sub("^Phi:mgmt_l", "", mgmt_beta_names) %>% as.integer()
+mgmt_levels_all <- sort(unique(c(0, mgmt_levels)))
+
+region_levels <- c("BC","FP","BSC","PI","MP")  # MP = baseline
+
+# ---- sims ----
+n_sims <- 10000
+set.seed(123)
+vcv_pd <- as.matrix(nearPD(vcv)$mat)
+beta_sims <- mvrnorm(n = n_sims, mu = betas$estimate, Sigma = vcv_pd)
+
+# ---- Build design matrix ----
+build_design <- function(funday_vals, mgmt_l_level, region_level) {
+  n <- length(funday_vals)
+  mat <- matrix(0, nrow = n, ncol = length(betas$estimate))
+  colnames(mat) <- rownames(betas)
+  
+  # Intercept
+  if ("Phi:(Intercept)" %in% colnames(mat)) mat[, "Phi:(Intercept)"] <- 1
+  
+  # funday linear term
+  if ("Phi:funday" %in% colnames(mat)) mat[, "Phi:funday"] <- funday_vals
+  
+  # funday quadratic term
+  if ("Phi:Quadratic" %in% colnames(mat)) mat[, "Phi:Quadratic"] <- funday_vals^2
+  
+  # mgmt main effects
+  if (!is.na(mgmt_l_level) && mgmt_l_level != 0) {
+    beta_name <- paste0("Phi:mgmt_l", mgmt_l_level)
+    if (beta_name %in% colnames(mat)) mat[, beta_name] <- 1
+  }
+  
+  # region main effects (baseline MP)
+  if (!is.na(region_level) && region_level != "MP") {
+    beta_name <- paste0("Phi:region", region_level)
+    if (beta_name %in% colnames(mat)) mat[, beta_name] <- 1
+  }
+  
+  return(mat)
+}
+
+# ---- Predict survival ----
+pred_list <- list()
+for (r in region_levels) {
+  for (m in mgmt_levels_all) {
+    design_mat <- build_design(funday_vals, m, r)
+    eta <- design_mat %*% t(beta_sims)
+    Phi_pred <- plogis(eta)
+    
+    pred_df_temp <- data.frame(
+      funday = funday_vals,
+      mean   = rowMeans(Phi_pred),
+      lcl    = apply(Phi_pred, 1, quantile, probs = 0.025),
+      ucl    = apply(Phi_pred, 1, quantile, probs = 0.975),
+      mgmt_l = m,
+      region = r
+    )
+    
+    pred_list[[paste0(r, "_mgmt", m)]] <- pred_df_temp
+  }
+}
+
+pred_df <- bind_rows(pred_list)
+
+# ---- Plot ----
+cols <- brewer.pal(5, "Dark2")
+
+ggplot(pred_df,
+       aes(x = funday, y = mean, color = region, linetype = as.factor(mgmt_l), fill = region)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Number of fundays exposed",
+       y = "Apparent daily brood survival (± 95% CI)",
+       color = "Region",
+       fill  = "Region",
+       linetype = "Management level") +
+  scale_color_manual(values = cols) +
+  scale_fill_manual(values = cols) +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  facet_grid(. ~ region)
+###
+Phi.region.mgmt_l.x.quadage <- 
+  mark(data = ch.proc, 
+       ddl = ch.ddl, 
+       model = "CJS",
+       model.parameters = list("Phi" = list(formula = ~ region + Quadratic * mgmt_l),
+                               "p" = list(formula = ~region + Quadratic)),
+       brief = TRUE, 
+       delete = TRUE)
+
+Phi.region.mgmt_l.x.quadage$results$beta
+
+# Extract and wrangle estimates of survival from top model
+all_chicks_Phi.region.mgmt_l.quadage_reals <- 
+  Phi.region.mgmt_l.quadage$results$real %>%
+  # Convert rownames into a separate column
+  rownames_to_column(var = "rownames") %>%
+  # Split the rownames into 5 separate columns
+  separate(rownames, into = paste0("X", 1:5), sep = " ", remove = FALSE) %>%
+  filter(X1 == "Phi") %>%
+  # Extract region from X2
+  mutate(region = ifelse(nchar(X2) == 12, substr(X2, 8, 9),
+                         ifelse(nchar(X2) == 13, substr(X2, 8, 10), "XX")),
+         mgmt_l = ifelse(nchar(X2) == 12, substr(X2, 10, 10),
+                         ifelse(nchar(X2) == 13, substr(X2, 11, 11), "XX")),
+         age = as.numeric(str_remove(X4, "^a")))
+
+cols <- brewer.pal(5, "Dark2")  # for 5 regions
+ggplot(all_chicks_Phi.region.mgmt_l.quadage_reals, 
+       aes(x = age, y = estimate, color = region, linetype = as.factor(mgmt_l), fill = region)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Number of fundays exposed",
+       y = "Apparent daily brood survival (± 95% CI)",
+       color = "Region",
+       fill  = "Region",
+       linetype = "Management level") +
+  scale_color_manual(values = cols) +
+  scale_fill_manual(values = cols) +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  facet_grid(.~region)
+```
+
+
+### region + funday * mgmt_l + quadratic
+```{r}
+region_ = c("PI", "MP", "BC", "BSC", "FP")
+# region_ = "MP"
+groups_ = c("season", "region", "mgmt_l", "mgmt_s", "mgmt_45")
+ch_ = all_chicks_ch %>% filter(mgmt_l %in% c("4", "5"))
+{
+  ch <- 
+    ch_ %>% 
+    filter(region %in% region_) %>%
+    group_by(region) %>%                     # group by region
+    mutate(date_js = (date_j - mean(date_j, na.rm = TRUE)) / 
+             sd(date_j, na.rm = TRUE)) %>%
+    ungroup()
+    
+  ch.proc <- process.data(ch, model = "CJS", groups = groups_)
+  ch.ddl <- make.design.data(ch.proc)
+  
+  time <- c(0:(ch.proc$nocc[1]-1))
+  Quadratic <- time^2
+  Cubic <- time^3
+  quad_time <- data.frame(time, Quadratic, Cubic)
+  funday_cov <- data.frame(time = 0:(ch.proc$nocc[1]-1),
+                           funday = ch$funday[1:ch.proc$nocc[1]])
+  ch.ddl$p <- merge_design.covariates(ch.ddl$Phi, 
+                                      quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        quad_time, bygroup = FALSE, bytime = TRUE)
+  ch.ddl$Phi <- merge_design.covariates(ch.ddl$Phi, 
+                                        funday_cov, bygroup = FALSE, bytime = TRUE)
+}
+Phi.region.mgmt_l.Time <- 
+  mark(data = ch.proc, 
+       ddl = ch.ddl, 
+       model = "CJS",
+       model.parameters = list("Phi" = list(formula = ~region + Time + mgmt_l),
+                               "p" = list(formula = ~region + Time)),
+       brief = TRUE, 
+       delete = TRUE)
+
+Phi.region.mgmt_l.Time$results$beta
+
+# --- Extract betas and vcv ---
+betas <- Phi.region.mgmt_l.Time$results$beta
+vcv   <- Phi.region.mgmt_l.Time$results$beta.vcv
+
+# Assign proper row/col names to vcv
+rownames(vcv) <- rownames(betas)
+colnames(vcv) <- rownames(betas)
+
+# --- Define Time gradient ---
+Time_vals <- seq(
+  1, 35
+)
+
+# --- mgmt_l levels and region levels ---
+mgmt_levels <- c(4, 5)
+region_levels <- c("BC", "FP", "BSC", "PI", "MP")  # MP as baseline
+
+# --- number of simulations ---
+n_sims <- 10000
+
+# --- Function to build design matrix (no quadratic, no interaction) ---
+build_design <- function(Time_vals, mgmt_l_level, region_level) {
+  n <- length(Time_vals)
+  mat <- matrix(0, nrow = n, ncol = length(betas$estimate))
+  colnames(mat) <- rownames(betas)
+  
+  # Intercept
+  mat[, "Phi:(Intercept)"] <- 1
+  
+  # Time linear term
+  if ("Phi:Time" %in% colnames(mat)) {
+    mat[, "Phi:Time"] <- Time_vals
+  }
+  
+  # mgmt_l main effect
+  beta_name <- paste0("Phi:mgmt_l", mgmt_l_level)
+  if (beta_name %in% colnames(mat)) {
+    mat[, beta_name] <- 1
+  }
+  
+  # region main effect
+  if (region_level != "MP") {
+    beta_name <- paste0("Phi:region", region_level)
+    if (beta_name %in% colnames(mat)) {
+      mat[, beta_name] <- 1
+    }
+  }
+  
+  return(mat)
+}
+
+# --- Simulate beta draws ---
+vcv_pd <- nearPD(vcv)$mat
+vcv_pd <- as.matrix(vcv_pd)
+set.seed(123)
+beta_sims <- MASS::mvrnorm(n = n_sims, mu = betas$estimate, Sigma = vcv_pd)
+
+# --- Compute predicted survival for all combinations ---
+pred_list <- list()
+for (r in region_levels) {
+  for (m in mgmt_levels) {
+    design_mat <- build_design(Time_vals, m, r)
+    eta <- design_mat %*% t(beta_sims)
+    Phi_pred <- plogis(eta)
+    
+    pred_df_temp <- data.frame(
+      Time  = Time_vals,
+      mean  = apply(Phi_pred, 1, mean),
+      lcl   = apply(Phi_pred, 1, quantile, 0.025),
+      ucl   = apply(Phi_pred, 1, quantile, 0.975),
+      mgmt_l = as.factor(m),
+      region = r
+    )
+    
+    pred_list[[paste0(r, "_mgmt", m)]] <- pred_df_temp
+  }
+}
+
+# Combine all predictions
+pred_df <- bind_rows(pred_list)
+
+# --- Plot ---
+cols <- RColorBrewer::brewer.pal(5, "Dark2")
+
+ggplot(pred_df %>% filter(region %in% region_levels), 
+       aes(x = Time, y = mean, color = region, linetype = mgmt_l, fill = region)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.5, color = NA) +
+  labs(
+    x = "Brood Age (days)",
+    y = "Apparent daily brood survival (±95% CI)",
+    linetype = "Management"
+  ) +
+  scale_color_manual(values = cols, guide = "none") +   # suppress region color legend
+  scale_fill_manual(values = cols, guide = "none") +    # suppress region fill legend
+  scale_linetype_manual(
+    values = c("4" = "solid", "5" = "twodash"),          # optional: make lines visually distinct
+    labels = c("4" = "fencing", "5" = "wardens")        # rename legend entries
+  ) +
+  theme_minimal() +
+  theme(legend.position = c(0.85, 0.2)) +
+  facet_grid(. ~ region, labeller = as_labeller(region_names))
+
+
+ggplot(all_chicks_p_reals_region_quad, 
+       aes(x = age, y = estimate, color = region, fill = region)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.5, color = NA) +
+  labs(
+    x = "Brood Age (days)",
+    y = "Daily brood detection probability (±95% CI)",
+  ) +
+  scale_color_manual(values = cols, guide = "none") +   # suppress region color legend
+  scale_fill_manual(values = cols, guide = "none") +    # suppress region fill legend
+  theme_minimal() +
+  theme(legend.position = c(0.85, 0.2)) +
+  facet_grid(. ~ region, labeller = as_labeller(region_names))
+
+ggplot() +
+  geom_line(data = all_chicks_p_reals_region_quad, 
+            aes(x = age, y = estimate)) +
+  geom_ribbon(data = all_chicks_p_reals_region_quad, 
+              aes(x = age, ymin = lcl, ymax = ucl), 
+              alpha = 0.2) +
+  scale_color_gradient(
+    low = "black",
+    high = "red",
+    name = "season"
+  ) +
+  scale_fill_gradient(
+    low = "black",
+    high = "red",
+    name = "season"
+  ) +
+  ylab("daily detection probability of a brood") +
+  xlab("brood age (days)") +
+  facet_grid(. ~ region)
+```
+### here
+```{r}
+# Run model selection to determine best structure of p
+MP_chicks_Phi_run <- chicks_Phi(region_ = "MP", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+BC_chicks_Phi_run <- chicks_Phi(region_ = "BC", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+BSC_chicks_Phi_run <- chicks_Phi(region_ = "BSC", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+FP_chicks_Phi_run <- chicks_Phi(region_ = "FP", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+PI_chicks_Phi_run <- chicks_Phi(region_ = "PI", 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+all_chicks_Phi_run <- chicks_Phi(region_ = c("PI", "MP", "BC", "BSC", "FP"), 
+                            ch_ = all_chicks_ch,
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+# inspect p AIC table to find top model
+MP_chicks_Phi_run # best structure: p(~season + date_j)
+BC_chicks_Phi_run
+BSC_chicks_Phi_run
+FP_chicks_Phi_run
+PI_chicks_Phi_run
+all_chicks_Phi_run
+
+# Run model selection to determine best structure of p
+MP_chicks_45_Phi_run <- chicks_Phi(region_ = "MP", 
+                            ch_ = all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")),
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+BC_chicks_45_Phi_run <- chicks_Phi(region_ = "BC", 
+                            ch_ = all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")),
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+BSC_chicks_45_Phi_run <- chicks_Phi(region_ = "BSC", 
+                            ch_ = all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")),
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+FP_chicks_45_Phi_run <- chicks_Phi(region_ = "FP", 
+                            ch_ = all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")),
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+PI_chicks_45_Phi_run <- chicks_Phi(region_ = "PI", 
+                            ch_ = all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")),
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+all_chicks_45_Phi_run <- chicks_Phi(region_ = c("PI", "MP", "BC", "BSC", "FP"), 
+                            ch_ = all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")),
+                            groups = c("season", "region", 
+                                       "mgmt_l", "mgmt_s", "mgmt_45"))
+
+# inspect p AIC table to find top model
+MP_chicks_45_Phi_run # best structure: p(~season + date_j)
+BC_chicks_45_Phi_run
+BSC_chicks_45_Phi_run
+FP_chicks_45_Phi_run
+PI_chicks_45_Phi_run
+all_chicks_45_Phi_run
+
+
+all_chicks_45_Phi_run$model.table %>%
+   filter(DeltaAICc < 20 | model == "Phi(~1)p(~region + Time)") %>% 
+ mutate(model = str_replace_all(model, c(
+      "Quadratic" = "quadratic age",
+       "date_j" = "hatch date",
+      "Time" = "linear age",
+      "season" = "year",
+      "mgmt_l" = "management level"))) %>%
+  dplyr::select(model, npar, DeltaAICc, weight) %>% gt() %>% 
+  cols_label(model = html("<i>All Regions</i>"), 
+             npar = "K", DeltaAICc = "DeltaAICc", weight = "weight") %>% 
+  fmt_number(columns = DeltaAICc, decimals = 2, use_seps = FALSE) %>% 
+  fmt_number(columns = weight, decimals = 3, use_seps = FALSE) %>% 
+  cols_align(align = "left", columns = vars(model)) %>% 
+  tab_style(style = cell_text(weight = "bold"),
+    locations = cells_body(
+      columns = vars(model),
+      rows = model == "Phi(~1)p(~region + linear age)")) %>% 
+   text_transform(
+    locations = cells_body(columns = vars(model)),
+    fn = function(x) gsub("\\)", ") ", x) ) %>%
+  tab_options(row_group.font.weight = "bold", 
+              row_group.background.color = brewer.pal(9,"Greys")[3], 
+              table.font.size = 12, data_row.padding = 3, 
+              row_group.padding = 4, summary_row.padding = 2, 
+              column_labels.font.size = 14, row_group.font.size = 12, 
+              table.width = pct(100)) %>%
+  tab_header(
+    title = "Hooded Plover daily brood apparent survival",
+    subtitle = "Relative importance of age, region, and time"
+  )
+```
+
+```{r}
+library(MASS)
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+
+# Extract betas and vcv
+betas <- all_chicks_45_Phi_run[[31]]$results$beta
+vcv   <- all_chicks_45_Phi_run[[31]]$results$beta.vcv
+
+# Assign proper row/col names to vcv
+rownames(vcv) <- rownames(betas)
+colnames(vcv) <- rownames(betas)
+
+# Define funday gradient
+funday_vals <- 
+  seq(all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")) %>% pull(funday) %>% min(), 
+      all_chicks_ch %>% filter(mgmt_l %in% c("4", "5")) %>% pull(funday) %>% max(), 
+      length.out = 50)
+
+# mgmt_l levels (adjust depending on your data coding)
+mgmt_levels <- c(4,5)  # you had 4 & 5 in your previous plot
+
+# region levels
+region_levels <- c("BC","FP","BSC","PI","MP")  # adjust if MP is baseline
+
+# number of simulations
+n_sims <- 10000
+
+# --- Function to build design matrix for given funday, mgmt_l, and region ---
+build_design <- function(funday_vals, mgmt_l_level, region_level) {
+  n <- length(funday_vals)
+  mat <- matrix(0, nrow = n, ncol = length(betas$estimate))
+  colnames(mat) <- rownames(betas)
+  
+  # Intercept
+  mat[, "Phi:(Intercept)"] <- 1
+  
+  # funday covariate
+  mat[, "Phi:funday"] <- funday_vals
+  
+  # mgmt_l
+  if (!is.na(mgmt_l_level) && mgmt_l_level != 0) {
+    beta_name <- paste0("Phi:mgmt_l", mgmt_l_level)
+    if (beta_name %in% colnames(mat)) mat[, beta_name] <- 1
+  }
+  
+  # region
+  if (!is.na(region_level) && region_level != "MP") {  # assuming MP is baseline
+    beta_name <- paste0("Phi:region", region_level)
+    if (beta_name %in% colnames(mat)) mat[, beta_name] <- 1
+  }
+  
+  return(mat)
+}
+
+# --- Simulate beta draws ---
+vcv_pd <- nearPD(vcv)$mat  # returns a "Matrix" object
+vcv_pd <- as.matrix(vcv_pd)  # convert back to normal matrix
+set.seed(123)
+beta_sims <- mvrnorm(n = n_sims, mu = betas$estimate, Sigma = vcv_pd)
+
+# --- Compute predicted survival for all combinations ---
+pred_list <- list()
+for (r in region_levels) {
+  for (m in mgmt_levels) {
+    design_mat <- build_design(funday_vals, m, r)
+    eta <- design_mat %*% t(beta_sims)
+    Phi_pred <- plogis(eta)
+    
+    pred_df_temp <- data.frame(
+      funday = funday_vals,
+      mean   = apply(Phi_pred, 1, mean),
+      lcl    = apply(Phi_pred, 1, quantile, 0.025),
+      ucl    = apply(Phi_pred, 1, quantile, 0.975),
+      mgmt_l = m,
+      region = r
+    )
+    
+    pred_list[[paste0(r,"_mgmt",m)]] <- pred_df_temp
+  }
+}
+
+# Combine all
+pred_df <- bind_rows(pred_list)
+
+# --- Plot ---
+cols <- brewer.pal(5, "Dark2")  # for 5 regions
+ggplot(pred_df, aes(x = funday, y = mean, color = region, linetype = as.factor(mgmt_l), fill = region)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Number of fundays exposed",
+       y = "Apparent daily brood survival (± 95% CI)",
+       color = "Region",
+       fill  = "Region",
+       linetype = "Management level") +
+  scale_color_manual(values = cols) +
+  scale_fill_manual(values = cols) +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  facet_grid(.~region)
+```
+
+```{r}
+library(MASS)
+library(Matrix)
+library(dplyr)
+library(ggplot2)
+library(RColorBrewer)
+
+# Extract betas and VCV
+betas <- all_chicks_Phi_run[[30]]$results$beta
+vcv   <- all_chicks_Phi_run[[30]]$results$beta.vcv
+
+# Fix near-singular VCV
+vcv_pd <- nearPD(vcv)$mat
+vcv_pd <- as.matrix(vcv_pd)
+
+# Define covariate values
+date_vals <- 
+  seq(all_chicks_ch %>% pull(date_j) %>% min(), 
+      all_chicks_ch %>% pull(date_j) %>% max(), 
+      length.out = 50)
+mgmt_levels <- c(0, 1, 2, 3, 4, 5, 6)  # adjust if needed
+regions <- c("MP", "BC", "FP", "BSC", "PI")  # adjust names if needed
+
+n_sims <- 10000
+set.seed(123)
+
+# Simulate beta draws
+beta_sims <- mvrnorm(n = n_sims, mu = betas$estimate, Sigma = vcv_pd)
+
+# --- Function to build design matrix for Phi ---
+build_design_Phi <- function(region, date_val, mgmt_l) {
+  n <- length(date_val)
+  mat <- matrix(0, nrow = n, ncol = length(betas$estimate))
+  colnames(mat) <- rownames(betas)
+  
+  # Intercept
+  mat[, "Phi:(Intercept)"] <- 1
+  
+  # Region
+  if (region != "MP") mat[, paste0("Phi:region", region)] <- 1
+  
+  # Date
+  mat[, "Phi:date_j"] <- date_val
+  
+  # mgmt_l
+  if (mgmt_l != 0) mat[, paste0("Phi:mgmt_l", mgmt_l)] <- 1
+  
+  return(mat)
+}
+
+
+# --- Simulate predictions ---
+pred_list <- list()
+
+# Example: loop over regions, mgmt levels, and funday values for Phi
+for (region in regions) {
+  for (mgmt in mgmt_levels) {
+    
+    design_mat <- build_design_Phi(region, date_vals, mgmt)
+    
+    # Linear predictor
+    eta <- design_mat %*% t(beta_sims)
+    
+    # Inverse logit
+    Phi_pred <- plogis(eta)
+    
+    # Summarize
+    Phi_mean <- apply(Phi_pred, 1, mean)
+    Phi_lcl  <- apply(Phi_pred, 1, quantile, probs = 0.025)
+    Phi_ucl  <- apply(Phi_pred, 1, quantile, probs = 0.975)
+    
+    pred_list[[paste(region, mgmt, sep = "_")]] <- data.frame(
+      date_j = date_vals,
+      mean   = Phi_mean,
+      lcl    = Phi_lcl,
+      ucl    = Phi_ucl,
+      region = region,
+      mgmt_l = mgmt
+    )
+  }
+}
+
+pred_df <- bind_rows(pred_list)
+
+# --- Plot ---
+cols <- brewer.pal(7, "Dark2")  # one color per region
+
+ggplot(pred_df, aes(x = date_j, y = mean, color = as.factor(mgmt_l), fill = as.factor(mgmt_l))) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  scale_color_manual(values = cols) +
+  scale_fill_manual(values = cols) +
+  labs(x = "Date (j)", y = "Apparent daily brood survival (± 95% CI)",
+       color = "Region", fill = "Region") +
+  theme_minimal() +
+  facet_grid(. ~region)
+```
+
+
+
+```{r}
+# Extract and wrangle estimates of survival from top model
+all_chicks_Phi_reals_region_age_mgmt_l <- 
+  all_chicks_45_Phi_run[[39]]$results$real %>%
+  # Convert rownames into a separate column
+  rownames_to_column(var = "rownames") %>%
+  # Split the rownames into 5 separate columns
+  separate(rownames, into = paste0("X", 1:5), sep = " ", remove = FALSE) %>%
+  filter(X1 == "Phi") %>%
+  # Extract region from X2
+  mutate(region = ifelse(nchar(X2) == 12, substr(X2, 8, 9),
+                         ifelse(nchar(X2) == 13, substr(X2, 8, 10), "XX")),
+         mgmt_l = ifelse(nchar(X2) == 12, substr(X2, 10, 10),
+                         ifelse(nchar(X2) == 13, substr(X2, 11, 11), "XX")),
+         age = as.numeric(str_remove(X4, "^a")))
+
+cols <- brewer.pal(5, "Dark2")  # for 5 regions
+ggplot(all_chicks_Phi_reals_region_age_mgmt_l, 
+       aes(x = age, y = estimate, color = region, linetype = as.factor(mgmt_l), fill = region)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Number of fundays exposed",
+       y = "Apparent daily brood survival (± 95% CI)",
+       color = "Region",
+       fill  = "Region",
+       linetype = "Management level") +
+  scale_color_manual(values = cols) +
+  scale_fill_manual(values = cols) +
+  theme_minimal() +
+  theme(legend.position = "right") +
+  facet_grid(.~region)
+
+
+### plot the survival trend of the Phi(~funday + mgmt_l)p(~Quadratic) model ----
+# extract the beta and vcv estimates
+funday_mgmt_l_vcv <- 
+  all_chicks_45_Phi_run[[27]]$results$beta.vcv
+
+funday_mgmt_l_betas <- 
+  all_chicks_45_Phi_run[[27]]$results$beta
+
+# Assign the correct names to the vcv matrix
+rownames(funday_mgmt_l_vcv) <- rownames(funday_mgmt_l_betas)
+colnames(funday_mgmt_l_vcv) <- rownames(funday_mgmt_l_betas)
+
+# Define funday gradient
+funday_vals <- 
+  seq(min(MP_chicks.ddl$Phi$funday), max(MP_chicks.ddl$Phi$funday), length.out = 50)
+
+# mgmt_l levels (assuming 0-5 coded, adjust if different)
+mgmt_levels <- paste0("mgmt_l", 0:5)  # adjust 0 if intercept represents mgmt_l0
+
+# Number of simulations
+n_sims <- 10000
+
+# --- Function to build design matrix for a given mgmt_l ---
+build_design <- function(funday_vals, mgmt_l_level) {
+  n <- length(funday_vals)
+  
+  # Create an empty matrix with same columns as betas
+  mat <- matrix(0, nrow = n, ncol = length(funday_mgmt_l_betas$estimate))
+  colnames(mat) <- rownames(funday_mgmt_l_betas)
+  
+  # Fill intercept
+  mat[, "Phi:(Intercept)"] <- 1
+  
+  # Fill funday covariate
+  mat[, "Phi:funday"] <- funday_vals
+  
+  # Fill the mgmt_l dummy
+  if (mgmt_l_level != 0) {   # baseline is 0, others add their beta
+    mat[, paste0("Phi:mgmt_l", mgmt_l_level)] <- 1
+  }
+  
+  return(mat)
+}
+library(MASS)
+# --- Simulate beta draws ---
+set.seed(123)
+beta_sims <- mvrnorm(n = n_sims, mu = funday_mgmt_l_betas$estimate, Sigma = funday_mgmt_l_vcv)
+
+# --- Compute predicted survival and 95% CIs ---
+pred_list <- list()
+
+for (i in 0:5) {  # mgmt_l levels
+  design_mat <- build_design(funday_vals, i)
+  
+  # Linear predictor
+  eta <- design_mat %*% t(beta_sims)
+  
+  # Transform via inverse logit
+  Phi_pred <- plogis(eta)
+  
+  # Compute pointwise summary: mean and 95% CI
+  Phi_mean <- apply(Phi_pred, 1, mean)
+  Phi_lcl  <- apply(Phi_pred, 1, quantile, probs = 0.025)
+  Phi_ucl  <- apply(Phi_pred, 1, quantile, probs = 0.975)
+  
+  pred_list[[paste0("mgmt_l", i)]] <- data.frame(
+    funday = funday_vals,
+    mean   = Phi_mean,
+    lcl    = Phi_lcl,
+    ucl    = Phi_ucl,
+    mgmt_l = i
+  )
+}
+
+# Combine into single dataframe
+pred_df <- bind_rows(pred_list)
+
+# --- Plot ---
+library(ggplot2)
+
+# Extract two Dark2 colors
+cols <- brewer.pal(3, "Dark2")[1:2]  # pick first two colors
+
+MP_chick_ch %>% pull(mgmt_l) %>% table()
+# note that I removed the prediction of the management level 2 because it failed to properly estimate this likely due to low sample size (only 4 broods experienced this treatment)
+
+fundays_mgmt_l_brood_surv_plot <- 
+  ggplot(pred_df %>% 
+         filter(mgmt_l != 2), 
+       aes(x = funday, y = mean, color = as.numeric(mgmt_l), fill = as.numeric(mgmt_l))) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl), alpha = 0.2, color = NA) +
+  labs(x = "Number of fundays (weekend days and holidays) exposed to", 
+       y = "Apparent daily brood survival (± 95% CI)",  color = "Management\nlevel",  # line break with \n
+    fill = "Management\nlevel"    # line break with \n
+  ) +
+  theme_minimal() +
+  facet_grid(. ~ mgmt_l) +
+  scale_color_gradient(
+    low = cols[2],  # from Dark2[2]
+    high = cols[1]  # to Dark2[1]
+  ) +
+  scale_fill_gradient(
+    low = cols[2],  # from Dark2[2]
+    high = cols[1]  # to Dark2[1]
+  ) +
+  luke_theme +
+  theme(legend.position = "none")
+
+fundays_mgmt_l_brood_surv_plot
+
+ggsave(plot = fundays_mgmt_l_brood_surv_plot, 
+       filename = "fundays_mgmt_l_brood_surv_plot.png", 
+       path = "results/", height = 4, width = 8)
+
+```
+
+
+```{r}
 # Run model selection to determine best structure of Phi
 chicks_Phi_run <- chicks_Phi()
 
@@ -16103,8 +17797,7 @@ tbl_regression(humans_fun_day_BSC_, intercept = TRUE,
 
 Bass Coast
 ```{r}
-tbl_reg
-ression(humans_fun_day_BC_, intercept = TRUE, 
+tbl_regression(humans_fun_day_BC_, intercept = TRUE, 
                label = list(obs_date2 ~ "Date", funday ~ "Weekends & Holidays"))
 ```
 
